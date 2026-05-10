@@ -204,6 +204,7 @@ Lessons are markdown files with YAML frontmatter. They live in `lessons/inbox/` 
 
 ## Frontmatter
 
+```yaml
 ---
 id: <project>:lesson:<slug>
 title: <title>
@@ -212,9 +213,11 @@ status: draft | promoted | discarded
 tags: [...]
 created: YYYY-MM-DD
 ---
+```
 
 ## Body
 
+```markdown
 ## Observation
 
 What happened or was noticed. For feedback stream: the user's stated direction verbatim or close to it.
@@ -226,6 +229,7 @@ The non-obvious implication. What would go wrong without this lesson.
 ## How to apply
 
 Concrete guidance for next time.
+```
 
 ## Filename
 
