@@ -17,7 +17,7 @@
 | Field | Type | Notes |
 |---|---|---|
 | `slug` | string | Inner slug only (no namespace). Include when the value would differ from the filename stem; omit otherwise. |
-| `synced-at-commit` | string | Git SHA of the commit when this page was last verified against its source files. Managed exclusively by the sync skill — the capture skill never sets this field under any conditions. Omit on creation and on update regardless of whether `describes-files` is non-empty. |
+| `synced-at-commit` | string | Git SHA of the commit when this page was last verified against its source files. Managed exclusively by the sync skill — the capture skill never sets this field under any conditions. Omit on creation and on update regardless of whether `describes-files` is non-empty. See the sync skill for the rules governing when this field is set. |
 | `describes-files` | string[] | Paths to source files this page tracks. Non-empty = code-tracking page; absent or empty = concept/decision page with no file-bound staleness. |
 | `tags` | string[] | Categorization labels. |
 
@@ -62,4 +62,6 @@ N is the count of pages successfully written and validated in the batch run. Ski
 
 Example: `wiki: capture auth-design — Auth layer design decisions`
 
-> **Note:** Commit messages use the Unicode em dash (U+2014, `—`). Before committing, check `git config i18n.commitEncoding` — if the value is absent or non-UTF-8, substitute `--` (ASCII double-hyphen) for the em dash and include the substituted message text in your notification to the user before proceeding with the commit.
+> **Note:** Commit messages use the Unicode em dash (U+2014, `—`). Before committing:
+> 1. Run `git config i18n.commitEncoding`. If the output is empty, `utf-8`, `utf8`, `UTF-8`, or `UTF8`, proceed with the em dash. Any other value (e.g. `cp1252`, `latin-1`) is non-UTF-8 — substitute `--` (ASCII double-hyphen) for the em dash.
+> 2. If the `git commit` command fails for any reason, show the git error output to the user, do not retry automatically, and do not mark the page as committed.
