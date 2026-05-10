@@ -140,3 +140,28 @@ def rebuild(ai_dir: str, db_path: str, schema_path: str) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Rebuild memex.db from .ai/ markdown files."
+    )
+    parser.add_argument("ai_dir", help="Path to the project's .ai/ directory")
+    parser.add_argument(
+        "--db", default=None,
+        help="Path to output .db file (default: <ai_dir>/memex.db)",
+    )
+    parser.add_argument(
+        "--schema", default=None,
+        help="Path to schema.sql (default: <script_dir>/../db/schema.sql)",
+    )
+    args = parser.parse_args()
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    db_path = args.db or os.path.join(args.ai_dir, "memex.db")
+    schema_path = args.schema or os.path.join(script_dir, "..", "db", "schema.sql")
+
+    rebuild(args.ai_dir, db_path, schema_path)
+    print(f"Rebuilt {db_path}")
