@@ -8,8 +8,8 @@
 |---|---|---|
 | ✅ | Ingest Karpathy | Three sources analyzed: Software 2.0, LLM OS, AutoResearch. See `sources/analyzed/2026-05-09-karpathy-*.md`. |
 | ✅ | Ingest user's existing LLM wiki build | second-brain-blueprint analyzed 2026-05-09. SQLite crash-safety also ingested (WAL fix identified). |
-| ⏭️ | Ingest Superpowers | Influential exemplar; deliberately last to avoid cargo-cult (GOALS.md anti-goals). |
-| ☐ | Synthesis session | Compose research findings into design proposals; resolve format/schema decisions. |
+| ✅ | Ingest Superpowers | Analyzed 2026-05-09. 14 skills; key findings: mandatory invocation, CSO description trap, TDD-for-documentation, minimal frontmatter. See `sources/analyzed/2026-05-09-superpowers-skill-system.md`. |
+| ⏭️ | Synthesis session | Compose research findings into design proposals; resolve format/schema decisions. |
 
 ## Design phase
 
