@@ -15,6 +15,8 @@ created: YYYY-MM-DD
 ---
 ```
 
+_Note: `tags` is optional._
+
 ## Body
 
 ```markdown
@@ -34,6 +36,8 @@ Concrete guidance for next time.
 ## Filename
 
 `lessons/<stream>/<slug>.md` — slug is kebab-case, derived from title.
+
+The optional `slug` frontmatter field overrides the filename stem when it would differ from the title-derived default.
 
 ## Lifecycle
 

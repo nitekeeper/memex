@@ -16,7 +16,7 @@
 
 | Field | Type | Notes |
 |---|---|---|
-| `slug` | string | Include only when it differs from the filename stem; omit otherwise. |
+| `slug` | string | Bare slug only (e.g. `my-lesson`, not `memex:lesson:my-lesson`). Include only when it differs from the filename stem; omit otherwise. |
 | `tags` | string[] | Categorization labels. |
 
 ---
@@ -51,7 +51,7 @@
 
 ## REPAIR path
 
-REPAIR triggers when: (a) YAML frontmatter cannot be parsed, OR (b) one or more required fields (`id`, `title`, `stream`, `status`) are absent or empty. On REPAIR, all fields are re-derived as if NEW from the current conversation.
+REPAIR triggers when: (a) YAML frontmatter cannot be parsed, OR (b) one or more required fields (`id`, `title`, `stream`, `status`) are absent or empty. On REPAIR, all fields are re-derived as if NEW from the current conversation. `created` is excluded from the trigger list because it is always auto-derived as today's date on REPAIR, requiring no content knowledge.
 
 ---
 
