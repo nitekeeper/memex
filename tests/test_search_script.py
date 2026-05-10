@@ -75,7 +75,8 @@ def test_basic_match(wiki):
     assert data["results"][0]["title"] == "Auth design"
     assert data["results"][0]["status"] == "approved"
     assert data["results"][0]["file_path"].endswith("auth.md")
-    assert data["results"][0]["score"] is not None
+    assert isinstance(data["results"][0]["score"], float)
+    assert data["results"][0]["score"] < 0
 
 
 def test_no_results(wiki):
@@ -102,3 +103,66 @@ def test_empty_query(wiki):
     result = _run_search(ai_dir, "")
     assert result.returncode != 0
     assert result.stderr.strip() != ""
+
+
+def test_bm25_ranking(wiki):
+    ai_dir, wiki_dir = wiki
+    _write_page(wiki_dir, "exact", "token expiry", "Details about token expiry and token refresh cycles")
+    _write_page(wiki_dir, "vague", "Session management", "Mentions token expiry once in passing")
+    _build_db(ai_dir)
+
+    result = _run_search(ai_dir, "token expiry")
+    assert result.returncode == 0
+    data = _parse_result(result)
+    assert len(data["results"]) == 2
+    assert data["results"][0]["id"] == "test:wiki:exact"
+
+
+def test_snippet_extraction(wiki):
+    ai_dir, wiki_dir = wiki
+    _write_page(wiki_dir, "auth", "Auth design", "We handle token expiry by refreshing the session automatically.")
+    _build_db(ai_dir)
+
+    result = _run_search(ai_dir, "token expiry")
+    assert result.returncode == 0
+    data = _parse_result(result)
+    snippet = data["results"][0]["snippet"]
+    assert "[token]" in snippet or "[expiry]" in snippet
+
+
+def test_status_filter(wiki):
+    ai_dir, wiki_dir = wiki
+    _write_page(wiki_dir, "approved-page", "approved page", "content about widgets", status="approved")
+    _write_page(wiki_dir, "draft-page", "draft page", "content about widgets", status="draft")
+    _build_db(ai_dir)
+
+    result = _run_search(ai_dir, "widgets", "--status", "approved")
+    assert result.returncode == 0
+    data = _parse_result(result)
+    assert len(data["results"]) == 1
+    assert data["results"][0]["id"] == "test:wiki:approved-page"
+
+
+def test_tags_filter(wiki):
+    ai_dir, wiki_dir = wiki
+    _write_page(wiki_dir, "auth", "auth page", "content about security", tags=["auth", "security"])
+    _write_page(wiki_dir, "db", "db page", "content about security", tags=["database"])
+    _build_db(ai_dir)
+
+    result = _run_search(ai_dir, "security", "--tag", "auth")
+    assert result.returncode == 0
+    data = _parse_result(result)
+    assert len(data["results"]) == 1
+    assert data["results"][0]["id"] == "test:wiki:auth"
+
+
+def test_limit(wiki):
+    ai_dir, wiki_dir = wiki
+    for i in range(5):
+        _write_page(wiki_dir, f"page{i}", f"page {i}", "searchable content here")
+    _build_db(ai_dir)
+
+    result = _run_search(ai_dir, "searchable", "--limit", "3")
+    assert result.returncode == 0
+    data = _parse_result(result)
+    assert len(data["results"]) == 3
