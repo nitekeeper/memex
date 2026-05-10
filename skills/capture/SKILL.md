@@ -34,11 +34,12 @@ Both modes share the approval gate and commit logic.
    [NEW] or [UPDATE: <summary of changes>]
    Approve? (yes / edit / skip)
    ```
-   If user says **edit**: apply correction, re-enter step 1, show gate again.
+   If user says **edit**: apply correction, re-enter step 2, show gate again.
+   If user says **skip**: stop; do not write anything.
 
 4. **On approval**, write the file:
-   - `created` and `updated`: today's date (YYYY-MM-DD)
-   - `synced-at-commit`: set only if `describes-files` is non-empty; otherwise omit
+   - `created`: today if NEW; preserve existing value if UPDATE. `updated`: always today (YYYY-MM-DD)
+   - `synced-at-commit`: do not set — the sync skill manages this field
    - Conform to `docs/WIKI_PAGE_FORMAT.md`. See `REFERENCE.md` for field details.
 
 5. **Validate**: run `python scripts/rebuild.py .ai/`
@@ -60,9 +61,9 @@ Both modes share the approval gate and commit logic.
    Approve all / approve individually / skip?
    ```
 
-3. **Approve all**: run steps 1–5 of on-demand mode for each page in sequence.
+3. **Approve all**: run steps 1–5 of on-demand mode for each page (using content from step 1, not fresh user input).
 
-4. **Approve individually**: show the per-page gate for each; user approves or skips.
+4. **Approve individually**: run steps 1–5 of on-demand mode for each page; user approves or skips per page.
 
 5. **One commit** for the batch: `wiki: capture session — <N> pages`
 
