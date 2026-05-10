@@ -10,7 +10,8 @@ def _connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     mode = conn.execute("PRAGMA journal_mode = WAL").fetchone()[0]
-    assert mode == "wal", f"WAL mode not set; got {mode!r}"
+    if mode != "wal":
+        raise RuntimeError(f"WAL mode not set; got {mode!r}")
     conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
@@ -45,12 +46,10 @@ def search(
             sql += " AND p.status = ?"
             params.append(status)
 
-        if tags:
-            tags = [t for t in tags if t.strip()]
-        if tags:
-            for tag in tags:
-                sql += " AND p.id IN (SELECT page_id FROM page_tags WHERE tag = ?)"
-                params.append(tag)
+        filtered_tags = [t for t in (tags or []) if t.strip()]
+        for tag in filtered_tags:
+            sql += " AND p.id IN (SELECT page_id FROM page_tags WHERE tag = ?)"
+            params.append(tag)
 
         sql += " ORDER BY bm25(pages_fts) LIMIT ?"
         params.append(limit)
@@ -69,7 +68,7 @@ if __name__ == "__main__":
     parser.add_argument("ai_dir", help="Path to the project's .ai/ directory")
     parser.add_argument("query", help="FTS5 search string")
     parser.add_argument("--limit", type=int, default=10)
-    parser.add_argument("--status", default=None)
+    parser.add_argument("--status", default=None, choices=["draft", "approved", "archived"])
     parser.add_argument("--tag", action="append", dest="tags", default=None)
     args = parser.parse_args()
 

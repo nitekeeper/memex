@@ -18,10 +18,7 @@ If `.ai/memex.db` is absent at the confirmed root: note "Wiki found but no DB in
 
 ## Tier 1 — Local wiki
 
-Run from the confirmed project root:
-```
-python scripts/search.py <ai_dir> "<question>" --limit 10
-```
+Run `python scripts/search.py .ai/ "<question>" --limit 10` from the confirmed project root. Set the working directory to the confirmed project root before running. (`scripts/search.py` is the memex skill's script — not a script in the user's project.)
 
 On non-zero exit: show stderr to the user; skip to Tier 2.
 
