@@ -2,7 +2,6 @@
 id: memex:wiki:active
 slug: active
 title: Memex — current focus
-synced-at-commit: ef4067c
 describes-files: ["ROADMAP.md", "GOALS.md"]
 status: draft
 tags: [product, active]
@@ -12,27 +11,34 @@ updated: 2026-05-10
 
 # Current focus
 
-**`capture-lesson` skill v0 shipped 2026-05-10.** `skills/capture-lesson/SKILL.md` + `REFERENCE.md` + `docs/LESSON_FORMAT.md`. On-demand + session-end modes, inbox/feedback stream routing. 10 tests passing. First skill in the self-improvement loop. Next is `review-lessons` v0.
+**v0.1.0 released 2026-05-10.** 7 skills, 3 scripts, 72 tests, dogfood-validated. Tagged `v0.1.0`. `dist/` cut with MANIFEST.md + all skill files + format specs + scripts + schema.
 
-## Next
+## Next (v0.2 planning)
 
-1. **`review-lessons` skill v0** — lesson review, promotion to wiki/methodology, discard. Next in self-improvement loop.
-2. **`docs/MEMEX_SPEC.md`** — short spec of what Memex is, does, and doesn't do.
+1. **Release tooling skill** — `meta:cut-release` equivalent for Memex. Currently dist/ is built by hand.
+2. **`docs/MEMEX_SPEC.md` follow-up** — spec written for v0.1 but not yet used as a gate for new features.
+3. **3 quality follow-ups** (non-blocking): surface dropped links as warnings; friendlier error on duplicate id; created/updated defaults policy.
+4. **Embedding-based search** — sqlite-vec upgrade path noted in schema comments. Candidate for v0.2.
 
-## Completed
+## Completed (v0.1.0)
 
 - Format & schema lock — 2026-05-09
-- Rebuild script — 2026-05-09 (13 tests, CLI, smoke tested)
-- Capture skill v0 — 2026-05-10
-- Sync skill v0 — 2026-05-10 (SKILL.md + REFERENCE.md + sync.py, 8 tests)
-- Ask skill v0 — 2026-05-10 (SKILL.md + REFERENCE.md + search.py, 11 tests)
-- Capture-lesson skill v0 — 2026-05-10 (SKILL.md + REFERENCE.md + LESSON_FORMAT.md, 10 tests)
+- Rebuild script — 2026-05-09 (13 tests)
+- `capture` skill v0 — 2026-05-10
+- `sync` skill v0 — 2026-05-10 (8 tests)
+- `ask` skill v0 — 2026-05-10 (11 tests)
+- `capture-lesson` skill v0 — 2026-05-10 (10 tests)
+- `review-lessons` skill v0 — 2026-05-10 (10 tests)
+- `propose-wiki-entry` skill v0 — 2026-05-10 (8 tests)
+- `review-wiki` skill v0 — 2026-05-10 (8 tests)
+- Dogfood replacement — 2026-05-10 (19 pages indexed in Skill Atelier)
+- v0.1.0 release — 2026-05-10
 
 ## Open items
 
-- `docs/MEMEX_SPEC.md` not yet written
-- 3 quality follow-ups from rebuild code review (non-blocking): surface dropped links as warnings; friendlier error on duplicate id; decide policy for created/updated defaults
+- 3 quality follow-ups from rebuild code review (non-blocking)
+- No release tooling skill yet (dist/ built manually for v0.1)
 
 ## Pointer
 
-If this entry is stale, compare `synced-at-commit` to repo HEAD; check whether `describes-files` have changed.
+If this entry is stale, compare HEAD to when `describes-files` last changed; run `sync` to update `synced-at-commit`.
