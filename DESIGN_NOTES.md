@@ -22,3 +22,29 @@ Decisions log. Each entry records what was decided, why, and what alternatives w
 **Alternatives rejected:**
 - Scaffold the full format spec now — rejected. Locking format before research contradicts the "research before design" principle (CLAUDE.md Working Rule 1).
 - Use Skill Atelier's repo as a monorepo — rejected. Foundation Plan principle 2: each product is its own repo with its own lifecycle.
+
+---
+
+## 2026-05-09 — Karpathy sources ingested; three key themes extracted
+
+**Decision.** Ingested three Karpathy pieces as separate source files in `sources/analyzed/`:
+1. `source:karpathy-software-2-0` — Software 2.0 (2017)
+2. `source:karpathy-llm-os` — LLM OS kernel framing (2023)
+3. `source:karpathy-autoresearch` — AutoResearch / self-improvement loop (2026)
+
+**Key findings that will shape Memex design:**
+
+1. **Memex is the "disk" in the LLM OS** — not a feature but a structural layer. The context window is RAM; the project wiki is the disk. Pages must be accurate, queryable, and granular enough to be selectively paged in. This validates `synced-at-commit` staleness (accuracy), FTS5 search (queryability), and small-focused-page style (granularity).
+
+2. **The testable metric is the constraint** (AutoResearch insight) — Memex's self-improvement loop is only as good as its measurement signal. Staleness is measurable via git diff against `describes-files`. Accuracy and completeness are not measurable in v0. Design the loop around what is measurable first.
+
+3. **The project wiki is the "Software 2.0 IDE" for project knowledge** (SW 2.0 insight) — Karpathy asked "who will build the SW 2.0 IDE?" for dataset accumulation/curation. Memex is that IDE for the AI's project dataset: capture, detect staleness, surface for review.
+
+4. **Design for teams of agents, not one session** (AutoResearch insight) — "teams of agents collaborating asynchronously" need shared, git-anchored, queryable memory. Memex's design must not assume a single agent or session.
+
+**Derived wiki entry proposals (queued for session close):**
+- `wiki:memex-disk-layer` — Memex as the "disk" in the LLM OS; why accuracy/queryability/granularity are the three load-bearing properties
+- `wiki:testable-metric-constraint` — The improvement loop is bounded by what is measurable; staleness is v0's metric
+- `wiki:design-for-async-agents` — Project wikis serve teams of agents, not single sessions
+
+**References.** `sources/analyzed/2026-05-09-karpathy-software-2-0.md`, `sources/analyzed/2026-05-09-karpathy-llm-os.md`, `sources/analyzed/2026-05-09-karpathy-autoresearch.md`.

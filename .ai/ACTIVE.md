@@ -12,18 +12,24 @@ updated: 2026-05-09
 
 # Current focus
 
-**Repo scaffolded 2026-05-09.** Research phase begins.
+**Karpathy ingested 2026-05-09.** Three sources analyzed: Software 2.0, LLM OS, AutoResearch. Key themes extracted. Wiki entry proposals queued.
 
 ## Next
 
-1. **Ingest Karpathy** — his writings on self-improvement and LLM-as-OS. Use `meta:ingest-source` from Skill Atelier once that skill is substantiated. First source by design decision: frames the *why* before format is locked.
-2. **Ingest user's existing LLM wiki build** — concrete prior art; most actionable input.
-3. **Ingest Superpowers** — deliberately last to avoid cargo-cult.
-4. **Synthesis session** — compose findings into design proposals, resolve format/schema decisions.
+1. **Ingest user's existing LLM wiki build** — concrete prior art; most actionable input. Most direct influence on Memex's format decisions.
+2. **Ingest Superpowers** — deliberately last to avoid cargo-cult.
+3. **Synthesis session** — compose findings into design proposals, resolve format/schema decisions.
+
+## Pending wiki entry proposals (from Karpathy ingestion)
+
+- `wiki:memex-disk-layer` — Memex as the "disk" in the LLM OS; accuracy/queryability/granularity as the three load-bearing properties
+- `wiki:testable-metric-constraint` — improvement loop bounded by measurability; staleness is v0's signal
+- `wiki:design-for-async-agents` — project wikis serve teams of agents, not single sessions
+
+These are proposals. Approve or discard at session close.
 
 ## Open items
 
-- `meta:ingest-source` in Skill Atelier needs to be substantiated before Karpathy ingestion can run through framework discipline.
 - DB schema (`db/`) is a stub — populated after synthesis session and format/schema lock.
 - `docs/` format specs not yet written — populated after synthesis.
 

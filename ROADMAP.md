@@ -6,8 +6,8 @@
 
 | Status | Item | Notes |
 |---|---|---|
-| ⏭️ | Ingest Karpathy | Frames self-improvement / LLM-as-OS ambition before format is locked. First source by design. |
-| ☐ | Ingest user's existing LLM wiki build | Concrete prior art; most actionable input. |
+| ✅ | Ingest Karpathy | Three sources analyzed: Software 2.0, LLM OS, AutoResearch. See `sources/analyzed/2026-05-09-karpathy-*.md`. |
+| ⏭️ | Ingest user's existing LLM wiki build | Concrete prior art; most actionable input. |
 | ☐ | Ingest Superpowers | Influential exemplar; deliberately last to avoid cargo-cult (GOALS.md anti-goals). |
 | ☐ | Synthesis session | Compose research findings into design proposals; resolve format/schema decisions. |
 
