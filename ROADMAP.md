@@ -35,7 +35,7 @@
 
 | Status | Item | Notes |
 |---|---|---|
-| ☐ | Dogfood replacement | Memex replaces Skill Atelier's rough `.ai/` and `wiki/` tooling. |
+| ✅ | Dogfood replacement | Memex replaces Skill Atelier's rough `wiki/` with `.ai/wiki/`. 17 entries migrated, IDs rewritten, DB rebuilt (19 pages). 2026-05-10. |
 | ☐ | Tests passing | Validation suite for capture, sync, and staleness detection. |
 
 ## Release
