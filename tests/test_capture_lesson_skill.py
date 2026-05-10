@@ -20,12 +20,15 @@ def test_inbox_lesson_parses_correctly():
 
 
 def test_feedback_lesson_parses_correctly():
-    """Feedback fixture must parse with stream=feedback and required body sections."""
+    """Feedback fixture must parse with correct id, stream, status, tags, and body."""
     post = fm.load(str(FEEDBACK_LESSON))
     assert post.metadata["id"] == "memex:lesson:test-feedback"
     assert post.metadata["stream"] == "feedback"
     assert post.metadata["status"] == "draft"
+    assert "test" in post.metadata["tags"]
     assert "Observation" in post.content
+    assert "Why it matters" in post.content
+    assert "How to apply" in post.content
 
 
 def test_lesson_id_format():
@@ -55,6 +58,7 @@ def test_lesson_body_has_required_sections():
 
 def test_skill_md_under_150_lines():
     """SKILL.md must stay ≤150 lines."""
+    assert SKILL_MD.exists(), "skills/capture-lesson/SKILL.md must exist"
     with open(SKILL_MD, encoding="utf-8") as f:
         lines = f.readlines()
     assert len(lines) <= 150, f"SKILL.md is {len(lines)} lines — must be ≤150"
