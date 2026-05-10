@@ -31,7 +31,6 @@ updated: 2026-05-10
 
 - `docs/MEMEX_SPEC.md` not yet written
 - 3 quality follow-ups from rebuild code review (non-blocking): surface dropped links as warnings; friendlier error on duplicate id; decide policy for created/updated defaults
-- 4 capture SKILL.md follow-ups (non-blocking): tighten "intervenes" definition in approve-all; align session-end skip phrasing with on-demand skip phrasing; add mid-batch validation failure rollback policy to error table; add explicit project-root confirmation to step 1
 
 ## Pointer
 
