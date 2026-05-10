@@ -9,8 +9,10 @@ from typing import Optional
 def _connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode = WAL")
+    mode = conn.execute("PRAGMA journal_mode = WAL").fetchone()[0]
+    assert mode == "wal", f"WAL mode not set; got {mode!r}"
     conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
@@ -19,7 +21,7 @@ def search(
     query: str,
     limit: int = 10,
     status: Optional[str] = None,
-    tags: Optional[list] = None,
+    tags: Optional[list[str]] = None,
 ) -> dict:
     if not query.strip():
         raise ValueError("query cannot be empty")
@@ -30,6 +32,7 @@ def search(
     try:
         sql = """
             SELECT p.id, p.title, p.file_path, p.status, p.updated,
+                   -- 2 = body column index in pages_fts (id UNINDEXED=0, title=1, body=2)
                    snippet(pages_fts, 2, '[', ']', '...', 20) AS snippet,
                    bm25(pages_fts) AS score
             FROM pages_fts
@@ -42,6 +45,8 @@ def search(
             sql += " AND p.status = ?"
             params.append(status)
 
+        if tags:
+            tags = [t for t in tags if t.strip()]
         if tags:
             for tag in tags:
                 sql += " AND p.id IN (SELECT page_id FROM page_tags WHERE tag = ?)"

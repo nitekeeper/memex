@@ -93,7 +93,7 @@ def test_db_not_found(tmp_path):
     bad_ai_dir = tmp_path / "nonexistent" / ".ai"
     result = _run_search(bad_ai_dir, "query")
     assert result.returncode != 0
-    assert result.stderr.strip() != ""
+    assert "not found" in result.stderr.lower() or "DB" in result.stderr
 
 
 def test_empty_query(wiki):
