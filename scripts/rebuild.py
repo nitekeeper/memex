@@ -39,7 +39,8 @@ def parse_page(file_path: str) -> dict[str, Any]:
     stem = pathlib.Path(file_path).stem
 
     raw_id = str(meta.get("id", ""))
-    project = raw_id.split(":")[0] if ":" in raw_id else ""
+    parts = raw_id.split(":", 2)
+    project = parts[0] if len(parts) == 3 else ""
 
     return {
         "id": raw_id,
@@ -50,8 +51,8 @@ def parse_page(file_path: str) -> dict[str, Any]:
         "synced_at_commit": meta.get("synced-at-commit"),
         "body": post.content,
         "file_path": file_path,
-        "created": str(meta.get("created", "")),
-        "updated": str(meta.get("updated", "")),
+        "created": meta.get("created"),
+        "updated": meta.get("updated"),
         "describes_files": list(meta.get("describes-files", [])),
         "tags": list(meta.get("tags", [])),
         "related": list(meta.get("related", [])),

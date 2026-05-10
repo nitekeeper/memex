@@ -60,12 +60,13 @@ FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "sample" / ".ai" / "wiki
 
 
 def test_parse_concept_page():
+    import datetime
     page = parse_page(str(FIXTURES / "concept-page.md"))
     assert page["id"] == "sample:wiki:auth-design"
     assert page["title"] == "Auth design decisions"
     assert page["status"] == "draft"
-    assert page["created"] == "2026-05-09"
-    assert page["updated"] == "2026-05-09"
+    assert page["created"] == datetime.date(2026, 5, 9)
+    assert page["updated"] == datetime.date(2026, 5, 9)
     assert page["slug"] == "concept-page"          # derived from filename stem
     assert page["project"] == "sample"              # extracted from id prefix
     assert page["synced_at_commit"] is None
@@ -85,8 +86,26 @@ def test_parse_code_page():
     assert page["related"] == ["sample:wiki:auth-design"]
 
 
-def test_parse_missing_id_returns_empty_id():
-    content = textwrap.dedent("""\
+def test_parse_malformed_id_returns_empty_project(tmp_path):
+    p = tmp_path / "malformed.md"
+    p.write_text(textwrap.dedent("""\
+        ---
+        id: sample:auth-design
+        title: Malformed ID
+        status: draft
+        created: 2026-05-09
+        updated: 2026-05-09
+        ---
+        Body.
+    """))
+    page = parse_page(str(p))
+    assert page["project"] == ""   # two-segment id is not a valid <project>:<type>:<slug>
+    assert page["id"] == "sample:auth-design"
+
+
+def test_parse_missing_id_returns_empty_id(tmp_path):
+    p = tmp_path / "no-id.md"
+    p.write_text(textwrap.dedent("""\
         ---
         title: No ID page
         status: draft
@@ -94,10 +113,6 @@ def test_parse_missing_id_returns_empty_id():
         updated: 2026-05-09
         ---
         Body text.
-    """)
-    with tempfile.NamedTemporaryFile(suffix=".md", mode="w", delete=False) as f:
-        f.write(content)
-        tmp = f.name
-    page = parse_page(tmp)
+    """))
+    page = parse_page(str(p))
     assert page["id"] == ""
-    os.unlink(tmp)
