@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import glob as glob_module
 import frontmatter
 import pathlib
 from typing import Any
@@ -95,8 +96,46 @@ def load_page(conn: sqlite3.Connection, page: dict[str, Any]) -> None:
             "INSERT INTO page_files (page_id, file_path) VALUES (?, ?)",
             (page["id"], file_path),
         )
+
+
+def _insert_links(conn: sqlite3.Connection, page: dict[str, Any]) -> None:
+    """Insert link rows for a page. Called in pass 2, after all pages exist."""
     for to_id in page["related"]:
         conn.execute(
-            "INSERT INTO links (from_id, to_id, rel_type) VALUES (?, ?, ?)",
+            "INSERT OR IGNORE INTO links (from_id, to_id, rel_type) VALUES (?, ?, ?)",
             (page["id"], to_id, "related"),
         )
+
+
+def rebuild(ai_dir: str, db_path: str, schema_path: str) -> None:
+    """Walk .ai/ directory, parse all .md files, and populate memex.db.
+
+    Two-pass strategy to avoid FK violations on links:
+    Pass 1 — insert all pages (pages, page_tags, page_files)
+    Pass 2 — insert all links (after all pages exist)
+    """
+    conn = connect(db_path, schema_path)
+
+    pattern = os.path.join(ai_dir, "**", "*.md")
+    md_files = glob_module.glob(pattern, recursive=True)
+
+    pages = []
+    for file_path in sorted(md_files):
+        page = parse_page(file_path)
+        if not page["id"]:
+            print(f"WARNING: skipping {file_path} — missing id field")
+            continue
+        pages.append(page)
+
+    # Pass 1: insert pages, tags, files
+    for page in pages:
+        load_page(conn, page)
+
+    # Pass 2: insert links (all pages now exist, FK safe)
+    for page in pages:
+        _insert_links(conn, page)
+
+    # Rebuild FTS index from pages table content
+    conn.execute("INSERT INTO pages_fts(pages_fts) VALUES('rebuild')")
+    conn.commit()
+    conn.close()

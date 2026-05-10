@@ -5,7 +5,7 @@ import pytest
 import tempfile
 import textwrap
 
-from rebuild import connect, parse_page, load_page
+from rebuild import connect, parse_page, load_page, _insert_links, rebuild
 
 SCHEMA_PATH = str(pathlib.Path(__file__).parent.parent / "db" / "schema.sql")
 
@@ -153,6 +153,7 @@ def test_load_code_page(tmp_path):
 
     page = parse_page(str(FIXTURES / "code-page.md"))
     load_page(conn, page)
+    _insert_links(conn, page)
     conn.commit()
 
     row = conn.execute("SELECT * FROM pages WHERE id = ?", (page["id"],)).fetchone()
@@ -171,4 +172,55 @@ def test_load_code_page(tmp_path):
     assert len(links) == 1
     assert links[0]["to_id"] == "sample:wiki:auth-design"
     assert links[0]["rel_type"] == "related"
+    conn.close()
+
+
+AI_DIR = str(FIXTURES.parent)  # tests/fixtures/sample/.ai/
+
+
+def test_rebuild_populates_all_pages(tmp_path):
+    db_path = str(tmp_path / "memex.db")
+    rebuild(AI_DIR, db_path, SCHEMA_PATH)
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    count = conn.execute("SELECT COUNT(*) FROM pages").fetchone()[0]
+    assert count == 2
+    conn.close()
+
+
+def test_rebuild_fts_search(tmp_path):
+    db_path = str(tmp_path / "memex.db")
+    rebuild(AI_DIR, db_path, SCHEMA_PATH)
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    results = conn.execute(
+        "SELECT id FROM pages_fts WHERE pages_fts MATCH ?", ("database",)
+    ).fetchall()
+    assert len(results) == 1
+    assert results[0]["id"] == "sample:wiki:db-schema"
+    conn.close()
+
+
+def test_rebuild_skips_pages_without_id(tmp_path):
+    import textwrap, shutil
+    fixture_copy = tmp_path / "sample" / ".ai"
+    shutil.copytree(FIXTURES.parent, fixture_copy)
+    bad_page = fixture_copy / "wiki" / "no-id.md"
+    bad_page.write_text(textwrap.dedent("""\
+        ---
+        title: No ID
+        status: draft
+        created: 2026-05-09
+        updated: 2026-05-09
+        ---
+        Body.
+    """))
+    db_path = str(tmp_path / "memex.db")
+    rebuild(str(fixture_copy), db_path, SCHEMA_PATH)
+
+    conn = sqlite3.connect(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM pages").fetchone()[0]
+    assert count == 2  # bad page skipped, original 2 loaded
     conn.close()
