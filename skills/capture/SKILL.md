@@ -11,6 +11,8 @@ description: "Use when the user wants to capture a concept, decision, or summary
 
 Both modes share the approval gate and commit logic.
 
+**Before entering either mode**, confirm the target project root: identify which project's `.ai/wiki/` is the target. In a multi-project workspace, state it explicitly: "Writing to `<path>/.ai/wiki/`." If uncertain, ask — never infer.
+
 ---
 
 ## On-demand mode
@@ -34,7 +36,7 @@ Both modes share the approval gate and commit logic.
    [NEW] or [UPDATE: <summary of changes>]
    Approve? (yes / edit / skip)
    ```
-   If user says **edit**: apply correction, re-enter step 2, show gate again.
+   If user says **edit**: apply correction, re-enter step 1, show gate again.
    If user says **skip**: stop; do not write anything.
 
 4. **On approval**, write the file:
@@ -60,13 +62,15 @@ Both modes share the approval gate and commit logic.
    2. .ai/wiki/<slug>.md — "<title>" [UPDATE: <summary>]
    Approve all / approve individually / skip?
    ```
-   If skip: stop; do not write anything.
+   If user says **skip**: stop; do not write anything.
 
-3. **Approve all**: run steps 1–5 of on-demand mode for each page (using content from step 1, not fresh user input). If user intervenes on any page, pause and switch to approve individually for that page.
+3. **Approve all**: run steps 1–5 of on-demand mode for each page (using content from step 1, not fresh user input). **Intervenes** means the user sends any message during processing that is not a silent pass — a question, correction, "wait", "stop", "change X", or any message other than no response. On intervention, pause immediately and switch to approve individually for that page and all remaining pages.
 
 4. **Approve individually**: run steps 1–5 of on-demand mode for each page; user approves or skips per page.
 
-5. **One commit** for the batch: `wiki: capture session — <N> pages`
+5. **Mid-batch validation failure**: if `rebuild.py` fails on any page during a batch run, stop immediately. Do not commit anything. List every file written so far in the batch so the user can inspect or delete them. Do not proceed until the user explicitly resolves the failure and re-enters the approval flow.
+
+6. **One commit** for the batch (only when all approved pages pass validation): `wiki: capture session — <N> pages`
 
 ---
 
