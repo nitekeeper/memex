@@ -21,7 +21,11 @@ Run from the confirmed project root:
 python scripts/search.py <ai_dir> "<question>" --limit 10
 ```
 
-Parse the JSON output. Read the `snippet` and `file_path` of each result. Use the Read tool to read any pages that look relevant.
+On non-zero exit: show stderr to the user; skip to Tier 2.
+
+Parse the JSON output. If `results` is empty: skip to Tier 2.
+
+Read the `snippet` and `file_path` of each result. Use the Read tool to read any pages that look relevant.
 
 **Judge sufficiency**: does the content directly answer the question with enough detail to act on?
 
@@ -43,6 +47,8 @@ After answering, identify findings that are durable and project-relevant — des
 If durable findings exist: offer to capture them. Example: "I found [X] — worth capturing as a wiki entry? I can run /capture now." Wait for user response before invoking capture. Normal capture approval gate applies.
 
 If no durable findings: do not offer capture.
+
+If web search is unavailable: note "web search unavailable — answering from training knowledge"; skip to Tier 3.
 
 If web search returns no usable results: escalate to Tier 3.
 

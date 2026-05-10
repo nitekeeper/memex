@@ -18,6 +18,17 @@ Run from the confirmed project root. Pass the `.ai/` directory as `<ai_dir>` —
 
 ---
 
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success — output JSON written to stdout. `results` may be an empty array. |
+| non-zero | Error — message written to stderr. No JSON output. |
+
+Errors go to stderr. On non-zero exit, discard stdout and surface the stderr message to the user.
+
+---
+
 ## Output JSON shape
 
 ```json
