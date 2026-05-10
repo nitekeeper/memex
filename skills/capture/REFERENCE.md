@@ -6,7 +6,7 @@
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | string | `<project>:<type>:<slug>`. Immutable after creation. Never reuse a deleted slug. Prompt user if uncertain — never guess. |
+| `id` | string | `<project>:<type>:<slug>`. Immutable after creation. Never reuse a deleted slug. Prompt user if uncertain — never guess. (REPAIR exception: re-derived as if NEW — see id convention below) |
 | `title` | string | Human-readable. Sentence case. |
 | `status` | enum | `draft` / `approved` / `archived`. Always `draft` on NEW or REPAIR. Preserved unchanged on UPDATE. |
 | `created` | YYYY-MM-DD | On NEW or REPAIR, set to today's date; preserve the existing value on UPDATE. |
@@ -17,7 +17,7 @@
 | Field | Type | Notes |
 |---|---|---|
 | `slug` | string | Inner slug only (no namespace). Include when the value would differ from the filename stem; omit otherwise. |
-| `synced-at-commit` | string | Git SHA of the commit when this page was last verified against its source files. Managed exclusively by the sync skill — the capture skill never sets or removes this field under any conditions. Never set or remove this field. If already present in the file, preserve it unchanged — including on the REPAIR path: if the malformed file contains a `synced-at-commit:` line with a non-empty value (detected via plain-text line scan, not YAML parsing — this extraction must work even when the YAML block cannot be parsed at all, which is the very condition that triggers REPAIR), carry it into working state and write it through unchanged. See the sync skill for the rules governing when this field is set. |
+| `synced-at-commit` | string | Git SHA of the commit when this page was last verified against its source files. Managed exclusively by the sync skill — the capture skill never sets or removes this field under any conditions. Never set or remove this field. If already present in the file, preserve it unchanged. If not present in the file on the UPDATE path, omit it from the written output — do not add it. Including on the REPAIR path: if the malformed file contains a `synced-at-commit:` line with a non-empty value (detected via plain-text line scan, not YAML parsing — this extraction must work even when the YAML block cannot be parsed at all, which is the very condition that triggers REPAIR), carry it into working state and write it through unchanged. See the sync skill for the rules governing when this field is set. |
 | `describes-files` | string[] | Paths to source files this page tracks. Non-empty = code-tracking page; absent or empty = concept/decision page with no file-bound staleness. |
 | `tags` | string[] | Categorization labels. |
 
