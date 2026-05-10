@@ -20,13 +20,11 @@ updated: 2026-05-09
 2. **Ingest Superpowers** — deliberately last to avoid cargo-cult.
 3. **Synthesis session** — compose findings into design proposals, resolve format/schema decisions.
 
-## Pending wiki entry proposals (from Karpathy ingestion)
+## Wiki entries (approved 2026-05-09)
 
-- `wiki:memex-disk-layer` — Memex as the "disk" in the LLM OS; accuracy/queryability/granularity as the three load-bearing properties
-- `wiki:testable-metric-constraint` — improvement loop bounded by measurability; staleness is v0's signal
-- `wiki:design-for-async-agents` — project wikis serve teams of agents, not single sessions
-
-These are proposals. Approve or discard at session close.
+- [`wiki:memex-disk-layer`](.ai/wiki/memex-disk-layer.md) — Memex as the disk layer in the LLM OS
+- [`wiki:testable-metric-constraint`](.ai/wiki/testable-metric-constraint.md) — improvement loop bounded by measurability
+- [`wiki:design-for-async-agents`](.ai/wiki/design-for-async-agents.md) — design for teams of async agents
 
 ## Open items
 
