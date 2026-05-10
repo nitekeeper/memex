@@ -2,7 +2,7 @@
 id: memex:wiki:digest
 slug: digest
 title: Memex — project digest
-synced-at-commit: d5bc084b0383aea3e7f63a39d91052bc2db9e0a4
+synced-at-commit: 4803941c2cdfc137ecb4876bb0eb706454320448
 describes-files: ["README.md", "GOALS.md", "ROADMAP.md", "DESIGN_NOTES.md"]
 status: draft
 tags: [product, digest]
