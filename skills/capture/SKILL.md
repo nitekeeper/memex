@@ -9,9 +9,9 @@ description: "Use when the user wants to capture a concept, decision, or summary
 - **On-demand** — user provides a topic, title, draft, or points to a decision from the conversation. Handle this first.
 - **Session-end** — user invokes at end of session with no specific topic ("what should we capture?", `/capture` with no args).
 
-Both modes share the approval gate and commit logic.
+Both modes share the approval gate. Commit behavior differs by mode.
 
-**Before entering either mode**, confirm the target project root: identify which project's `.ai/wiki/` is the target. In a multi-project workspace, state it explicitly: "Writing to `<path>/.ai/wiki/`." If uncertain, ask — never infer.
+**After detecting the mode and before executing any mode steps**, confirm the target project root: identify which project's `.ai/wiki/` is the target. In a multi-project workspace, state it explicitly: "Writing to `<path>/.ai/wiki/`." If uncertain, ask — never infer.
 
 ---
 
@@ -36,7 +36,7 @@ Both modes share the approval gate and commit logic.
    [NEW] or [UPDATE: <summary of changes>]
    Approve? (yes / edit / skip)
    ```
-   If user says **edit**: apply correction, re-enter step 1, show gate again.
+   If user says **edit**: apply the correction to the current draft, return to step 3 to show the updated gate.
    If user says **skip**: stop; do not write anything.
 
 4. **On approval**, write the file:
@@ -63,12 +63,13 @@ Both modes share the approval gate and commit logic.
    Approve all / approve individually / skip?
    ```
    If user says **skip**: stop; do not write anything.
+   If the user names specific pages to skip (e.g. "skip 2 and 4"): switch to approve individually, treating the named pages as skipped.
 
-3. **Approve all**: run steps 1–5 of on-demand mode for each page (using content from step 1, not fresh user input). **Intervenes** means the user sends any message during processing that is not a silent pass — a question, correction, "wait", "stop", "change X", or any message other than no response. On intervention, pause immediately and switch to approve individually for that page and all remaining pages.
+3. **Approve all**: run steps 1–5 of on-demand mode for each page (using content extracted in step 1, not fresh user input; do not execute on-demand step 6 — the batch commit in step 6 below replaces it). **Intervenes** means the user sends any message during processing that is not a silent pass — a question, correction, "wait", "stop", "change X", or any message other than no response. On intervention, pause immediately and switch to approve individually for that page and all remaining pages.
 
-4. **Approve individually**: run steps 1–5 of on-demand mode for each page; user approves or skips per page.
+4. **Approve individually**: run steps 1–5 of on-demand mode for each page (do not execute on-demand step 6 — the batch commit in step 6 below replaces it); user approves or skips per page.
 
-5. **Mid-batch validation failure**: if `rebuild.py` fails on any page during a batch run, stop immediately. Do not commit anything. List every file written so far in the batch so the user can inspect or delete them. Do not proceed until the user explicitly resolves the failure and re-enters the approval flow.
+5. **Mid-batch validation failure**: if `rebuild.py` fails on any page during a batch run, stop immediately. Do not commit anything. List every file written so far in the batch as relative paths from the project root, one per line, so the user can inspect or delete them. Do not proceed until the user explicitly resolves the failure. Then re-enter at step 2 (re-propose the full batch list), treating already-written pages as candidates again so the user can decide whether to keep or re-write them.
 
 6. **One commit** for the batch (only when all approved pages pass validation): `wiki: capture session — <N> pages`
 
@@ -78,7 +79,8 @@ Both modes share the approval gate and commit logic.
 
 | Situation | Action |
 |---|---|
-| `rebuild.py` errors after write | Show error, stop, do not commit. Leave file for inspection. |
+| `rebuild.py` errors in on-demand mode | Show error, stop, do not commit. Leave file in place for inspection. |
+| `rebuild.py` errors in session-end mode | See step 5 above — stop, list all written files as relative paths, re-enter at step 2. |
 | `id` already exists at a different path | Flag before writing; do not proceed until resolved. |
 | Required field missing | Prompt user; never guess `id`. |
 
