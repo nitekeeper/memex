@@ -1,5 +1,4 @@
 import json
-import os
 import pathlib
 import subprocess
 import sys
@@ -86,7 +85,7 @@ def run_sync(ai_dir):
                     "state": "NEVER_SYNCED",
                     "synced_at_commit": None,
                     "changed_files": [
-                        {"path": fp, "diff": None, "lines_changed": None}
+                        {"path": fp.replace("\\", "/"), "diff": None, "lines_changed": None}
                         for fp in describes_files
                     ],
                 }
@@ -107,7 +106,7 @@ def run_sync(ai_dir):
             if diff_text:
                 changed_files.append(
                     {
-                        "path": fp,
+                        "path": fp.replace("\\", "/"),
                         "diff": diff_text,
                         "lines_changed": _count_lines_changed(diff_text),
                     }
