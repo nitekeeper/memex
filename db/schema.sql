@@ -5,7 +5,8 @@
 -- Do not edit rows directly; edit the markdown and rebuild.
 
 -- Safety: WAL + NORMAL (see wiki:sqlite-crash-safety)
--- Set on every connection open — not stored in the schema file itself.
+-- These PRAGMAs must be set on every connection open, not just at schema creation.
+-- The rebuild script's connect() helper is responsible for setting them before any query.
 -- PRAGMA journal_mode = WAL;
 -- PRAGMA synchronous = NORMAL;
 
