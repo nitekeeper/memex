@@ -40,7 +40,7 @@ A project is detectable if it contains `lessons/inbox/` at its root — check ea
    Stream: <stream>  |  Tags: [...]
    ~<N> lines
    [NEW]  or  [UPDATE: <summary>]  or  [REPAIR: previous write failed — re-drafted from conversation]
-   Approve? (yes / edit / skip / cancel)
+   Approve? (yes / edit / skip / cancel / quit)
    ```
    - **yes** → step 4
    - **edit** → apply correction, re-show gate
