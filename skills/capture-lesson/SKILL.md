@@ -1,5 +1,5 @@
 ---
-description: "Use when the user wants to capture a lesson from the current session — either on demand (\"capture this as a lesson\", \"I noticed X\") or at session end to review and propose lessons from the conversation. Also use when the user invokes /capture-lesson. Do NOT use for writing wiki pages (use capture) or reviewing and promoting lessons (use review-lessons)."
+description: "Use when the user wants to capture a lesson from the current session — either on demand (\"capture this as a lesson\", \"I noticed X\") or at session end to review and propose lessons from the conversation. Do NOT use for writing wiki pages (use capture), reviewing or promoting lessons (use review-lessons), ingesting external sources (use meta:ingest-source), or checking staleness (use sync)."
 ---
 
 # capture-lesson — write a lesson file
@@ -47,7 +47,11 @@ A project is detectable if it contains `lessons/inbox/` at its root — check ea
    - **skip** / **cancel** / **abort** → stop, write nothing
    - Any other message → treat as edit instruction
 
-4. **On approval** → write file (field rules in REFERENCE.md), stage it, commit: `lessons: capture — <title>`
+4. **On approval** → write file:
+   - `created`: today if NEW or REPAIR; preserve existing value on UPDATE
+   - `status`: always `draft` on NEW or REPAIR; preserve on UPDATE
+   - No `updated` field — lessons do not track update history
+   Stage the file. Commit (apply em dash encoding check from REFERENCE.md): `lessons: capture — <title>`
 
 ---
 
@@ -55,23 +59,23 @@ A project is detectable if it contains `lessons/inbox/` at its root — check ea
 
 1. **Sweep** the conversation for lesson candidates:
    - Non-obvious observations, mid-session corrections, decisions with a "why", patterns that would help a future AI avoid a mistake
-   - Skip: task-local notes, anything obvious from code or git history, ephemeral state
+   - Skip: task-local notes, anything obvious from code or git history, ephemeral state, any lesson already written during this session, any lesson whose file already exists at `lessons/<stream>/<slug>.md`
 
 2. **Show candidate list** before any gates:
    ```
    Found N lesson candidates:
    1. <title> (inbox)
    2. <title> (feedback)
-   Proceed through each? (yes / skip N / cancel)
+   Proceed through each? (yes / cancel)
+   (To skip specific candidates, say "skip N" during the per-candidate gates.)
    ```
    - **yes** → gate each in order
-   - **skip N** → exclude candidate N, gate the rest
    - **cancel** → stop, write nothing
    - No candidates found → report "No lesson candidates found in this session." Done.
 
-3. **Gate each candidate** one at a time — same approval gate as on-demand.
+3. **Gate each candidate** one at a time — same approval gate as on-demand. `cancel`, `abort`, or `quit` at any inner gate stops the entire batch; already-approved files remain written on disk and will be included in the step 4 commit. Use `yes` to approve; any other message is treated as an edit instruction (do not use casual affirmations like "looks good" as they trigger an edit loop).
 
-4. **After all gates** → stage all approved lessons; one commit: `lessons: capture — N lessons`
+4. **After all gates** → stage all approved lessons. Commit (apply em dash encoding check from REFERENCE.md): `lessons: capture — N lessons`
 
 ---
 
