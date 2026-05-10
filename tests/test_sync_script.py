@@ -24,6 +24,18 @@ def _run_sync(ai_dir):
     )
 
 
+def _parse_report(result):
+    """Parse sync.py JSON output; surfaces stdout+stderr on decode failure."""
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise AssertionError(
+            f"sync.py stdout was not valid JSON.\n"
+            f"stdout: {result.stdout!r}\n"
+            f"stderr: {result.stderr!r}"
+        ) from exc
+
+
 @pytest.fixture
 def git_repo(tmp_path):
     repo = tmp_path / "repo"
@@ -68,13 +80,16 @@ def test_stale_page_detected(git_repo):
 
     result = _run_sync(ai_dir)
     assert result.returncode == 0
-    report = json.loads(result.stdout)
-    assert len(report["stale"]) == 1
+    report = _parse_report(result)
+    assert len(report["stale"]) == 1, f"Expected 1 stale entry, got: {report['stale']}"
     assert report["stale"][0]["state"] == "STALE"
     assert report["stale"][0]["id"] == "test:wiki:db-schema"
-    assert len(report["stale"][0]["changed_files"]) == 1
+    assert len(report["stale"][0]["changed_files"]) == 1, (
+        f"Expected 1 changed_files entry, got: {report['stale'][0]['changed_files']}"
+    )
     assert report["stale"][0]["changed_files"][0]["diff"] is not None
     assert report["stale"][0]["changed_files"][0]["lines_changed"] > 0
+    assert report["stale"][0]["changed_files"][0]["path"] == "db/schema.sql"
 
 
 def test_never_synced_page_detected(git_repo):
@@ -100,10 +115,13 @@ def test_never_synced_page_detected(git_repo):
 
     result = _run_sync(ai_dir)
     assert result.returncode == 0
-    report = json.loads(result.stdout)
-    assert len(report["stale"]) == 1
+    report = _parse_report(result)
+    assert len(report["stale"]) == 1, f"Expected 1 stale entry, got: {report['stale']}"
     assert report["stale"][0]["state"] == "NEVER_SYNCED"
     assert report["stale"][0]["synced_at_commit"] is None
+    assert len(report["stale"][0]["changed_files"]) == 1, (
+        "NEVER_SYNCED entry should have one changed_files entry per describes-files path"
+    )
     assert report["stale"][0]["changed_files"][0]["diff"] is None
     assert report["stale"][0]["changed_files"][0]["lines_changed"] is None
 
@@ -136,11 +154,14 @@ def test_clean_page_not_stale(git_repo):
 
     result = _run_sync(ai_dir)
     assert result.returncode == 0
-    report = json.loads(result.stdout)
-    assert len(report["stale"]) == 0
-    assert len(report["clean"]) == 1
+    report = _parse_report(result)
+    assert len(report["stale"]) == 0, f"Expected 0 stale entries, got: {report['stale']}"
+    assert len(report["clean"]) == 1, f"Expected 1 clean entry, got: {report['clean']}"
     assert report["clean"][0]["state"] == "CLEAN"
     assert report["clean"][0]["id"] == "test:wiki:db-schema"
+    assert report["clean"][0]["changed_files"] == [], (
+        "CLEAN entry must have no changed_files"
+    )
 
 
 def test_untracked_page_ignored(git_repo):
@@ -161,16 +182,22 @@ def test_untracked_page_ignored(git_repo):
 
     result = _run_sync(ai_dir)
     assert result.returncode == 0
-    report = json.loads(result.stdout)
-    assert len(report["stale"]) == 0
-    assert len(report["clean"]) == 0
-    assert len(report["untracked"]) == 1
+    report = _parse_report(result)
+    assert len(report["stale"]) == 0, f"Expected 0 stale entries, got: {report['stale']}"
+    assert len(report["clean"]) == 0, f"Expected 0 clean entries, got: {report['clean']}"
+    assert len(report["untracked"]) == 1, f"Expected 1 untracked entry, got: {report['untracked']}"
     assert report["untracked"][0]["id"] == "test:wiki:concept"
+    assert "state" not in report["untracked"][0], (
+        "Untracked entries should not have a state field"
+    )
 
 
 def test_bad_ai_dir_exits_nonzero(tmp_path):
     result = _run_sync(tmp_path / "nonexistent" / ".ai")
     assert result.returncode != 0
+    assert "not found" in result.stderr or "ai_dir" in result.stderr, (
+        f"Expected an ai_dir error message in stderr, got: {result.stderr!r}"
+    )
 
 
 def test_unresolvable_sha_exits_nonzero(git_repo):
