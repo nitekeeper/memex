@@ -23,16 +23,19 @@ def _validate_sha(project_root, sha):
 
 def _get_file_diff(project_root, sha, file_path):
     result = _git(
-        ["diff", f"{sha}..HEAD", "--", file_path], cwd=project_root
+        ["diff", f"{sha}..HEAD", "--", file_path], cwd=project_root, check=True
     )
     return result.stdout
 
 
 def _count_lines_changed(diff_text):
-    lines = diff_text.splitlines()
-    added = sum(1 for l in lines if l.startswith("+") and not l.startswith("+++"))
-    removed = sum(1 for l in lines if l.startswith("-") and not l.startswith("---"))
-    return added + removed
+    count = 0
+    for line in diff_text.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            count += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            count += 1
+    return count
 
 
 def run_sync(ai_dir):
@@ -97,7 +100,12 @@ def run_sync(ai_dir):
             )
             continue
 
-        if not _validate_sha(project_root, synced_at_commit):
+        try:
+            sha_valid = _validate_sha(project_root, synced_at_commit)
+        except FileNotFoundError as exc:
+            print(f"Error: git unavailable: {exc}", file=sys.stderr)
+            sys.exit(1)
+        if not sha_valid:
             print(
                 f"Error: synced-at-commit '{synced_at_commit}' in {md_file} "
                 f"is not a valid git object",
@@ -134,6 +142,7 @@ def run_sync(ai_dir):
                             "path": fp.replace("\\", "/"),
                             "diff": diff_text,
                             "lines_changed": _count_lines_changed(diff_text),
+                            "binary": False,
                         }
                     )
 
