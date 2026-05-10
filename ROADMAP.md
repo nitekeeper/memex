@@ -28,7 +28,8 @@
 | ✅ | `ask` skill v0 | `skills/ask/SKILL.md` + `REFERENCE.md` + `scripts/search.py`. FTS5-powered tiered knowledge resolution (memex → web → model). 11 tests passing. 2026-05-10. |
 | ✅ | `capture-lesson` skill v0 | `skills/capture-lesson/SKILL.md` + `REFERENCE.md` + `docs/LESSON_FORMAT.md`. On-demand + session-end modes, inbox/feedback streams. 10 tests passing. 2026-05-10. |
 | ✅ | `review-lessons` skill v0 | `skills/review-lessons/SKILL.md` + `REFERENCE.md`. Promote/discard/defer loop, feedback-first priority. 10 tests passing. 2026-05-10. |
-| ⏭️ | `propose-wiki-entry` + `review-wiki` | Wiki curation passes. After review-lessons. |
+| ✅ | `propose-wiki-entry` skill v0 | `skills/propose-wiki-entry/SKILL.md` + `REFERENCE.md`. Converts promoted lessons → wiki entries, approval gate per entry. 8 tests passing. 2026-05-10. |
+| ✅ | `review-wiki` skill v0 | `skills/review-wiki/SKILL.md` + `REFERENCE.md`. Draft-first curation pass, approve/archive/defer loop. 8 tests passing. 2026-05-10. |
 
 ## Validation phase
 
