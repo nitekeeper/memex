@@ -42,7 +42,7 @@ Any additional fields (`sources`, `related`, `supersedes`, `archived-reason`) pa
 Format: `<project>:<type>:<slug>`
 
 - `project`: short repo or product name (e.g. `memex`, `myproject`)
-- `type`: `wiki` for knowledge entries; `active` for the ACTIVE.md pointer
+- `type`: `wiki` for knowledge entries; `active` for the ACTIVE.md pointer. `wiki` is the catch-all type for all knowledge, decision, concept, and code-tracking pages (including pages with `describes-files` populated). `active` is reserved exclusively for the ACTIVE.md pointer page. No other type values exist — do not invent new type values.
 - `slug`: kebab-case; matches the filename stem by convention
 
 Examples: `memex:wiki:capture-skill`, `myproject:wiki:auth-design`
@@ -58,7 +58,7 @@ Examples: `memex:wiki:capture-skill`, `myproject:wiki:auth-design`
 | On-demand (single page) | `wiki: capture <slug> — <title>` |
 | Session-end (batch) | `wiki: capture session — <W> pages` |
 
-W is the count of distinct pages in the written-pages record for this run. Count each page once regardless of how many times it was written or validated. Skipped pages and pages that failed validation are excluded. Note: W differs from N (the candidate count displayed in session-end step 2).
+W is the count of distinct pages in the written-pages record for this run. Count each page once regardless of how many times it was written or validated. Skipped pages and pages that failed validation are excluded. Note: W differs from N (the candidate count displayed in session-end step 2). "This run" spans the full session from initial batch proposal through all re-entries triggered by session-end step 5, ending after all pages have been processed or skipped.
 
 Example: `wiki: capture auth-design — Auth layer design decisions`
 
