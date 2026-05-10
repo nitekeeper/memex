@@ -29,7 +29,7 @@ Both modes share the approval gate and commit logic.
    ```
    Will write: .ai/wiki/<slug>.md
    Title: <title>
-   Status: draft  |  Tags: [...]
+   Status: <status>  |  Tags: [...]
    ~<N> lines
    [NEW] or [UPDATE: <summary of changes>]
    Approve? (yes / edit / skip)
@@ -60,8 +60,9 @@ Both modes share the approval gate and commit logic.
    2. .ai/wiki/<slug>.md — "<title>" [UPDATE: <summary>]
    Approve all / approve individually / skip?
    ```
+   If skip: stop; do not write anything.
 
-3. **Approve all**: run steps 1–5 of on-demand mode for each page (using content from step 1, not fresh user input).
+3. **Approve all**: run steps 1–5 of on-demand mode for each page (using content from step 1, not fresh user input). If user intervenes on any page, pause and switch to approve individually for that page.
 
 4. **Approve individually**: run steps 1–5 of on-demand mode for each page; user approves or skips per page.
 
