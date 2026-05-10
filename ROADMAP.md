@@ -16,7 +16,7 @@
 | Status | Item | Notes |
 |---|---|---|
 | ✅ | Format & schema lock | `docs/WIKI_PAGE_FORMAT.md` + `db/schema.sql` locked 2026-05-09. Single page format, minimal core + extensible, 3-state status, normalized join tables. |
-| ☐ | Spec written | `docs/MEMEX_SPEC.md` — what the product is, what it does, what it does not do. |
+| ✅ | Spec written | `docs/MEMEX_SPEC.md` — what the product is, what it does, what it does not do. 2026-05-10. |
 
 ## Build phase
 
@@ -36,13 +36,13 @@
 | Status | Item | Notes |
 |---|---|---|
 | ✅ | Dogfood replacement | Memex replaces Skill Atelier's rough `wiki/` with `.ai/wiki/`. 17 entries migrated, IDs rewritten, DB rebuilt (19 pages). 2026-05-10. |
-| ☐ | Tests passing | Validation suite for capture, sync, and staleness detection. |
+| ✅ | Tests passing | 72 tests passing across all 7 skills + 3 scripts. 2026-05-10. |
 
 ## Release
 
 | Status | Item | Notes |
 |---|---|---|
-| ☐ | v0.1 release | `dist/` cut with manifest; git tag. Requires dogfood validation. |
+| ✅ | v0.1 release | `dist/` cut with manifest + 7 skills + scripts + format specs. Tagged `v0.1.0`. 2026-05-10. |
 
 ---
 
