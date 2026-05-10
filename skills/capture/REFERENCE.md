@@ -9,7 +9,7 @@
 | `id` | string | `<project>:<type>:<slug>`. Immutable after creation. Never reuse a deleted slug. Prompt user if uncertain — never guess. |
 | `title` | string | Human-readable. Sentence case. |
 | `status` | enum | `draft` / `approved` / `archived`. Always `draft` on first write. |
-| `created` | YYYY-MM-DD | Set at creation; never changed. |
+| `created` | YYYY-MM-DD | Set at creation; never changed on the UPDATE path. On NEW or REPAIR, set to today. |
 | `updated` | YYYY-MM-DD | Set to today's date whenever any field or body content changes. Do not update if the page content is unchanged. (Exclude the `updated` field itself from any unchanged-content comparison to avoid circular dependency. The empty-diff guard applies on the UPDATE path only. Exception: if the current write is on the REPAIR path — malformed file detected in on-demand step 2 — always write regardless of diff state.) |
 
 ### Standard-optional
@@ -17,7 +17,7 @@
 | Field | Type | Notes |
 |---|---|---|
 | `slug` | string | Inner slug only (no namespace). Include when the value would differ from the filename stem; omit otherwise. |
-| `synced-at-commit` | string | Git SHA of the commit when this page was last verified against its source files. Managed exclusively by the sync skill — the capture skill never sets or removes this field under any conditions. Never set or remove this field. If already present in the file, preserve it unchanged — including on the REPAIR path: if the malformed file contains a readable `synced-at-commit` field, carry it into working state and write it through unchanged. See the sync skill for the rules governing when this field is set. |
+| `synced-at-commit` | string | Git SHA of the commit when this page was last verified against its source files. Managed exclusively by the sync skill — the capture skill never sets or removes this field under any conditions. Never set or remove this field. If already present in the file, preserve it unchanged — including on the REPAIR path: if the malformed file contains a `synced-at-commit:` line with a non-empty value (detected via plain-text line scan, not YAML parsing), carry it into working state and write it through unchanged. See the sync skill for the rules governing when this field is set. |
 | `describes-files` | string[] | Paths to source files this page tracks. Non-empty = code-tracking page; absent or empty = concept/decision page with no file-bound staleness. |
 | `tags` | string[] | Categorization labels. |
 
