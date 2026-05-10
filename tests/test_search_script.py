@@ -184,6 +184,7 @@ def test_skill_md_under_100_lines():
 
 def test_skill_description_under_1024_chars():
     post = fm.load(SKILL_MD)
-    desc = str(post.metadata.get("description", ""))
+    desc = post.metadata.get("description", "")
+    assert isinstance(desc, str), "description field must be a string"
     assert len(desc) > 0, "description field is empty"
     assert len(desc) <= 1024, f"description is {len(desc)} chars — must be ≤1024"
