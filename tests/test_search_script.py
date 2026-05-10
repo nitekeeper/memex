@@ -174,3 +174,16 @@ def test_limit(wiki):
     data = _parse_result(result)
     assert len(data["results"]) == 3
     assert all(r["id"].startswith("test:wiki:page") for r in data["results"])
+
+
+def test_skill_md_under_100_lines():
+    with open(SKILL_MD, encoding="utf-8") as f:
+        lines = f.readlines()
+    assert len(lines) <= 100, f"SKILL.md is {len(lines)} lines — must be ≤100"
+
+
+def test_skill_description_under_1024_chars():
+    post = fm.load(SKILL_MD)
+    desc = str(post.metadata.get("description", ""))
+    assert len(desc) > 0, "description field is empty"
+    assert len(desc) <= 1024, f"description is {len(desc)} chars — must be ≤1024"
