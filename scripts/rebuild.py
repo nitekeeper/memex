@@ -115,27 +115,28 @@ def rebuild(ai_dir: str, db_path: str, schema_path: str) -> None:
     Pass 2 — insert all links (after all pages exist)
     """
     conn = connect(db_path, schema_path)
+    try:
+        pattern = os.path.join(ai_dir, "**", "*.md")
+        md_files = glob_module.glob(pattern, recursive=True)
 
-    pattern = os.path.join(ai_dir, "**", "*.md")
-    md_files = glob_module.glob(pattern, recursive=True)
+        pages = []
+        for file_path in sorted(md_files):
+            page = parse_page(file_path)
+            if not page["id"]:
+                print(f"WARNING: skipping {file_path} — missing id field")
+                continue
+            pages.append(page)
 
-    pages = []
-    for file_path in sorted(md_files):
-        page = parse_page(file_path)
-        if not page["id"]:
-            print(f"WARNING: skipping {file_path} — missing id field")
-            continue
-        pages.append(page)
+        # Pass 1: insert pages, tags, files
+        for page in pages:
+            load_page(conn, page)
 
-    # Pass 1: insert pages, tags, files
-    for page in pages:
-        load_page(conn, page)
+        # Pass 2: insert links (all pages now exist, FK safe)
+        for page in pages:
+            _insert_links(conn, page)
 
-    # Pass 2: insert links (all pages now exist, FK safe)
-    for page in pages:
-        _insert_links(conn, page)
-
-    # Rebuild FTS index from pages table content
-    conn.execute("INSERT INTO pages_fts(pages_fts) VALUES('rebuild')")
-    conn.commit()
-    conn.close()
+        # Rebuild FTS index from pages table content
+        conn.execute("INSERT INTO pages_fts(pages_fts) VALUES('rebuild')")
+        conn.commit()
+    finally:
+        conn.close()
