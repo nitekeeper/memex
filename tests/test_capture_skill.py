@@ -1,4 +1,3 @@
-import os
 import pathlib
 import sqlite3
 import frontmatter as fm
@@ -29,7 +28,7 @@ def test_capture_output_parses_correctly():
     assert page["tags"] == ["skill", "capture", "design"]
     assert page["synced_at_commit"] is None
     assert page["describes_files"] == []
-    assert "skill" in page["body"]
+    assert "capture" in page["body"]
 
 
 def test_capture_output_rebuilds_cleanly(tmp_path):
@@ -41,8 +40,9 @@ def test_capture_output_rebuilds_cleanly(tmp_path):
     conn.row_factory = sqlite3.Row
     count = conn.execute("SELECT COUNT(*) FROM pages").fetchone()[0]
     assert count == 1
-    row = conn.execute("SELECT id FROM pages").fetchone()
+    row = conn.execute("SELECT * FROM pages").fetchone()
     assert row["id"] == "memex:wiki:capture-design"
+    assert row["title"] == "Capture skill design decisions"
     conn.close()
 
 
