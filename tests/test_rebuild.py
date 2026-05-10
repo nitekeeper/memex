@@ -5,7 +5,7 @@ import pytest
 import tempfile
 import textwrap
 
-from rebuild import connect, parse_page
+from rebuild import connect, parse_page, load_page
 
 SCHEMA_PATH = str(pathlib.Path(__file__).parent.parent / "db" / "schema.sql")
 
@@ -116,3 +116,59 @@ def test_parse_missing_id_returns_empty_id(tmp_path):
     """))
     page = parse_page(str(p))
     assert page["id"] == ""
+
+
+def test_load_concept_page(tmp_path):
+    db_path = str(tmp_path / "memex.db")
+    conn = connect(db_path, SCHEMA_PATH)
+    page = parse_page(str(FIXTURES / "concept-page.md"))
+    load_page(conn, page)
+    conn.commit()
+
+    row = conn.execute("SELECT * FROM pages WHERE id = ?", (page["id"],)).fetchone()
+    assert row is not None
+    assert row["title"] == "Auth design decisions"
+    assert row["status"] == "draft"
+    assert row["synced_at_commit"] is None
+
+    tags = sorted(r["tag"] for r in conn.execute(
+        "SELECT tag FROM page_tags WHERE page_id = ?", (page["id"],)
+    ))
+    assert tags == ["auth", "design"]
+
+    files = conn.execute(
+        "SELECT * FROM page_files WHERE page_id = ?", (page["id"],)
+    ).fetchall()
+    assert files == []
+    conn.close()
+
+
+def test_load_code_page(tmp_path):
+    db_path = str(tmp_path / "memex.db")
+    conn = connect(db_path, SCHEMA_PATH)
+
+    # Load concept page first — its id is the link target in code-page's 'related' field
+    concept = parse_page(str(FIXTURES / "concept-page.md"))
+    load_page(conn, concept)
+
+    page = parse_page(str(FIXTURES / "code-page.md"))
+    load_page(conn, page)
+    conn.commit()
+
+    row = conn.execute("SELECT * FROM pages WHERE id = ?", (page["id"],)).fetchone()
+    assert row["synced_at_commit"] == "f88c1c6"
+
+    files = sorted(
+        r["file_path"] for r in conn.execute(
+            "SELECT file_path FROM page_files WHERE page_id = ?", (page["id"],)
+        )
+    )
+    assert files == ["db/migrations/", "db/schema.sql"]
+
+    links = conn.execute(
+        "SELECT to_id, rel_type FROM links WHERE from_id = ?", (page["id"],)
+    ).fetchall()
+    assert len(links) == 1
+    assert links[0]["to_id"] == "sample:wiki:auth-design"
+    assert links[0]["rel_type"] == "related"
+    conn.close()

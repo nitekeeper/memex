@@ -57,3 +57,46 @@ def parse_page(file_path: str) -> dict[str, Any]:
         "tags": list(meta.get("tags", [])),
         "related": list(meta.get("related", [])),
     }
+
+
+def load_page(conn: sqlite3.Connection, page: dict[str, Any]) -> None:
+    """Insert a parsed page dict into all four normalized tables.
+
+    Does not commit — caller is responsible for committing after all pages
+    are loaded (for atomicity across the full rebuild).
+
+    created/updated: parse_page() may return datetime.date objects or None.
+    SQLite requires TEXT for these NOT NULL columns, so we coerce to ISO
+    string here, defaulting to "" when absent.
+    """
+    def _date_str(val: Any) -> str:
+        if val is None:
+            return ""
+        return str(val)  # datetime.date.__str__ returns YYYY-MM-DD
+
+    conn.execute(
+        """INSERT INTO pages
+           (id, slug, project, title, status, synced_at_commit,
+            body, file_path, created, updated)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            page["id"], page["slug"], page["project"], page["title"],
+            page["status"], page["synced_at_commit"], page["body"],
+            page["file_path"], _date_str(page["created"]), _date_str(page["updated"]),
+        ),
+    )
+    for tag in page["tags"]:
+        conn.execute(
+            "INSERT INTO page_tags (page_id, tag) VALUES (?, ?)",
+            (page["id"], tag),
+        )
+    for file_path in page["describes_files"]:
+        conn.execute(
+            "INSERT INTO page_files (page_id, file_path) VALUES (?, ?)",
+            (page["id"], file_path),
+        )
+    for to_id in page["related"]:
+        conn.execute(
+            "INSERT INTO links (from_id, to_id, rel_type) VALUES (?, ?, ?)",
+            (page["id"], to_id, "related"),
+        )
