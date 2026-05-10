@@ -59,3 +59,5 @@ Examples: `memex:wiki:capture-skill`, `myproject:wiki:auth-design`
 | Session-end (batch) | `wiki: capture session — <N> pages` |
 
 Example: `wiki: capture auth-design — Auth layer design decisions`
+
+> **Note:** Commit messages use the Unicode em dash (U+2014, `—`). Verify your git environment handles UTF-8 commit messages.
