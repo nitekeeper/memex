@@ -10,15 +10,15 @@
 | `title` | string | Human-readable. Sentence case. |
 | `status` | enum | `draft` / `approved` / `archived`. Always `draft` on first write. |
 | `created` | YYYY-MM-DD | Set at creation; never changed. |
-| `updated` | YYYY-MM-DD | Updated on every write. |
+| `updated` | YYYY-MM-DD | Set to today's date whenever any field or body content changes. Do not update if the page content is unchanged. |
 
 ### Standard-optional
 
 | Field | Type | Notes |
 |---|---|---|
-| `slug` | string | Inner slug only (no namespace). Defaults to filename stem if omitted. |
+| `slug` | string | Inner slug only (no namespace). Include when the value would differ from the filename stem; omit otherwise. |
 | `synced-at-commit` | string | Git SHA when page was last verified against its source files. Set only if `describes-files` is non-empty; otherwise omit the field entirely. |
-| `describes-files` | string[] | Paths to source files this page tracks. Absent or empty = concept/decision page with no file-bound staleness. |
+| `describes-files` | string[] | Paths to source files this page tracks. Non-empty = code-tracking page; absent or empty = concept/decision page with no file-bound staleness. |
 | `tags` | string[] | Categorization labels. |
 
 ### Extension fields
@@ -57,3 +57,5 @@ Examples: `memex:wiki:capture-skill`, `myproject:wiki:auth-design`
 |---|---|
 | On-demand (single page) | `wiki: capture <slug> — <title>` |
 | Session-end (batch) | `wiki: capture session — <N> pages` |
+
+Example: `wiki: capture auth-design — Auth layer design decisions`
