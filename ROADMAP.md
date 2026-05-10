@@ -25,8 +25,9 @@
 | ✅ | Rebuild script | `scripts/rebuild.py` — `connect()`, `parse_page()`, `load_page()`, `_insert_links()`, `rebuild()`, CLI. 13 tests passing. Smoke tested against real `.ai/`. |
 | ✅ | `capture` skill v0 | `skills/capture/SKILL.md` + `REFERENCE.md`. Two-mode: on-demand + session-end. Approval gate. 2026-05-10. |
 | ✅ | `sync` skill v0 | `skills/sync/SKILL.md` + `REFERENCE.md` + `scripts/sync.py`. Staleness detection via `synced-at-commit` + `describes-files`. 8 tests passing. 2026-05-10. |
-| ⏭️ | `search` skill v0 | FTS5-powered search across project wiki pages. |
-| ☐ | Self-improvement loop v0 | Lesson capture/review, wiki curation passes. |
+| ✅ | `ask` skill v0 | `skills/ask/SKILL.md` + `REFERENCE.md` + `scripts/search.py`. FTS5-powered search integration. Tests and hardening complete. 2026-05-10. |
+| ☐ | `search` skill v0 | FTS5-powered search across project wiki pages. |
+| ⏭️ | Self-improvement loop v0 | Lesson capture/review, wiki curation passes. |
 
 ## Validation phase
 
