@@ -25,6 +25,34 @@ Decisions log. Each entry records what was decided, why, and what alternatives w
 
 ---
 
+## 2026-05-09 — Synthesis session; format + schema locked; rebuild script shipped
+
+**Decisions locked:**
+
+| Decision | Choice | Alternatives rejected |
+|---|---|---|
+| Page types | Single format; `describes-files` optional | Two separate schemas — over-engineering |
+| Frontmatter philosophy | Minimal core + extensible | Opinionated-and-complete — framework curation fields not universal |
+| Body structure | Free-form markdown | Required sections — too constraining for heterogeneous content |
+| Status values | `draft` \| `approved` \| `archived` | 4-state with `deprecated` — rejected (user preference for fewer states) |
+| Relationships | `links(from_id, to_id, rel_type)` join table | JSON column — incompatible with Stage 3 graph layer |
+| File tracking | `page_files(page_id, file_path)` join table | JSON column — "which pages track this file?" query would be a scan |
+| Tags | `page_tags(page_id, tag)` join table | JSON column — inconsistent with other join tables |
+| DB location | One DB per project at `.ai/memex.db` | Shared cross-project DB — breaks "wiki travels with project" principle |
+| `status` semantics | Curation lifecycle (not staleness state) | Framework stub used `current`/`stale` — conflation removed |
+
+**Conflict resolved:** Framework's `docs/PROJECT_WIKI_FORMAT.md` used `status` for staleness (`current`/`stale`). This was wrong — staleness is computed from `synced-at-commit` vs HEAD, never stored. Fixed in both `PROJECT_WIKI_FORMAT.md` and Memex's `WIKI_PAGE_FORMAT.md`.
+
+**Artifacts produced:**
+- `docs/WIKI_PAGE_FORMAT.md` — canonical page format spec
+- `db/schema.sql` — SQLite schema with CREATE TABLE, indexes, FTS5
+- `scripts/rebuild.py` — rebuild script (13 tests, CLI, smoke tested)
+- `docs/superpowers/plans/2026-05-09-rebuild-script.md` — Plan 1 of 3
+
+**References:** `sessions/notes/2026-05-09-memex-synthesis.md` (framework).
+
+---
+
 ## 2026-05-09 — Karpathy sources ingested; three key themes extracted
 
 **Decision.** Ingested three Karpathy pieces as separate source files in `sources/analyzed/`:

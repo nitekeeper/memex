@@ -2,7 +2,7 @@
 id: memex:wiki:active
 slug: active
 title: Memex — current focus
-synced-at-commit: 6396be8a1d6e9ff2d908b8678cbd699c755781f0
+synced-at-commit: 87441ab80003822059da407cd898c9322d2ea078
 describes-files: ["ROADMAP.md", "GOALS.md"]
 status: draft
 tags: [product, active]
@@ -12,39 +12,25 @@ updated: 2026-05-09
 
 # Current focus
 
-**Approval queue cleared 2026-05-09.** All eight proposed wiki entries approved and written. Research phase complete.
+**Synthesis + rebuild script complete 2026-05-09.** Format spec locked (`docs/WIKI_PAGE_FORMAT.md`), schema locked (`db/schema.sql`), rebuild script shipped (`scripts/rebuild.py`, 13 tests, CLI). Next session is the `capture` skill v0.
 
 ## Next
 
-1. **Synthesis session** — compose Karpathy + second-brain-blueprint + Superpowers findings into Memex design proposals; resolve format/schema decisions. Key decisions to make:
-   - Project-wiki file format (frontmatter fields, body structure)
-   - SQLite schema (extends Stage 1 schema; WAL + NORMAL safety required)
-   - Skill frontmatter: framework split decision already made (loaded vs. registry)
-   - Whether meta-skills get TDD-for-documentation baseline testing before shipping
+1. **`capture` skill v0** — AI skill that writes/updates a project-wiki page. Brainstorm → plan → implement. Inputs: `docs/WIKI_PAGE_FORMAT.md` (format contract), `scripts/rebuild.py` (validates output). Follow `wiki:skill-file-structure` + `wiki:progressive-disclosure-in-skills` + `wiki:tdd-for-skill-authoring`.
 
-## Approved wiki entries
+2. **`docs/MEMEX_SPEC.md`** — short spec of what Memex is, does, and doesn't do. Can be written in parallel with capture skill or just before v0.1 release.
 
-From Karpathy ingestion:
-- [`wiki:memex-disk-layer`](.ai/wiki/memex-disk-layer.md) — Memex as the disk layer in the LLM OS
-- [`wiki:testable-metric-constraint`](.ai/wiki/testable-metric-constraint.md) — improvement loop bounded by measurability
-- [`wiki:design-for-async-agents`](.ai/wiki/design-for-async-agents.md) — design for teams of async agents
+## Completed this session (2026-05-09)
 
-From second-brain-blueprint ingestion:
-- [`wiki:two-tier-instruction-loading`](.ai/wiki/two-tier-instruction-loading.md) — lean root + deferred ops; 86% cold-start reduction
-- [`wiki:session-snapshot-format`](.ai/wiki/session-snapshot-format.md) — fixed fields; compression by scope exclusion
-- [`wiki:inbox-raw-wiki-pipeline`](.ai/wiki/inbox-raw-wiki-pipeline.md) — raw is immutable; wiki is derived
-- [`wiki:approval-gate-with-escape-hatches`](.ai/wiki/approval-gate-with-escape-hatches.md) — gate before every write; hatches narrow the gate
-- [`wiki:sqlite-crash-safety`](.ai/wiki/sqlite-crash-safety.md) — WAL + NORMAL; MEMORY + OFF is the crash bug
-
-From Superpowers ingestion:
-- [`wiki:skill-cso-description-trap`](.ai/wiki/skill-cso-description-trap.md) — descriptions summarizing workflow shortcircuit the skill body
-- [`wiki:mandatory-skill-invocation`](.ai/wiki/mandatory-skill-invocation.md) — 1% rule + anti-rationalization tables
-- [`wiki:tdd-for-skill-authoring`](.ai/wiki/tdd-for-skill-authoring.md) — RED-GREEN-REFACTOR for process documentation
+- Format & schema lock — single page format, minimal core + extensible, 3-state status (`draft`/`approved`/`archived`), normalized join tables (`links`, `page_files`, `page_tags`), one DB per project co-located at `.ai/memex.db`
+- Rebuild script — 6-task TDD implementation, 13 tests, WAL safety, two-pass FK strategy, FTS5, CLI. Smoke tested: indexed 13 real pages from `.ai/wiki/`, 47 tags, 12 links.
+- Renamed branch `master` → `main`
 
 ## Open items
 
-- DB schema (`db/`) is a stub — populated after synthesis session and format/schema lock.
-- `docs/` format specs not yet written — populated after synthesis.
+- `docs/MEMEX_SPEC.md` not yet written
+- Research session notes (sessions 2–4: Karpathy, second-brain, Superpowers) not captured as individual session files — framework sessions/notes/ only has first design session + synthesis session
+- 3 quality follow-ups from code review (non-blocking): surface dropped links from INSERT OR IGNORE as warnings; friendlier error on duplicate id; decide policy for created/updated defaults
 
 ## Pointer
 
