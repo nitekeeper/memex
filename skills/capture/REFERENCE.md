@@ -10,14 +10,14 @@
 | `title` | string | Human-readable. Sentence case. |
 | `status` | enum | `draft` / `approved` / `archived`. Always `draft` on NEW or REPAIR. Preserved unchanged on UPDATE. |
 | `created` | YYYY-MM-DD | On NEW or REPAIR, set to today's date; preserve the existing value on UPDATE. |
-| `updated` | YYYY-MM-DD | Set to today's date whenever any field or body content changes. Do not update if the page content is unchanged. (Exclude the `updated` field itself from any unchanged-content comparison to avoid circular dependency. The empty-diff guard applies on the UPDATE path only. Exception: on the REPAIR path, always write today's date — there is no valid existing value to preserve — and always proceed to write regardless of diff state.) |
+| `updated` | YYYY-MM-DD | Set to today's date whenever any field or body content changes. Do not update if the page content is unchanged. (Exclude the `updated` field itself from any unchanged-content comparison to avoid circular dependency. The empty-diff guard applies on the UPDATE path only. If the existing file has no `updated` field and content changed: write today's date. Exception: on the REPAIR path, always write today's date — there is no valid existing value to preserve — and always proceed to write regardless of diff state.) |
 
 ### Standard-optional
 
 | Field | Type | Notes |
 |---|---|---|
 | `slug` | string | Inner slug only (no namespace). Include when the value would differ from the filename stem; omit otherwise. |
-| `synced-at-commit` | string | Git SHA of the commit when this page was last verified against its source files. Managed exclusively by the sync skill — the capture skill never sets or removes this field under any conditions. Never set or remove this field. If already present in the file, preserve it unchanged. If not present in the file on the UPDATE path, omit it from the written output — do not add it. Including on the REPAIR path: if the malformed file contains a `synced-at-commit:` line with a non-empty value (detected via plain-text line scan, not YAML parsing — this extraction must work even when the YAML block cannot be parsed at all, REPAIR triggers when YAML is unparseable OR when required fields are absent — the plain-text scan handles both sub-cases), carry it into working state and write it through unchanged. See the sync skill for the rules governing when this field is set. |
+| `synced-at-commit` | string | Git SHA of the commit when this page was last verified against its source files. Managed exclusively by the sync skill — the capture skill never sets or removes this field under any conditions. Never set or remove this field. If already present in the file, preserve it unchanged. If not present in the file on the UPDATE path, omit it from the written output — do not add it. Including on the REPAIR path: if the malformed file contains a `synced-at-commit:` line with a non-empty value (detected via plain-text line scan, not YAML parsing — this extraction must work even when the YAML block cannot be parsed at all, REPAIR triggers when YAML is unparseable OR when one or more required fields (`id`, `title`, `slug`, `status`) are absent or empty — the plain-text scan handles both sub-cases), carry it into working state and write it through unchanged. See the sync skill for the rules governing when this field is set. |
 | `describes-files` | string[] | Paths to source files this page tracks. Non-empty = code-tracking page; absent or empty = concept/decision page with no file-bound staleness. |
 | `tags` | string[] | Categorization labels. |
 
@@ -34,6 +34,10 @@ Any additional fields (`sources`, `related`, `supersedes`, `archived-reason`) pa
 | `draft` | Being written or awaiting review. AI always sets this on NEW or REPAIR. |
 | `approved` | Reviewed and trusted. Set by the user — never by the AI. When the capture skill updates a page whose status is `approved`, it preserves the status and displays this warning in the approval gate: `[WARNING: this page is currently approved — content will be updated but status preserved]`. Status is never automatically demoted by the capture skill — only the user can change it. (Exception: on the REPAIR path, no existing status is carried into working state — the WARNING does not apply.) |
 | `archived` | No longer active. Requires `archived-reason` in the body or as a frontmatter field. |
+
+**REPAIR path**
+
+REPAIR triggers when: (a) YAML frontmatter cannot be parsed, OR (b) one or more required fields (`id`, `title`, `slug`, `status`) are absent or empty. On REPAIR, all frontmatter fields are re-derived from the current conversation as if NEW — except `synced-at-commit`, which is extracted via plain-text line scan (see above).
 
 ---
 
