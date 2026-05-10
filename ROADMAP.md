@@ -27,8 +27,8 @@
 | ✅ | `sync` skill v0 | `skills/sync/SKILL.md` + `REFERENCE.md` + `scripts/sync.py`. Staleness detection via `synced-at-commit` + `describes-files`. 8 tests passing. 2026-05-10. |
 | ✅ | `ask` skill v0 | `skills/ask/SKILL.md` + `REFERENCE.md` + `scripts/search.py`. FTS5-powered tiered knowledge resolution (memex → web → model). 11 tests passing. 2026-05-10. |
 | ✅ | `capture-lesson` skill v0 | `skills/capture-lesson/SKILL.md` + `REFERENCE.md` + `docs/LESSON_FORMAT.md`. On-demand + session-end modes, inbox/feedback streams. 10 tests passing. 2026-05-10. |
-| ⏭️ | `review-lessons` skill v0 | Lesson review + promotion loop. Next. |
-| ☐ | `propose-wiki-entry` + `review-wiki` | Wiki curation passes. After review-lessons. |
+| ✅ | `review-lessons` skill v0 | `skills/review-lessons/SKILL.md` + `REFERENCE.md`. Promote/discard/defer loop, feedback-first priority. 10 tests passing. 2026-05-10. |
+| ⏭️ | `propose-wiki-entry` + `review-wiki` | Wiki curation passes. After review-lessons. |
 
 ## Validation phase
 
