@@ -4,7 +4,7 @@ slug: memex-disk-layer
 title: Memex as the disk layer in the LLM OS
 synced-at-commit: 4465f3727246b47b71aab3a8255369b0493c0be9
 describes-files: []
-status: current
+status: approved
 tags: [architecture, llm-os, design-principles]
 related: [memex:wiki:testable-metric-constraint, memex:wiki:design-for-async-agents]
 created: 2026-05-09

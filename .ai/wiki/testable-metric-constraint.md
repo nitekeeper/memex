@@ -4,7 +4,7 @@ slug: testable-metric-constraint
 title: The self-improvement loop is bounded by what is measurable
 synced-at-commit: 4465f3727246b47b71aab3a8255369b0493c0be9
 describes-files: []
-status: current
+status: approved
 tags: [self-improvement, loop, measurement, design-principles]
 related: [memex:wiki:memex-disk-layer, memex:wiki:design-for-async-agents]
 created: 2026-05-09

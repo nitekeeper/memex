@@ -4,7 +4,7 @@ slug: design-for-async-agents
 title: Design for teams of async agents, not single sessions
 synced-at-commit: 4465f3727246b47b71aab3a8255369b0493c0be9
 describes-files: []
-status: current
+status: approved
 tags: [architecture, multi-agent, concurrency, design-principles]
 related: [memex:wiki:memex-disk-layer, memex:wiki:testable-metric-constraint]
 created: 2026-05-09
