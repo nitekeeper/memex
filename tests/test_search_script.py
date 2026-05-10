@@ -107,8 +107,10 @@ def test_empty_query(wiki):
 
 def test_bm25_ranking(wiki):
     ai_dir, wiki_dir = wiki
-    _write_page(wiki_dir, "exact", "token expiry", "Details about token expiry and token refresh cycles")
-    _write_page(wiki_dir, "vague", "Session management", "Mentions token expiry once in passing")
+    _write_page(wiki_dir, "exact", "Expiry handling",
+                "token expiry token expiry token expiry token expiry token expiry")
+    _write_page(wiki_dir, "vague", "Session management",
+                "Mentions token expiry once in passing")
     _build_db(ai_dir)
 
     result = _run_search(ai_dir, "token expiry")
@@ -116,6 +118,8 @@ def test_bm25_ranking(wiki):
     data = _parse_result(result)
     assert len(data["results"]) == 2
     assert data["results"][0]["id"] == "test:wiki:exact"
+    scores = [r["score"] for r in data["results"]]
+    assert scores[0] < scores[1]  # BM25 is negative; more relevant = more negative
 
 
 def test_snippet_extraction(wiki):
@@ -128,6 +132,8 @@ def test_snippet_extraction(wiki):
     data = _parse_result(result)
     snippet = data["results"][0]["snippet"]
     assert "[token]" in snippet or "[expiry]" in snippet
+    # Verify surrounding context exists — snippet should contain more than just the bracket
+    assert any(word in snippet for word in ["handle", "refreshing", "session", "automatically"])
 
 
 def test_status_filter(wiki):
@@ -141,6 +147,7 @@ def test_status_filter(wiki):
     data = _parse_result(result)
     assert len(data["results"]) == 1
     assert data["results"][0]["id"] == "test:wiki:approved-page"
+    assert data["results"][0]["status"] == "approved"
 
 
 def test_tags_filter(wiki):
@@ -166,3 +173,4 @@ def test_limit(wiki):
     assert result.returncode == 0
     data = _parse_result(result)
     assert len(data["results"]) == 3
+    assert all(r["id"].startswith("test:wiki:page") for r in data["results"])
