@@ -17,7 +17,7 @@
 | Field | Type | Notes |
 |---|---|---|
 | `slug` | string | Inner slug only (no namespace). Include when the value would differ from the filename stem; omit otherwise. |
-| `synced-at-commit` | string | Git SHA of the commit when this page was last verified against its source files. Managed exclusively by the sync skill — the capture skill never sets or removes this field under any conditions. Never set or remove this field. If already present in the file, preserve it unchanged. See the sync skill for the rules governing when this field is set. |
+| `synced-at-commit` | string | Git SHA of the commit when this page was last verified against its source files. Managed exclusively by the sync skill — the capture skill never sets or removes this field under any conditions. Never set or remove this field. If already present in the file, preserve it unchanged — including on the REPAIR path: if the malformed file contains a readable `synced-at-commit` field, carry it into working state and write it through unchanged. See the sync skill for the rules governing when this field is set. |
 | `describes-files` | string[] | Paths to source files this page tracks. Non-empty = code-tracking page; absent or empty = concept/decision page with no file-bound staleness. |
 | `tags` | string[] | Categorization labels. |
 
