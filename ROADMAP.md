@@ -7,8 +7,8 @@
 | Status | Item | Notes |
 |---|---|---|
 | ✅ | Ingest Karpathy | Three sources analyzed: Software 2.0, LLM OS, AutoResearch. See `sources/analyzed/2026-05-09-karpathy-*.md`. |
-| ⏭️ | Ingest user's existing LLM wiki build | Concrete prior art; most actionable input. |
-| ☐ | Ingest Superpowers | Influential exemplar; deliberately last to avoid cargo-cult (GOALS.md anti-goals). |
+| ✅ | Ingest user's existing LLM wiki build | second-brain-blueprint analyzed 2026-05-09. SQLite crash-safety also ingested (WAL fix identified). |
+| ⏭️ | Ingest Superpowers | Influential exemplar; deliberately last to avoid cargo-cult (GOALS.md anti-goals). |
 | ☐ | Synthesis session | Compose research findings into design proposals; resolve format/schema decisions. |
 
 ## Design phase
