@@ -80,3 +80,12 @@ def test_reference_md_exists():
 def test_lesson_format_doc_exists():
     """docs/LESSON_FORMAT.md must exist."""
     assert LESSON_FORMAT_MD.exists(), "docs/LESSON_FORMAT.md must exist"
+
+
+def test_lesson_stream_is_valid_enum():
+    """stream field must be 'inbox' or 'feedback'."""
+    valid = {"inbox", "feedback"}
+    for path in [INBOX_LESSON, FEEDBACK_LESSON]:
+        post = fm.load(str(path))
+        assert post.metadata["stream"] in valid, \
+            f"stream must be inbox or feedback, got {post.metadata['stream']!r}"

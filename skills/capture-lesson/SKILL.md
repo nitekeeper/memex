@@ -44,7 +44,7 @@ A project is detectable if it contains `lessons/inbox/` at its root — check ea
    ```
    - **yes** → step 4
    - **edit** → apply correction, re-show gate
-   - **skip** / **cancel** / **abort** → stop, write nothing
+   - **skip** / **cancel** / **abort** / **quit** → stop, write nothing
    - Any other message → treat as edit instruction
 
 4. **On approval** → write file:
@@ -67,7 +67,7 @@ A project is detectable if it contains `lessons/inbox/` at its root — check ea
    1. <title> (inbox)
    2. <title> (feedback)
    Proceed through each? (yes / cancel)
-   (To skip specific candidates, say "skip N" during the per-candidate gates.)
+   (To skip a specific candidate, say "skip" at that candidate's approval gate.)
    ```
    - **yes** → gate each in order
    - **cancel** → stop, write nothing

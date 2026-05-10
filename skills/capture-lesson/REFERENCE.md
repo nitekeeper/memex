@@ -62,7 +62,7 @@ REPAIR triggers when: (a) YAML frontmatter cannot be parsed, OR (b) one or more 
 | On-demand (single lesson) | `lessons: capture — <title>` |
 | Session-end (batch) | `lessons: capture — N lessons` |
 
-> **Note:** Commit messages use the Unicode em dash (U+2014, `—`). Before committing: run `git config i18n.commitEncoding`. If output is empty, `utf-8`, `utf8`, `UTF-8`, or `UTF8` — use em dash. Any other value — substitute `--` (ASCII double-hyphen).
+> **Note:** Commit messages use the Unicode em dash (U+2014, `—`). Before committing: run `git config i18n.commitEncoding`. If the command exits with a non-zero code, or if the output is any value other than empty, `utf-8`, `utf8`, `UTF-8`, or `UTF8` — substitute `--` (ASCII double-hyphen). Otherwise use the em dash.
 
 ---
 

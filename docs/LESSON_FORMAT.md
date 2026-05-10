@@ -37,7 +37,7 @@ Concrete guidance for next time.
 
 `lessons/<stream>/<slug>.md` — slug is kebab-case, derived from title.
 
-The optional `slug` frontmatter field overrides the filename stem when it would differ from the title-derived default.
+The optional `slug` frontmatter field overrides the filename stem when it would differ from the title-derived default. Use the bare slug only (e.g. `my-lesson`, not `memex:lesson:my-lesson`).
 
 ## Lifecycle
 
