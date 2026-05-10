@@ -8,7 +8,7 @@ import frontmatter
 
 def _git(args, cwd, check=True):
     return subprocess.run(
-        ["git"] + args, cwd=cwd, capture_output=True, text=True, check=check
+        ["git"] + args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", check=check
     )
 
 
@@ -29,14 +29,9 @@ def _get_file_diff(project_root, sha, file_path):
 
 
 def _count_lines_changed(diff_text):
-    added = sum(
-        1 for line in diff_text.splitlines()
-        if line.startswith("+") and not line.startswith("+++")
-    )
-    removed = sum(
-        1 for line in diff_text.splitlines()
-        if line.startswith("-") and not line.startswith("---")
-    )
+    lines = diff_text.splitlines()
+    added = sum(1 for l in lines if l.startswith("+") and not l.startswith("+++"))
+    removed = sum(1 for l in lines if l.startswith("-") and not l.startswith("---"))
     return added + removed
 
 
@@ -50,7 +45,7 @@ def run_sync(ai_dir):
 
     try:
         head_sha = _get_head_sha(project_root)
-    except subprocess.CalledProcessError as exc:
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         print(f"Error: git unavailable or not a git repo: {exc}", file=sys.stderr)
         sys.exit(1)
 
@@ -58,17 +53,23 @@ def run_sync(ai_dir):
 
     wiki_dir = ai_path / "wiki"
     if not wiki_dir.exists():
-        print(json.dumps(report, indent=2))
+        print(json.dumps(report, indent=2, sort_keys=True))
         return
 
     for md_file in sorted(wiki_dir.glob("*.md")):
-        post = frontmatter.load(str(md_file))
+        try:
+            post = frontmatter.load(str(md_file))
+        except Exception as exc:
+            print(f"Warning: skipping {md_file} — YAML parse error: {exc}", file=sys.stderr)
+            continue
+
         meta = post.metadata
         page_id = str(meta.get("id", ""))
         title = str(meta.get("title", ""))
         page_path = str(md_file.relative_to(ai_path.parent)).replace("\\", "/")
         describes_files = list(meta.get("describes-files", []))
-        synced_at_commit = meta.get("synced-at-commit")
+        # Cast to str: PyYAML may parse all-numeric SHA prefixes as int
+        synced_at_commit = str(meta.get("synced-at-commit", "") or "")
 
         if not describes_files:
             report["untracked"].append(
@@ -84,6 +85,10 @@ def run_sync(ai_dir):
                     "title": title,
                     "state": "NEVER_SYNCED",
                     "synced_at_commit": None,
+                    # Schema note: NEVER_SYNCED entries have diff=null, lines_changed=null.
+                    # STALE entries have actual diff text and integer lines_changed.
+                    # Binary files (Issue 4) add lines_changed=None even in STALE entries.
+                    # Keep field additions consistent across both states.
                     "changed_files": [
                         {"path": fp.replace("\\", "/"), "diff": None, "lines_changed": None}
                         for fp in describes_files
@@ -102,15 +107,35 @@ def run_sync(ai_dir):
 
         changed_files = []
         for fp in describes_files:
-            diff_text = _get_file_diff(project_root, synced_at_commit, fp)
-            if diff_text:
-                changed_files.append(
-                    {
-                        "path": fp.replace("\\", "/"),
-                        "diff": diff_text,
-                        "lines_changed": _count_lines_changed(diff_text),
-                    }
+            try:
+                diff_text = _get_file_diff(project_root, synced_at_commit, fp)
+            except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+                print(
+                    f"Warning: skipping diff for {fp} in {md_file} — git error: {exc}",
+                    file=sys.stderr,
                 )
+                continue
+
+            if diff_text:
+                # Limitation: renamed files appear CLEAN; update describes-files after a rename.
+                if "Binary files" in diff_text:
+                    # Binary diffs don't have meaningful line counts
+                    changed_files.append(
+                        {
+                            "path": fp.replace("\\", "/"),
+                            "diff": diff_text,
+                            "lines_changed": None,
+                            "binary": True,
+                        }
+                    )
+                else:
+                    changed_files.append(
+                        {
+                            "path": fp.replace("\\", "/"),
+                            "diff": diff_text,
+                            "lines_changed": _count_lines_changed(diff_text),
+                        }
+                    )
 
         if changed_files:
             report["stale"].append(
@@ -135,7 +160,7 @@ def run_sync(ai_dir):
                 }
             )
 
-    print(json.dumps(report, indent=2))
+    print(json.dumps(report, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":
