@@ -66,7 +66,7 @@ Once a project is confirmed, hold that project's `.ai/wiki/` directory as the ta
 5. **Validate**: run `python scripts/rebuild.py .ai/` from the confirmed project root.
    - On error: show it, stop, do not commit. Leave file in place for inspection. Tell the user the message specified in the error handling table (rebuild.py errors in on-demand mode row). Note: a file left on disk after a `rebuild.py` failure may be malformed. On retry, step 2 checks the file's YAML frontmatter — if it is invalid or missing required fields, the REPAIR path applies. If the frontmatter is valid and all required fields are present, step 2 treats the file as 'Found and valid' and proceeds through the normal diff gate.
 
-6. **Auto-commit**: `wiki: capture <slug> — <title>` (apply the em dash encoding check and commit failure handling from `REFERENCE.md` → Commit message formats). If `describes-files` is non-empty on the written page, note after the commit: *'This page tracks files — run `/sync` to initialize staleness tracking.'*
+6. **Auto-commit**: `wiki: capture <slug> — <title>` (apply the em dash encoding check and commit failure handling from `REFERENCE.md` → Commit message formats). If `describes-files` is non-empty in the written page's frontmatter, note after the commit: 'This page tracks files — run /sync to initialize staleness tracking.'
 
 ---
 
