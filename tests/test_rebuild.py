@@ -1,10 +1,11 @@
 import os
 import sqlite3
+import pathlib
 import pytest
 
 from rebuild import connect
 
-SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "db", "schema.sql")
+SCHEMA_PATH = str(pathlib.Path(__file__).parent.parent / "db" / "schema.sql")
 
 
 def test_connect_creates_tables(tmp_path):
@@ -42,4 +43,12 @@ def test_connect_wipes_existing_db(tmp_path):
     conn = connect(db_path, SCHEMA_PATH)
     count = conn.execute("SELECT COUNT(*) FROM pages").fetchone()[0]
     assert count == 0
+    conn.close()
+
+
+def test_connect_enforces_foreign_keys(tmp_path):
+    db_path = str(tmp_path / "memex.db")
+    conn = connect(db_path, SCHEMA_PATH)
+    fk_on = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+    assert fk_on == 1
     conn.close()
