@@ -3,13 +3,13 @@
 ## search.py CLI
 
 ```
-python scripts/search.py <ai_dir> <query> [--limit N] [--status STATUS] [--tag TAG]
+python scripts/search.py <ai_dir> "<query>" [--limit N] [--status STATUS] [--tag TAG]
 ```
 
 | Argument | Required | Notes |
 |---|---|---|
 | `ai_dir` | yes | Path to the `.ai/` directory. DB resolved as `<ai_dir>/memex.db`. |
-| `query` | yes | FTS5 search string. Quote if it contains spaces. |
+| `query` | yes | FTS5 search string. Always quote with double quotes when passing as a shell argument. |
 | `--limit` | no | Max results returned. Default: 10. |
 | `--status` | no | Filter by status: `draft`, `approved`, or `archived`. |
 | `--tag` | no | Filter by tag. Repeatable: `--tag auth --tag session`. |
@@ -52,7 +52,7 @@ Errors go to stderr. On non-zero exit, discard stdout and surface the stderr mes
 
 **`snippet`**: FTS5 excerpt with matched terms in brackets. Use to decide whether to read the full page via the Read tool.
 
-**`file_path`**: relative to the project root. Prepend the project root to form an absolute path for the Read tool.
+**`file_path`**: path as stored during ingest — typically relative to the project root. Verify against your project's ingest convention before constructing absolute paths.
 
 ---
 

@@ -6,11 +6,13 @@ description: "Use when the user asks a question about their project and wants an
 
 ## Project root detection
 
+A project is detectable if it contains `.ai/wiki/` at its root — check each workspace root at this fixed path only; do not recurse. If no workspace context is available, treat the current working directory as the only root.
+
 - Zero detectable projects (no `.ai/wiki/` found): stop. Tell user: "No project wiki found. Create an `.ai/wiki/` directory in your target project root before running ask."
 - Exactly one: proceed. Announce: "Searching `<path>/.ai/`."
-- More than one: ask which project. Wait for explicit choice.
+- More than one: list the found project paths, numbered. Ask: "Multiple project wikis found — which should I search? Reply with the number or path." Wait for explicit choice.
 
-If `memex.db` is absent at the confirmed root: note "Wiki found but no DB index — skipping local search." Skip to Tier 2.
+If `.ai/memex.db` is absent at the confirmed root: note "Wiki found but no DB index — skipping local search." Skip to Tier 2.
 
 ---
 
@@ -29,7 +31,7 @@ Read the `snippet` and `file_path` of each result. Use the Read tool to read any
 
 **Judge sufficiency**: does the content directly answer the question with enough detail to act on?
 
-- Sufficient: answer the user. Cite each page as `<title> (.ai/wiki/<slug>.md)`. Stop.
+- Sufficient: answer the user. Cite each page as `<title>` (`<file_path>`). Stop.
 - Not sufficient: escalate to Tier 2.
 
 Do not apply a score threshold. Sufficiency is a judgment call based on content, not `score` value.
@@ -40,6 +42,10 @@ Do not apply a score threshold. Sufficiency is a judgment call based on content,
 
 Run `WebSearch` with the question as the query (refine query as needed for search engines).
 
+If web search is unavailable: note "web search unavailable — answering from training knowledge"; skip to Tier 3.
+
+If no usable results: escalate to Tier 3.
+
 Synthesize an answer. Cite each source URL.
 
 After answering, identify findings that are durable and project-relevant — design decisions, architecture patterns, API contracts. Do NOT flag one-off error fixes or environment-specific troubleshooting steps.
@@ -47,10 +53,6 @@ After answering, identify findings that are durable and project-relevant — des
 If durable findings exist: offer to capture them. Example: "I found [X] — worth capturing as a wiki entry? I can run /capture now." Wait for user response before invoking capture. Normal capture approval gate applies.
 
 If no durable findings: do not offer capture.
-
-If web search is unavailable: note "web search unavailable — answering from training knowledge"; skip to Tier 3.
-
-If web search returns no usable results: escalate to Tier 3.
 
 ---
 
