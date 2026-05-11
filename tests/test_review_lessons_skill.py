@@ -91,3 +91,30 @@ def test_held_lesson_fixture_parses():
     assert post.metadata.get("held-reason") in valid, \
         f"held-reason must be one of {valid}"
     assert post.metadata.get("status") == "draft"
+
+
+def test_scan_order_held_before_regular():
+    """SKILL.md must describe held items being reviewed before regular drafts."""
+    with open(SKILL_MD, encoding="utf-8") as f:
+        content = f.read()
+    held_pos = content.find("held")
+    regular_pos = content.find("regular")
+    assert held_pos != -1, "SKILL.md must mention 'held'"
+    assert regular_pos != -1, "SKILL.md must mention 'regular'"
+    assert held_pos < regular_pos, \
+        "SKILL.md must describe held items before regular drafts (scan order)"
+
+
+def test_candidate_list_includes_held_tag():
+    """SKILL.md must contain the [HELD: format tag for held items in the candidate list."""
+    with open(SKILL_MD, encoding="utf-8") as f:
+        content = f.read()
+    assert "[HELD:" in content, "SKILL.md must contain '[HELD:' format tag for held items"
+
+
+def test_review_block_held_marker_and_reason():
+    """SKILL.md must contain [HELD: in the review block header and a Held reason: line."""
+    with open(SKILL_MD, encoding="utf-8") as f:
+        content = f.read()
+    assert "[HELD:" in content, "SKILL.md must contain '[HELD:' in the review block"
+    assert "Held reason:" in content, "SKILL.md must contain 'Held reason:' line"

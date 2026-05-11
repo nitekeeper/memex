@@ -60,7 +60,7 @@ A project is detectable if it contains `lessons/inbox/` at its root — check ea
    Title: <title>
    Stream: <stream>  |  Tags: [...]
 
-   Held reason: <contradiction | philosophy/goals | low confidence>
+   Held reason: contradiction | touches philosophy/goals | low confidence
    How to apply: <how-to-apply content>
 
    Action? (promote / discard / defer)
