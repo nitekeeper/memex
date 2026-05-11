@@ -43,6 +43,7 @@
 | Status | Item | Notes |
 |---|---|---|
 | ✅ | v0.1 release | `dist/` cut with manifest + 7 skills + scripts + format specs. Tagged `v0.1.0`. 2026-05-10. |
+| ☐ | `upgrade-memex` skill | Consumer-side upgrade skill — shipped in `dist/`. Any product using Memex runs this to pull in the latest version and update its own integration. Planned after `meta:cut-release` ships. |
 
 ---
 
