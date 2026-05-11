@@ -23,16 +23,22 @@ A project is detectable if it contains `lessons/inbox/` at its root — check ea
 
 1. **Scan** for draft lessons:
    - Read all `.md` files in `lessons/feedback/` and `lessons/inbox/` with `status: draft`
-   - Feedback stream first (higher priority), then inbox
    - Skip files with `status` not `draft`
+   - Bucket into two groups:
+     - **Held**: files with `held-for-review: true` (feedback stream first, then inbox)
+     - **Regular**: all other draft files (feedback stream first, then inbox)
+   - Review order: held items first, then regular drafts
 
 2. **Show candidate list** before any action:
    ```
-   Found N draft lessons (F feedback, I inbox):
-   1. <title> (feedback)
-   2. <title> (inbox)
+   Found N draft lessons (H held, F feedback, I inbox):
+   1. <title> (feedback) [HELD: philosophy]
+   2. <title> (inbox) [HELD: contradiction]
+   3. <title> (feedback)
+   4. <title> (inbox)
    Proceed? (yes / cancel)
    ```
+   (Show `[HELD: <reason>]` only for held items. Omit `H held` from the header count when H is 0.)
    - **yes** → review each in order
    - **cancel** → stop, change nothing
    - No draft lessons found → report "No draft lessons to review." Done.
@@ -48,6 +54,18 @@ A project is detectable if it contains `lessons/inbox/` at its root — check ea
    
    Action? (promote / discard / defer)
    ```
+   For held items, prepend the held marker and add a reason line:
+   ```
+   --- Lesson <n> of N --- [HELD: <reason>]
+   Title: <title>
+   Stream: <stream>  |  Tags: [...]
+
+   Held reason: <held-reason — map: contradiction → contradiction, philosophy → touches philosophy/goals, confidence → low confidence>
+   How to apply: <how-to-apply content>
+
+   Action? (promote / discard / defer)
+   ```
+   When a held lesson is promoted, also clear `held-for-review` and `held-reason` from its frontmatter. On discard or defer, leave `held-for-review` and `held-reason` untouched.
 
    - **promote** → see Promote action
    - **discard** → ask "Log a reason? (enter reason, or press enter to just delete)"

@@ -6,7 +6,11 @@ Format: [version] — date — summary.
 
 ---
 
-## Unreleased — 2026-05-11
+## Unreleased
+
+---
+
+## v0.2.0 — 2026-05-11
 
 **upgrade skill**
 - New skill: `skills/upgrade/` — upgrades Memex within a consumer product. Reads `memex_path`
