@@ -8,6 +8,12 @@ Format: [version] — date — summary.
 
 ## Unreleased — 2026-05-11
 
+**upgrade skill**
+- New skill: `skills/upgrade/` — upgrades Memex within a consumer product. Reads `memex_path`
+  and `memex_dir` from `CLAUDE.md`, checks git tags for new versions, shows changelog excerpt,
+  approval gate, git checkout, copies full `dist/`, runs schema migrations, rebuilds DB.
+- 10 structural tests passing (95 total).
+
 **Phase 1 — Session-start queue-processing pass**
 - `CLAUDE.md` updated: Claude now runs `review-lessons` → `propose-wiki-entry` → `sync` automatically at session start, before the first user message, and shows a summary. No approval gates. Deferred and discarded items are handled silently; only uncertain lessons are left as drafts for the next collaborative session.
 

@@ -43,7 +43,7 @@
 | Status | Item | Notes |
 |---|---|---|
 | ✅ | v0.1 release | `dist/` cut with manifest + 7 skills + scripts + format specs. Tagged `v0.1.0`. 2026-05-10. |
-| ☐ | `upgrade-memex` skill | Consumer-side upgrade skill — shipped in `dist/`. Any product using Memex runs this to pull in the latest version and update its own integration. Planned after `meta:cut-release` ships. |
+| ✅ | `upgrade` skill | Consumer-side upgrade skill — bundled in products that use Memex. Reads `memex_path` + `memex_dir` from `CLAUDE.md`, git-based version detection, full `dist/` copy, migration support, DB rebuild. 10 tests. 2026-05-11. |
 
 ---
 
