@@ -10,17 +10,20 @@ You are operating inside the **Memex product repo**. Memex is Product 1 of Skill
 
 ## Session start
 
-Before responding to the user's first message, run the self-improvement queue-processing pass:
+At the start of every session, before responding to any user message, run the self-improvement queue-processing pass:
 
 1. **`review-lessons` (solo)** — scan `lessons/feedback/` then `lessons/inbox/` for `status: draft` lessons.
    - **Promote** if the lesson is factual, self-contained, and has a concrete how-to-apply.
    - **Defer** (leave as draft) if the lesson touches goals, priorities, design philosophy, or contradicts an existing approved wiki entry.
    - **Discard** if it duplicates something already in the wiki or is purely session-local.
    - Apply actions directly — no approval gate.
+   If either `lessons/feedback/` or `lessons/inbox/` does not exist, treat it as empty and continue.
+   Treat a lesson file with no `status` field as `draft`.
 
 2. **`propose-wiki-entry` (solo)** — convert all newly promoted lessons into draft wiki entries in `.ai/wiki/`. Apply directly — no approval gate.
+   If a slug already exists in `.ai/wiki/`, skip that entry and note the conflict in the summary — do not overwrite.
 
-3. **`sync`** — run `python scripts/sync.py .ai/` from the Memex product root to surface stale wiki entries.
+3. **`sync`** — run `python scripts/sync.py .ai/` from the Memex product root to surface stale wiki entries. If the script fails, record the error message under `Stale entries flagged` in the summary and continue — do not abort the pass.
 
 4. **Show summary** using this exact format:
 
@@ -31,14 +34,17 @@ Before responding to the user's first message, run the self-improvement queue-pr
        Deferred (needs collaborative review): Y
        Discarded: Z
      Wiki entries proposed: M
+     Wiki entry conflicts skipped: C
+       - <slug> (already exists)
      Stale entries flagged: K
        - <title> (.ai/wiki/<slug>.md)
    ```
 
+   If `K` is 0, show `Stale entries flagged: 0` and omit the bullet list.
+   If `C` is 0, show `Wiki entry conflicts skipped: 0` and omit the bullet list.
    If nothing was in the queue, show: `Session-start pass — nothing in queue. Ready.`
 
-5. **Commit all changes** from the pass in a single commit:
-   `chore: session-start self-improvement pass — YYYY-MM-DD`
+5. **Commit all changes** from the pass in a single commit: `chore: session-start self-improvement pass — YYYY-MM-DD` (substitute today's date). If the pass produced no file changes, skip the commit and note "no changes committed" in the summary.
 
 Then wait for the user's first message.
 
