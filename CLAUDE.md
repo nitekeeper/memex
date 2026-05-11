@@ -43,7 +43,7 @@ At the start of every session, before responding to any user message, run the se
 
    If `K` is 0, show `Stale entries flagged: 0` and omit the bullet list.
    If `C` is 0, show `Wiki entry conflicts skipped: 0` and omit the bullet list.
-   If both lesson directories were empty (or absent) and no lessons were promoted, show: `Session-start pass — nothing in queue. Ready.`
+   If both lesson directories were empty (or absent) and no lessons were promoted, show: `Session-start self-improvement pass — nothing in queue. Ready.`
 
 5. **Commit all changes** from the pass in a single commit: `chore: session-start self-improvement pass — YYYY-MM-DD` (substitute today's date). If the pass produced no file changes, skip the commit and note "no changes committed" in the summary.
 
