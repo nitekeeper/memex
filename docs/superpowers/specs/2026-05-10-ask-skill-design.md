@@ -11,6 +11,8 @@ The wiki grows as a side effect: every web-sourced answer that gets captured mea
 
 ## Tiers
 
+Escalation is agent-driven: no score threshold triggers it. The agent reads the results from each tier and decides whether they sufficiently answer the question before escalating. This is intentional — BM25 scores are poor proxies for answer quality.
+
 ### Tier 1 — Local wiki
 Query `memex.db` via `scripts/search.py`. FTS5 BM25-ranked search against `pages_fts`. Returns JSON with ranked results and body snippets. Agent reads results and judges whether they answer the question.
 
