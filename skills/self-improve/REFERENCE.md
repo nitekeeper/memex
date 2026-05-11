@@ -45,7 +45,7 @@ If no candidates found: `Self-improve solo run — nothing to capture. Ready.`
 | Solo run with changes | `chore: self-improve solo run — YYYY-MM-DD` |
 | Solo run, no changes | skip commit |
 
-Em dash: use literal `—` (U+2014), not `--`.
+Em dash: use literal `—` (U+2014), not `--`. See also `capture-lesson/REFERENCE.md` for the encoding check procedure.
 
 ## Error handling
 
