@@ -82,7 +82,7 @@ Stop on failure. Do not proceed with partial state.
 
 ### Step 5 — Copy updated skill files
 
-Copy each skill subdirectory from `<memex_path>/dist/skills/` into the parent directory of this skill file (i.e. the directory where all bundled Memex skills live). Overwrite existing files.
+Copy each skill subdirectory from `<memex_path>/dist/skills/` into the Memex skills folder. Overwrite existing files.
 
 ### Step 6 — Run schema migrations
 
