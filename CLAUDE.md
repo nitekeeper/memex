@@ -23,7 +23,7 @@ At the start of every session, before responding to any user message, run the se
 2. **`propose-wiki-entry` (solo)** — convert all newly promoted lessons into draft wiki entries in `.ai/wiki/`. Apply directly — no approval gate.
    If a slug already exists in `.ai/wiki/`, skip that entry and note the conflict in the summary — do not overwrite.
 
-3. **`sync`** — run `python scripts/sync.py .ai/` from the Memex product root to surface stale wiki entries. If the script fails, set `Stale entries flagged: 0` in the summary and add a `Sync error: <error message>` line immediately below it. Continue — do not abort the pass.
+3. **`sync`** — run `python scripts/sync.py .ai/` from the Memex product root (`C:\Users\user\Documents\Skills\memex`) to surface stale wiki entries. If the script fails, set `Stale entries flagged: 0` in the summary and add a `Sync error: <error message>` line immediately below it. Proceed to Step 4 — do not abort the pass.
 
 4. **Show summary** using this exact format:
 
@@ -38,7 +38,7 @@ At the start of every session, before responding to any user message, run the se
        - <slug> (already exists)
      Stale entries flagged: K
        - <title> (.ai/wiki/<slug>.md)
-     Sync error: <error message>    ← only shown when sync fails; omit when sync succeeds
+     Sync error: <error message>    ← sibling field, not a sub-item; only shown when sync fails; omit when sync succeeds
    ```
 
    If `K` is 0, show `Stale entries flagged: 0` and omit the bullet list.
