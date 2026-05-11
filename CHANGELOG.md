@@ -10,6 +10,14 @@ Format: [version] — date — summary.
 
 ---
 
+## v0.2.1 — 2026-05-11
+
+**docs**
+- `USER_GUIDE.md` restored to source root — was present in v0.1.0 dist but never tracked in source, causing it to be dropped from v0.2.0 dist. Updated for v0.2.0 (9 skills, consumer install pattern, self-improve + upgrade docs).
+
+
+---
+
 ## v0.2.0 — 2026-05-11
 
 **upgrade skill**

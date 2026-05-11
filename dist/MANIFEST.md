@@ -1,7 +1,7 @@
-# Release Manifest — v0.2.0
+# Release Manifest — v0.2.1
 
 Released: 2026-05-11
-Source commit: 98b86319
+Source commit: de7071dd
 
 ## Contents
 
