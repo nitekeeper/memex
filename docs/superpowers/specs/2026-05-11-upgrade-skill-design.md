@@ -38,7 +38,8 @@ The `upgrade` skill is self-contained for everything Memex-related.
 
 ## Inputs
 
-- `memex_path` — read from the consumer project's `CLAUDE.md`
+- `memex_path` — path to the Memex git repo, read from the consumer project's `CLAUDE.md`
+- `memex_skills_dir` — path to the installed Memex skills folder, read from the consumer project's `CLAUDE.md` (or equivalent product config)
 
 ---
 
@@ -82,7 +83,7 @@ Stop on failure. Do not proceed with partial state.
 
 ### Step 5 — Copy updated skill files
 
-Copy each skill subdirectory from `<memex_path>/dist/skills/` into the Memex skills folder. Overwrite existing files.
+Copy each skill subdirectory from `<memex_path>/dist/skills/` into `<memex_skills_dir>`. Overwrite existing files.
 
 ### Step 6 — Run schema migrations
 
