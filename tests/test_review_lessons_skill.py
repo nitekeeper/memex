@@ -4,6 +4,7 @@ import frontmatter as fm
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures" / "review-lessons-output"
 PROMOTED_LESSON = FIXTURES_DIR / "lessons" / "promoted" / "test-promoted.md"
 DISCARDED_LESSON = FIXTURES_DIR / "lessons" / "inbox" / "test-discarded.md"
+HELD_LESSON = FIXTURES_DIR / "lessons" / "inbox" / "test-held.md"
 SKILL_MD = pathlib.Path(__file__).parent.parent / "skills" / "review-lessons" / "SKILL.md"
 REFERENCE_MD = pathlib.Path(__file__).parent.parent / "skills" / "review-lessons" / "REFERENCE.md"
 
@@ -80,3 +81,13 @@ def test_promoted_lesson_body_has_required_sections():
     assert "Observation" in post.content
     assert "Why it matters" in post.content
     assert "How to apply" in post.content
+
+
+def test_held_lesson_fixture_parses():
+    """Held fixture must parse with held-for-review=true and valid held-reason."""
+    post = fm.load(str(HELD_LESSON))
+    assert post.metadata.get("held-for-review") is True, "held-for-review must be true"
+    valid = {"contradiction", "philosophy", "confidence"}
+    assert post.metadata.get("held-reason") in valid, \
+        f"held-reason must be one of {valid}"
+    assert post.metadata.get("status") == "draft"
