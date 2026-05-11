@@ -30,7 +30,7 @@ Self-improve solo run — YYYY-MM-DD
   Captured: N candidates
     Written: X
     Held for collaborative review: Y
-      - <title> (reason: contradiction with <wiki-slug>)
+      - <title> (reason: contradiction)
       - <title> (reason: philosophy/goals)
       - <title> (reason: low confidence)
   Wiki entries proposed: M

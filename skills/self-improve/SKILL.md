@@ -25,7 +25,7 @@ Runs the full pipeline without approval gates.
 Sweep the current conversation for lesson candidates (same logic as `capture-lesson` session-end mode):
 - Non-obvious observations, mid-session corrections, decisions with a "why", patterns that help a future AI avoid a mistake
 - Skip: task-local notes, obvious-from-code items, ephemeral state, any slug already in `lessons/` or `.ai/wiki/`
-- If no active conversation: tell the user "Solo mode requires an active conversation to sweep for lessons." Stop.
+- If no active conversation: tell the user "Solo mode requires an active conversation. Start a session first." Stop.
 
 ### Step 2 — Filter
 
