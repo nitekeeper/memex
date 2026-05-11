@@ -1,61 +1,80 @@
 # Memex
 
-A project-wiki capability for AI systems — with self-improvement loop and exact staleness semantics tied to git commits.
+A project-wiki capability for AI systems — persistent, searchable knowledge with exact git-commit staleness detection and a built-in self-improvement loop.
 
-Built and maintained by [Skill Atelier](../skill-atelier/). Product 1 of the framework.
-
-The name comes from Vannevar Bush's 1945 *As We May Think* — a "memory extender" that follows associative trails through documents.
+The name comes from Vannevar Bush's 1945 *As We May Think* — a memory extender that follows associative trails through documents.
 
 ---
 
 ## What it does
 
-Memex gives AI systems the ability to:
+Memex gives AI agents the ability to:
 
-- Build and maintain structured knowledge bases (project wikis) inside any repo
-- Know precisely which wiki pages are stale — not heuristically, but by comparing `synced-at-commit` to repo HEAD
-- Capture lessons from work, stage them, review them, and promote them into methodology
-- Curate wiki entries deliberately: proposed by AI, approved by human, deleted by default when no longer useful
-
----
-
-## How to enter a session
-
-Read in this order:
-
-1. **`CLAUDE.md`** — operating rules for AI sessions inside this product repo
-2. **`GOALS.md`** — north-star, current focus, anti-goals
-3. **`ROADMAP.md`** — current state; what's next
-4. **`DESIGN_NOTES.md`** — decisions made so far
-
-Then choose what you are doing (research, design, build, review, release) and proceed.
+- **Build and maintain a project wiki** — structured entries in `.ai/wiki/`, indexed in SQLite for full-text search
+- **Know precisely what's stale** — not heuristically, but by comparing `synced-at-commit` to repo HEAD
+- **Capture and promote lessons** — surface non-obvious observations from sessions, review them, promote them into wiki entries
+- **Curate deliberately** — every write and promotion requires explicit approval; nothing is written silently
 
 ---
 
-## Repo layout
+## Install
 
-```
-memex/
-├── README.md                  ← you are here
-├── CLAUDE.md                  ← AI session entry instructions
-├── GOALS.md                   ← north-star, current focus, anti-goals
-├── ROADMAP.md                 ← product roadmap
-├── CHANGELOG.md               ← release history
-├── DESIGN_NOTES.md            ← decisions log
-├── docs/                      ← format specs specific to Memex
-├── skills/                    ← the skill files that make up the product
-├── sources/                   ← research materials (inbox, analyzed)
-├── lessons/                   ← lesson capture (inbox, feedback, promoted)
-├── db/                        ← SQLite schema extension (project-wiki tables)
-├── tests/                     ← validation
-├── dist/                      ← released artifacts (cut deliberately, not auto)
-└── .ai/                       ← Memex as its own project wiki
+**Requirements:** Claude Code, Python 3.9+, git
+
+```bash
+# 1. Install the Python dependency
+pip install python-frontmatter
+
+# 2. Copy the Memex skills into your Claude Code skills directory
+#    (copy dist/skills/ to wherever your project loads skills from)
+
+# 3. Create the project directories
+mkdir -p .ai/wiki lessons/inbox lessons/feedback lessons/promoted
+
+# 4. Add the DB to .gitignore
+echo ".ai/memex.db" >> .gitignore
+
+# 5. Build the index
+python /path/to/memex/scripts/rebuild.py .ai/
 ```
 
+See `dist/USER_GUIDE.md` for full setup and workflow instructions.
+
 ---
 
-## Status
+## Skills
 
-Research phase. Repo just scaffolded. First source to ingest: Karpathy's writings on self-improvement and LLM-as-OS.
+| Skill | When to use |
+|---|---|
+| `capture` | Write or update a wiki entry |
+| `sync` | Check whether file-tracked entries have gone stale |
+| `ask` | Answer a question from the wiki (FTS), then web, then model |
+| `capture-lesson` | Record a session observation as a lesson |
+| `review-lessons` | Promote, defer, or discard draft lessons |
+| `propose-wiki-entry` | Convert promoted lessons into wiki entries |
+| `review-wiki` | Curation pass — approve drafts, archive stale entries |
 
-See `ROADMAP.md` for what's next.
+---
+
+## Quick start
+
+```
+Session ends → run capture-lesson → review-lessons → propose-wiki-entry
+                                                     → review-wiki (quarterly)
+Question arises → run ask
+Source files change → run sync
+```
+
+---
+
+## Releases
+
+Current release: **v0.1.0** (2026-05-10) — 7 skills, 3 scripts, dogfood-validated against Skill Atelier.
+
+See `CHANGELOG.md` for release history and `dist/MANIFEST.md` for what's in the current release.
+
+---
+
+## Contributing / development
+
+This is Product 1 of [Skill Atelier](../skill-atelier/). See `CLAUDE.md` for session entry instructions and `DESIGN_NOTES.md` for decisions made so far.
