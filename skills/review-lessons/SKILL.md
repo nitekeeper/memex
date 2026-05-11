@@ -60,12 +60,12 @@ A project is detectable if it contains `lessons/inbox/` at its root — check ea
    Title: <title>
    Stream: <stream>  |  Tags: [...]
 
-   Held reason: contradiction | touches philosophy/goals | low confidence
+   Held reason: <held-reason — map: contradiction → contradiction, philosophy → touches philosophy/goals, confidence → low confidence>
    How to apply: <how-to-apply content>
 
    Action? (promote / discard / defer)
    ```
-   When a held lesson is promoted, also clear `held-for-review` and `held-reason` from its frontmatter.
+   When a held lesson is promoted, also clear `held-for-review` and `held-reason` from its frontmatter. On discard or defer, leave `held-for-review` and `held-reason` untouched.
 
    - **promote** → see Promote action
    - **discard** → ask "Log a reason? (enter reason, or press enter to just delete)"

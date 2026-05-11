@@ -94,15 +94,11 @@ def test_held_lesson_fixture_parses():
 
 
 def test_scan_order_held_before_regular():
-    """SKILL.md must describe held items being reviewed before regular drafts."""
+    """SKILL.md must explicitly state held items are reviewed before regular drafts."""
     with open(SKILL_MD, encoding="utf-8") as f:
         content = f.read()
-    held_pos = content.find("held")
-    regular_pos = content.find("regular")
-    assert held_pos != -1, "SKILL.md must mention 'held'"
-    assert regular_pos != -1, "SKILL.md must mention 'regular'"
-    assert held_pos < regular_pos, \
-        "SKILL.md must describe held items before regular drafts (scan order)"
+    assert "Review order: held items first, then regular drafts" in content, \
+        "SKILL.md must contain the phrase 'Review order: held items first, then regular drafts'"
 
 
 def test_candidate_list_includes_held_tag():
