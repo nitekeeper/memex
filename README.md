@@ -77,4 +77,4 @@ See `CHANGELOG.md` for release history and `dist/MANIFEST.md` for what's in the 
 
 ## Contributing / development
 
-This is Product 1 of [Skill Atelier](../skill-atelier/). See `CLAUDE.md` for session entry instructions and `DESIGN_NOTES.md` for decisions made so far.
+This is Product 1 of [Skill Atelier](https://github.com/nitekeeper/skill-atelier). See `CLAUDE.md` for session entry instructions and `DESIGN_NOTES.md` for decisions made so far.
