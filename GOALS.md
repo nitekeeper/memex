@@ -14,10 +14,8 @@ The first user is Skill Atelier itself (dogfooding). The second user is any AI +
 
 ## Current focus
 
-- ⏭️ **Research phase** — ingest Karpathy's writings (self-improvement, LLM-as-OS) as first source.
-- ☐ Ingest user's existing LLM wiki build (concrete prior art).
-- ☐ Ingest Superpowers (influential exemplar; last by design to avoid cargo-cult).
-- ☐ Synthesis session — compose findings into design proposals.
+- ✅ Research, design, build, dogfood, and v0.1.0 release — complete (2026-05-10).
+- ⏭️ **Next:** v0.2 planning — embedding-based search, cross-project federation, or release tooling skill. Decision deferred to next session.
 
 ---
 
