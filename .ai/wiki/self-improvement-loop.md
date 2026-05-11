@@ -1,7 +1,7 @@
 ---
 id: memex:wiki:self-improvement-loop
 title: Self-improvement loop
-status: draft
+status: approved
 created: 2026-05-10
 updated: 2026-05-10
 tags: [memex, architecture, sessions, lessons, wiki]
