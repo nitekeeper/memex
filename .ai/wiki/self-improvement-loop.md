@@ -3,7 +3,7 @@ id: memex:wiki:self-improvement-loop
 title: Self-improvement loop
 status: approved
 created: 2026-05-10
-updated: 2026-05-10
+updated: 2026-05-11
 tags: [memex, architecture, sessions, lessons, wiki]
 ---
 
@@ -27,4 +27,9 @@ Promoted lessons are rewritten into compact wiki prose and proposed for approval
 
 ## Key invariant
 
-Every transition requires an explicit human gate. Nothing is promoted, written, or discarded silently. The loop closes when wiki entries are retrieved by `ask` in future sessions, giving the AI continuity across conversations.
+By default, every transition requires an explicit human gate. Nothing is promoted, written, or discarded silently. Two deliberate exceptions bypass gates:
+
+- **Session-start queue-processing pass** — on session open, Claude runs `review-lessons` → `propose-wiki-entry` → `sync` autonomously before the first user message, using conservative heuristics (promote only clear, non-philosophical, non-conflicting lessons).
+- **`self-improve` solo mode** — invoked on-demand mid-session; filters candidates by confidence, contradiction, and philosophy signals; holds uncertain items with `held-for-review: true` for the next collaborative session.
+
+The loop closes when wiki entries are retrieved by `ask` in future sessions, giving the AI continuity across conversations.
