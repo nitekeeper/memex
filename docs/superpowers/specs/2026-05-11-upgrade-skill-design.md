@@ -111,6 +111,17 @@ DB rebuilt.
 
 ---
 
+## First real consumer — skill-atelier
+
+Skill-atelier will be the first product to use this upgrade skill. After `upgrade` ships, skill-atelier needs to be set up as a proper Memex consumer:
+- `memex_path` + `memex_skills_dir` declared in its `CLAUDE.md`
+- Memex skills bundled (not loosely referenced)
+- Self-improvement loop wired in
+
+This is a separate task, done after the upgrade skill is complete.
+
+---
+
 ## Anti-patterns
 
 - Auto-invoking without being called by a parent upgrade skill or explicit user request
