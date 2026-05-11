@@ -6,6 +6,20 @@ Format: [version] — date — summary.
 
 ---
 
+## Unreleased — 2026-05-11
+
+**Phase 1 — Session-start queue-processing pass**
+- `CLAUDE.md` updated: Claude now runs `review-lessons` → `propose-wiki-entry` → `sync` automatically at session start, before the first user message, and shows a summary. No approval gates. Deferred and discarded items are handled silently; only uncertain lessons are left as drafts for the next collaborative session.
+
+**Phase 2 — Self-improve skill**
+- New skill: `skills/self-improve/` — unified entry point for running the self-improvement loop solo (autonomous, no gates) or collaboratively (user and Claude work through it together with approval at every step).
+- Solo mode: sweeps the conversation for lesson candidates, filters by confidence/contradiction/philosophy signals, writes confident candidates to `lessons/inbox/`, holds uncertain items with `held-for-review: true` + `held-reason` frontmatter, runs review and propose autonomously, shows a summary.
+- Collaborative mode: user chooses full loop (capture → review → propose) or queue review only; all existing skill gates intact.
+- Updated skill: `skills/review-lessons/` — held items (lessons with `held-for-review: true`) now surface first in the review queue, with `[HELD: <reason>]` markers in the candidate list and review block, and a `Held reason:` display line. Promoting a held lesson clears the held fields; discard/defer leaves them untouched.
+- 13 new tests (85 passing total).
+
+---
+
 ## v0.1.0 — 2026-05-10
 
 First release. Dogfood-validated against Skill Atelier (19 pages indexed, `rebuild.py` clean).
