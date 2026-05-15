@@ -1,4 +1,5 @@
 ---
+name: memex:capture-lesson
 description: "Use when the user wants to capture a lesson from the current session — either on demand (\"capture this as a lesson\", \"I noticed X\") or at session end to review and propose lessons from the conversation. Do NOT use for writing wiki pages (use capture), reviewing or promoting lessons (use review-lessons), ingesting external sources (use meta:ingest-source), or checking staleness (use sync)."
 ---
 

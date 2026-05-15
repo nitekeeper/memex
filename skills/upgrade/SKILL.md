@@ -1,4 +1,5 @@
 ---
+name: memex:upgrade
 description: >
   Use when upgrading Memex within a consumer product to a newer version. Reads memex_path
   and memex_dir from CLAUDE.md, checks available git tags, shows changelog, copies full

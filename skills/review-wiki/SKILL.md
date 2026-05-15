@@ -1,4 +1,5 @@
 ---
+name: memex:review-wiki
 description: "Use when the user wants to review wiki entries for curation quality — approving drafts, archiving stale or superseded entries. Cadence: quarterly or on goal-drift. Do NOT use for writing or updating wiki content (use capture), checking file-bound staleness (use sync), or converting lessons to wiki entries (use propose-wiki-entry)."
 ---
 

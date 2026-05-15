@@ -1,4 +1,5 @@
 ---
+name: memex:review-lessons
 description: "Use when the user wants to review draft lessons — either on demand (\"review my lessons\", \"let's go through the inbox\") or at session close as part of the self-improvement loop. Do NOT use for writing new lessons (use capture-lesson), writing wiki entries (use capture), checking wiki staleness (use sync), or searching knowledge (use ask)."
 ---
 
