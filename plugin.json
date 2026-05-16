@@ -1,0 +1,21 @@
+{
+  "name": "memex",
+  "version": "0.2.0-dev",
+  "description": "Memex v2 — personal knowledge runtime and shared memory plane for the agent fleet. Core CRUD substrate (Plan 1); Index + Librarian (Plan 2); Brain (Plan 3) ship in subsequent plans.",
+  "skills": [
+    { "name": "memex:core:create-store",   "path": "skills/core/create-store/SKILL.md" },
+    { "name": "memex:core:migrate",        "path": "skills/core/migrate/SKILL.md" },
+    { "name": "memex:core:query",          "path": "skills/core/query/SKILL.md" },
+    { "name": "memex:core:insert",         "path": "skills/core/insert/SKILL.md" },
+    { "name": "memex:core:update",         "path": "skills/core/update/SKILL.md" },
+    { "name": "memex:core:delete",         "path": "skills/core/delete/SKILL.md" },
+    { "name": "memex:core:list-stores",    "path": "skills/core/list-stores/SKILL.md" },
+    { "name": "memex:core:register-role",  "path": "skills/core/register-role/SKILL.md" },
+    { "name": "memex:core:register-agent", "path": "skills/core/register-agent/SKILL.md" },
+    { "name": "memex:core:get-agent",      "path": "skills/core/get-agent/SKILL.md" }
+  ],
+  "install": {
+    "script": "scripts/install.py",
+    "entrypoint": "run"
+  }
+}
