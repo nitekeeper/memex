@@ -1,13 +1,13 @@
-# Memex v0.2 Packaging
+# Memex v2.0 Packaging
 
-Plan 4 is the final wave of v0.2: packaging, install/upgrade, docs. This
-document describes how the v0.2.0 release artifact is built, what it
+Plan 4 is the final wave of v2.0: packaging, install/upgrade, docs. This
+document describes how the v2.0.0 release artifact is built, what it
 contains, and how it is installed — framed by spec §8.0 (the single-skill
 registration model).
 
 ## What ships in the bundle
 
-`dist/v0.2.0/` is produced by `scripts/release.py` and contains:
+`dist/v2.0.0/` is produced by `scripts/release.py` and contains:
 
 - `plugin.json` — Claude Code plugin manifest. **Per spec §8.0 this
   registers exactly one skill: `memex:run`.** Claude Code's 1%
@@ -45,11 +45,11 @@ registration model).
 ## Build
 
 ```bash
-python -m scripts.release 0.2.0
+python -m scripts.release 2.0.0
 ```
 
-Produces `dist/v0.2.0/`. The `dist/v*/` body is gitignored; only
-`dist/v0.2.0/manifest.json` is tracked. This keeps the repo small but
+Produces `dist/v2.0.0/`. The `dist/v*/` body is gitignored; only
+`dist/v2.0.0/manifest.json` is tracked. This keeps the repo small but
 preserves a verifiable record of every file shipped in the release
 (path, SHA-256, byte count).
 
@@ -80,7 +80,7 @@ present).
 
 ## Upgrade from v0.1
 
-v0.1 stored data under `<project>/.ai/memex.db`. v0.2 is machine-global
+v0.1 stored data under `<project>/.ai/memex.db`. v2.0 is machine-global
 at `~/.memex/`. The upgrade path is intentionally non-destructive and
 non-migrating (per spec §5 design decision — v1 wiki content was a
 project-scoped artifact, not a personal knowledge graph, and is best
@@ -90,13 +90,13 @@ Steps:
 
 1. Set `MEMEX_V1_PATH=<path-to-old-install>` (the directory containing
    `.ai/`).
-2. Install the v0.2.0 plugin bundle.
+2. Install the v2.0.0 plugin bundle.
 3. On first `memex:run` invocation (which triggers `install.run()`):
    - `scripts/upgrade_from_v1.py:archive_v1()` detects the v1 install.
    - The contents of `<old>/.ai/` are copied to
      `~/.memex/legacy/v1-wiki/`.
    - An entry is appended to `~/.memex/legacy/upgrade-log.md`.
-   - v0.2 then installs fresh alongside the archive.
+   - v2.0 then installs fresh alongside the archive.
 4. The user re-ingests any v1 wiki entries that still matter via
    `memex:run` ("ingest this entry from my legacy wiki: …"), which
    routes to `internal/brain/ingest/SKILL.md`.
@@ -107,22 +107,22 @@ but is not part of the v2 Index until re-ingested.
 ## Acceptance criteria
 
 1. `pytest tests/` is 100% green across all 4 plans' tests.
-2. `python -m scripts.release 0.2.0` produces a valid bundle at
-   `dist/v0.2.0/`.
-3. `dist/v0.2.0/manifest.json` lists every file shipped with SHA-256
-   and byte count, and has `version == "0.2.0"`.
-4. `dist/v0.2.0/INSTALL.md` has correct instructions and references
+2. `python -m scripts.release 2.0.0` produces a valid bundle at
+   `dist/v2.0.0/`.
+3. `dist/v2.0.0/manifest.json` lists every file shipped with SHA-256
+   and byte count, and has `version == "2.0.0"`.
+4. `dist/v2.0.0/INSTALL.md` has correct instructions and references
    the correct version.
-5. `README.md`, `USER_GUIDE.md`, and `CHANGELOG.md` reflect v0.2.0.
+5. `README.md`, `USER_GUIDE.md`, and `CHANGELOG.md` reflect v2.0.0.
 6. Bundle structure matches the spec §8.0 single-skill registration
    model:
-   - `dist/v0.2.0/plugin.json` registers exactly one skill
+   - `dist/v2.0.0/plugin.json` registers exactly one skill
      (`memex:run`).
-   - `dist/v0.2.0/skills/run/SKILL.md` is present and contains
+   - `dist/v2.0.0/skills/run/SKILL.md` is present and contains
      routing tables covering all 24 procedures.
-   - `dist/v0.2.0/internal/{core,index,brain,steward,dba}/` are all
+   - `dist/v2.0.0/internal/{core,index,brain,steward,dba}/` are all
      present with the expected procedure files underneath.
-7. Git tag `v0.2.0` is created locally (push deferred to user
+7. Git tag `v2.0.0` is created locally (push deferred to user
    decision).
 
 ## Why a single-skill registration model

@@ -6,7 +6,7 @@
 
 **Architecture:** `index.db` is a new SQLite store (created via Plan 1's `create-store`) holding `documents`, `relations`, FTS5, and embedding columns. Five internal agents are seeded into `agents.db` and implemented as a mix of (a) deterministic Python modules under `scripts/agents/` for Archivist/DBA/Data Steward and (b) LLM-driven subagent harnesses for Librarian and Reference Librarian. Procedures under `internal/index/`, `internal/steward/`, and `internal/dba/` are thin wrappers reached on demand via the routing table inside `skills/run/SKILL.md` (Plan 1's single-skill registration model — see spec §8.0). Only `memex:run` is registered in `plugin.json`; Plan 2 extends `memex:run`'s routing table to cover the 9 new procedures.
 
-**Tech Stack:** Python 3.10+, `sqlite3` stdlib (with FTS5 virtual table), `hashlib` for content hashing, OpenAI `text-embedding-3-small` as the v0.2 embedding model (1536-dim, packed as little-endian float32 BLOB); abstraction in `scripts/embeddings.py` enables swapping for Voyage/Anthropic/local without touching call sites. LLM subagent invocation via Claude Code's Task tool.
+**Tech Stack:** Python 3.10+, `sqlite3` stdlib (with FTS5 virtual table), `hashlib` for content hashing, OpenAI `text-embedding-3-small` as the v2.0 embedding model (1536-dim, packed as little-endian float32 BLOB); abstraction in `scripts/embeddings.py` enables swapping for Voyage/Anthropic/local without touching call sites. LLM subagent invocation via Claude Code's Task tool.
 
 **Reference:** spec at `docs/specs/2026-05-16-memex-v2-redesign-design.md` (sections §3.2, §5.2, §6, §7, §8.2, §8.4, §10, §11).
 
@@ -594,7 +594,7 @@ Create `scripts/embeddings.py`:
 ```python
 """Embedding encode/cosine helpers with pluggable provider.
 
-v0.2 default: OpenAI text-embedding-3-small (1536-dim).
+v2.0 default: OpenAI text-embedding-3-small (1536-dim).
 Provider is selected via env var MEMEX_EMBEDDING_PROVIDER (default: 'openai').
 Alternative providers (voyage, anthropic, local) implement _call_provider
 under their respective module path; this file imports them lazily.
@@ -1926,7 +1926,7 @@ def ask(query: str) -> list[dict]:
     prompt = build_prompt(query, caller_agent_id="reference-librarian-1")
     plan_text = _invoke_llm(prompt)
     plan = parse_query_plan(plan_text)
-    return execute_query_plan(plan, with_embedding=False)  # default off in v0.2 baseline; flip when embeddings backfilled
+    return execute_query_plan(plan, with_embedding=False)  # default off in v2.0 baseline; flip when embeddings backfilled
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -2057,7 +2057,7 @@ Any read where the answer might span multiple stores, or where the caller doesn'
 
 ## Notes
 
-- Hybrid retrieval (FTS5 + vector cosine) is used when embeddings are present. In v0.2, embeddings are computed on write; backfill is not yet implemented (see Plan 4 for re-embed tooling).
+- Hybrid retrieval (FTS5 + vector cosine) is used when embeddings are present. In v2.0, embeddings are computed on write; backfill is not yet implemented (see Plan 4 for re-embed tooling).
 ```
 
 `internal/index/archive/SKILL.md`:
@@ -2216,7 +2216,7 @@ After reviewing an audit report and deciding how to resolve a specific finding.
 
 ## Invocation
 
-Implementation deferred to Plan 3 acceptance; v0.2 Plan 2 ships only the SKILL.md describing the contract.
+Implementation deferred to Plan 3 acceptance; v2.0 Plan 2 ships only the SKILL.md describing the contract.
 ```
 
 `internal/dba/checkpoint/SKILL.md`:

@@ -41,7 +41,7 @@ def test_upgrade_from_v1_archives_then_installs_v2(tmp_memex_home, tmp_path, mon
 
 def test_release_bundle_builds(tmp_path):
     """Build a dist bundle in a temp dir and verify structure."""
-    out = release.build(version="0.2.0", target_root=tmp_path / "dist")
+    out = release.build(version="2.0.0", target_root=tmp_path / "dist")
     assert (out / "manifest.json").exists()
     assert (out / "plugin.json").exists()
     assert (out / "INSTALL.md").exists()

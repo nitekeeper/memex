@@ -6,7 +6,7 @@ Format: [version] — date — summary.
 
 ---
 
-## v0.2.0 — 2026-05-16
+## v2.0.0 — 2026-05-16
 
 **Major redesign.** Memex is no longer a project-scoped wiki. It is now a
 personal knowledge runtime and shared memory plane for the agent fleet.
@@ -66,6 +66,34 @@ personal knowledge runtime and shared memory plane for the agent fleet.
   directly (URL, body, or both).
 - The `!! command` syntax. Skills are invoked through Claude Code's
   standard skill mechanism.
+
+---
+
+## v0.2.1 — 2026-05-11
+
+**docs**
+- `USER_GUIDE.md` restored to source root — was present in v0.1.0 dist but never tracked in source, causing it to be dropped from v0.2.0 dist. Updated for v0.2.0 (9 skills, consumer install pattern, self-improve + upgrade docs).
+
+
+---
+
+## v0.2.0 — 2026-05-11
+
+**upgrade skill**
+- New skill: `skills/upgrade/` — upgrades Memex within a consumer product. Reads `memex_path`
+  and `memex_dir` from `CLAUDE.md`, checks git tags for new versions, shows changelog excerpt,
+  approval gate, git checkout, copies full `dist/`, runs schema migrations, rebuilds DB.
+- 10 structural tests passing (95 total).
+
+**Phase 1 — Session-start queue-processing pass**
+- `CLAUDE.md` updated: Claude now runs `review-lessons` → `propose-wiki-entry` → `sync` automatically at session start, before the first user message, and shows a summary. No approval gates. Deferred and discarded items are handled silently; only uncertain lessons are left as drafts for the next collaborative session.
+
+**Phase 2 — Self-improve skill**
+- New skill: `skills/self-improve/` — unified entry point for running the self-improvement loop solo (autonomous, no gates) or collaboratively (user and Claude work through it together with approval at every step).
+- Solo mode: sweeps the conversation for lesson candidates, filters by confidence/contradiction/philosophy signals, writes confident candidates to `lessons/inbox/`, holds uncertain items with `held-for-review: true` + `held-reason` frontmatter, runs review and propose autonomously, shows a summary.
+- Collaborative mode: user chooses full loop (capture → review → propose) or queue review only; all existing skill gates intact.
+- Updated skill: `skills/review-lessons/` — held items (lessons with `held-for-review: true`) now surface first in the review queue, with `[HELD: <reason>]` markers in the candidate list and review block, and a `Held reason:` display line. Promoting a held lesson clears the held fields; discard/defer leaves them untouched.
+- 13 new tests (85 passing total).
 
 ---
 

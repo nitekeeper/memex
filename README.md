@@ -7,7 +7,7 @@ personal knowledge — articles you read, notes you capture, syntheses you
 produce — and serves as the shared memory layer for AI agents working on
 your behalf.
 
-## What's in v0.2
+## What's in v2.0
 
 Three layers:
 
@@ -24,7 +24,7 @@ Three layers:
 
 ## Installation
 
-See `dist/v0.2.0/INSTALL.md` (after running `python -m scripts.release`).
+See `dist/v2.0.0/INSTALL.md` (after running `python -m scripts.release`).
 
 For development:
 
@@ -64,7 +64,7 @@ See `docs/specs/2026-05-16-memex-v2-redesign-design.md` for the full design.
 
 ## Status
 
-v0.2.0 — released 2026-05-16 (or build date).
+v2.0.0 — released 2026-05-16 (or build date).
 
 ## Layer awareness
 

@@ -1269,7 +1269,7 @@ description: Ask a natural-language question against your Brain. Routes through 
 
 ## When to use
 
-You want to find or remember something. Replaces v1 blueprint's wiki/web/training waterfall — Brain trusts the Index first; web fallback is the caller's responsibility (Brain does not auto-search the web in v0.2).
+You want to find or remember something. Replaces v1 blueprint's wiki/web/training waterfall — Brain trusts the Index first; web fallback is the caller's responsibility (Brain does not auto-search the web in v2.0).
 
 ## Inputs
 
@@ -1353,7 +1353,7 @@ None.
 
 ## What happens
 
-Invokes `memex:steward:audit`, scoped (in this v0.2 implementation) to the full Index. Returns the report path.
+Invokes `memex:steward:audit`, scoped (in this v2.0 implementation) to the full Index. Returns the report path.
 
 ## Invocation
 

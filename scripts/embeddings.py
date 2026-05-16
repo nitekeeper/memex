@@ -1,6 +1,6 @@
 """Embedding encode/cosine helpers with pluggable provider.
 
-v0.2 default: OpenAI text-embedding-3-small (1536-dim).
+v2.0 default: OpenAI text-embedding-3-small (1536-dim).
 Provider is selected via env var MEMEX_EMBEDDING_PROVIDER (default: 'openai').
 Alternative providers (voyage, anthropic, local) implement _call_provider
 under their respective module path; this file imports them lazily.

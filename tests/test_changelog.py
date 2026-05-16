@@ -1,9 +1,9 @@
 from pathlib import Path
 
 
-def test_changelog_has_v0_2_0_section():
+def test_changelog_has_v2_0_0_section():
     content = Path("CHANGELOG.md").read_text(encoding="utf-8")
-    assert "0.2.0" in content or "v0.2.0" in content
+    assert "2.0.0" in content or "v2.0.0" in content
 
 
 def test_changelog_mentions_breaking_changes():
@@ -12,6 +12,6 @@ def test_changelog_mentions_breaking_changes():
 
 
 def test_changelog_mentions_single_skill_model():
-    """v0.2's 'Single-skill registration model' is a load-bearing architectural call-out."""
+    """v2.0's 'Single-skill registration model' is a load-bearing architectural call-out."""
     content = Path("CHANGELOG.md").read_text(encoding="utf-8")
     assert "memex:run" in content

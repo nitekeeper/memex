@@ -87,12 +87,12 @@ Run `python -m scripts.install` to bootstrap `~/.memex/`. Then check:
 
 ## Embedding setup
 
-v0.2 uses OpenAI text-embedding-3-small by default. Set `OPENAI_API_KEY`
+v2.0 uses OpenAI text-embedding-3-small by default. Set `OPENAI_API_KEY`
 or switch providers via `MEMEX_EMBEDDING_PROVIDER` (`voyage`, `local`).
 
 ## Skills shipped
 
-**Memex v0.2 registers a single skill (`memex:run`)** with Claude Code,
+**Memex v2.0 registers a single skill (`memex:run`)** with Claude Code,
 then routes 24 internal procedures on demand via its body. This stays
 well under Claude Code's 1% skill-description budget — the per-skill
 descriptions for 24 entries would otherwise consume significant
@@ -125,6 +125,6 @@ demand and follows it.
 
 if __name__ == "__main__":
     import sys
-    version = sys.argv[1] if len(sys.argv) > 1 else "0.2.0"
+    version = sys.argv[1] if len(sys.argv) > 1 else "2.0.0"
     out = build(version)
     print(f"Built: {out}")

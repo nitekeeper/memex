@@ -1,12 +1,12 @@
 ---
-description: Use to invoke any Memex v0.2 operation. Routes user-facing intents (ingest, ask, capture, lint, synthesize) and agent-facing CRUD primitives to the right internal procedure. The only Claude-Code-visible Memex skill — internal procedures (24 total) are read on demand to stay under the 1% skill-description budget.
+description: Use to invoke any Memex v2.0 operation. Routes user-facing intents (ingest, ask, capture, lint, synthesize) and agent-facing CRUD primitives to the right internal procedure. The only Claude-Code-visible Memex skill — internal procedures (24 total) are read on demand to stay under the 1% skill-description budget.
 ---
 
 Memex v2 is a personal knowledge runtime and shared memory plane for the agent fleet. This skill is the public entry point — it maps natural-language intent (for users) or agent-named operations (for AI consumers) to the right internal procedure under `internal/<category>/<name>/SKILL.md`.
 
 When this skill references `internal/<category>/<name>/SKILL.md` below, the agent should: (1) Read that file via the Read tool, (2) follow the procedure inline.
 
-See `docs/specs/2026-05-16-memex-v2-redesign-design.md` for the full v0.2 architecture.
+See `docs/specs/2026-05-16-memex-v2-redesign-design.md` for the full v2.0 architecture.
 
 ## v2 Brain user-facing intent routing
 

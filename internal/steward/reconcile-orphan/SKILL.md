@@ -19,4 +19,4 @@ After reviewing an audit report and deciding how to resolve a specific finding.
 
 ## Invocation
 
-Implementation deferred to Plan 3 acceptance; v0.2 Plan 2 ships only the SKILL.md describing the contract.
+Implementation deferred to Plan 3 acceptance; v2.0 Plan 2 ships only the SKILL.md describing the contract.

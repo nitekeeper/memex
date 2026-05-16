@@ -71,13 +71,13 @@ regardless of working directory.
   write what they write; the Data Steward flags integrity issues but does not
   curate.
 
-### 2.3 Non-goals (v0.2 release scope)
+### 2.3 Non-goals (v2.0 release scope)
 
 - **Atelier retrofit.** Atelier continues to write to its own
-  `.ai/atelier.db` in v0.2. Atelier retrofit to Memex Core is a separate
+  `.ai/atelier.db` in v2.0. Atelier retrofit to Memex Core is a separate
   future effort.
 - **v1 wiki migration.** The 12 entries currently in v1 Memex's `.ai/wiki/`
-  are not migrated. v0.2 brain.db starts empty. The legacy directory stays
+  are not migrated. v2.0 brain.db starts empty. The legacy directory stays
   untouched on disk.
 - **Self-improvement loop.** v1 Memex's lessons → wiki pipeline
   (`capture-lesson`, `review-lessons`, `propose-wiki-entry`, `review-wiki`)
@@ -647,19 +647,19 @@ absolute and registers that path.
 
 ### 10.1 Scope
 
-v0.2 ships with **full embeddings support** — hybrid retrieval (FTS5 +
+v2.0 ships with **full embeddings support** — hybrid retrieval (FTS5 +
 vector cosine similarity) is the default.
 
 ### 10.2 Model
 
 To be decided during Wave 1 implementation. Candidates:
 
-- **Anthropic API embeddings** (if available at v0.2 ship time)
+- **Anthropic API embeddings** (if available at v2.0 ship time)
 - **Voyage AI** (commonly paired with Anthropic for embeddings)
 - **OpenAI text-embedding-3-small** (lowest cost, well-understood)
 - **Local sentence-transformers** (zero API cost, requires Python deps)
 
-Decision criterion: prefer API-based for v0.2 unless local-first becomes
+Decision criterion: prefer API-based for v2.0 unless local-first becomes
 a requirement. Local embeddings can be added later as an alternative path
 (consistent with the multi-consumer substrate philosophy).
 
@@ -710,7 +710,7 @@ provisioned stores.
 ### 11.3 Connection lifecycle
 
 - Per-skill, per-invocation connections.
-- No connection pool in v0.2 (skills are short-lived; SQLite open is fast).
+- No connection pool in v2.0 (skills are short-lived; SQLite open is fast).
 - Connections held only for the duration of a single transaction.
 
 ### 11.4 WAL checkpoint
@@ -721,7 +721,7 @@ provisioned stores.
 
 ---
 
-## 12. Out-of-scope for v0.2 (deferred to future)
+## 12. Out-of-scope for v2.0 (deferred to future)
 
 - Atelier retrofit to write through Memex Librarian + Core.
 - v1 wiki content migration (manual re-ingest available via Brain).
@@ -732,8 +732,8 @@ provisioned stores.
 - Reservation/saga pattern for atomic cross-DB writes (Option 3 from
   brainstorm).
 - Embeddings backfill scheduler (one-shot reembed only).
-- Embedding model abstraction layer (one model at a time in v0.2).
-- Local-only embedding option (API only in v0.2).
+- Embedding model abstraction layer (one model at a time in v2.0).
+- Local-only embedding option (API only in v2.0).
 
 ---
 
@@ -954,12 +954,12 @@ Locked decisions from the 2026-05-16 brainstorming session:
 | 16 | Self-improvement loop dropped | Out of Brain's surface; can return as a consumer |
 | 17 | Agent identity first-class in Core | All stores FK into shared agents table |
 | 18 | Claude Code plugin, globally accessible | Stays consistent with v1's distribution |
-| 19 | All 5 Brain skills ship in v0.2 | ingest, ask, capture, lint, synthesize |
+| 19 | All 5 Brain skills ship in v2.0 | ingest, ask, capture, lint, synthesize |
 | 20 | `rel_type` is open-ended | Librarian's prompt is the consistency mechanism |
-| 21 | Full embeddings in v0.2 | Hybrid retrieval from day one |
+| 21 | Full embeddings in v2.0 | Hybrid retrieval from day one |
 | 22 | Onboarding flow on first Brain invocation | Human registers themselves |
 | 23 | Skip v1 wiki migration | Fresh brain.db |
-| 24 | Atelier retrofit out of scope for v0.2 | Tighter v0.2 scope |
+| 24 | Atelier retrofit out of scope for v2.0 | Tighter v2.0 scope |
 | 25 | Eventually consistent (Index, target store); Data Steward reconciles | Avoids global serialization on Index writes |
 
 ---

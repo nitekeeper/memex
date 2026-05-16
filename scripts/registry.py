@@ -1,7 +1,7 @@
 """Store registry: maps store names → absolute paths + schema version.
 
 Backed by ~/.memex/registry.json. Single-process write semantics
-(short JSON read-modify-write; no inter-process locking in v0.2).
+(short JSON read-modify-write; no inter-process locking in v2.0).
 """
 from __future__ import annotations
 

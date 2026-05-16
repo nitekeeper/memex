@@ -1,8 +1,8 @@
-# Memex v0.2 — User Guide
+# Memex v2.0 — User Guide
 
 ## First-time setup
 
-1. Install the plugin (see `dist/v0.2.0/INSTALL.md`).
+1. Install the plugin (see `dist/v2.0.0/INSTALL.md`).
 2. Restart Claude Code.
 3. Run `python -m scripts.install` (one-time bootstrap).
 4. Set `OPENAI_API_KEY` if using the default embedding provider, or

@@ -112,4 +112,4 @@ def ask(query: str) -> list[dict]:
     prompt = build_prompt(query, caller_agent_id="reference-librarian-1")
     plan_text = _invoke_llm(prompt)
     plan = parse_query_plan(plan_text)
-    return execute_query_plan(plan, with_embedding=False)  # default off in v0.2 baseline; flip when embeddings backfilled
+    return execute_query_plan(plan, with_embedding=False)  # default off in v2.0 baseline; flip when embeddings backfilled

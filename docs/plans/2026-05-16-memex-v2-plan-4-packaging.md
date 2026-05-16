@@ -22,7 +22,7 @@ memex/
 │   ├── upgrade_from_v1.py                         # NEW: detect + archive v1
 │   └── release.py                                 # NEW: build dist/ artifact
 ├── dist/                                          # NEW: build output (gitignored body, manifest checked in)
-│   └── v0.2.0/                                    # populated by release.py
+│   └── v2.0.0/                                    # populated by release.py
 │       ├── manifest.json
 │       ├── plugin.json                            # registers only memex:run (spec §8.0)
 │       ├── scripts/
@@ -31,10 +31,10 @@ memex/
 │       ├── db/
 │       ├── prompts/
 │       └── INSTALL.md
-├── README.md                                      # MODIFY: rewrite for v0.2
-├── USER_GUIDE.md                                  # NEW: how to use Memex v0.2
-├── CHANGELOG.md                                   # MODIFY: add v0.2.0 entry
-├── pyproject.toml                                 # MODIFY: version 0.2.0
+├── README.md                                      # MODIFY: rewrite for v2.0
+├── USER_GUIDE.md                                  # NEW: how to use Memex v2.0
+├── CHANGELOG.md                                   # MODIFY: add v2.0.0 entry
+├── pyproject.toml                                 # MODIFY: version 2.0.0
 ├── .gitignore                                     # MODIFY: ignore dist body
 └── tests/
     ├── test_upgrade_from_v1.py                    # NEW
@@ -285,31 +285,31 @@ def test_pyproject_version_is_0_2_0():
     content = Path("pyproject.toml").read_text()
     match = re.search(r'version\s*=\s*"([^"]+)"', content)
     assert match
-    assert match.group(1) == "0.2.0"
+    assert match.group(1) == "2.0.0"
 
 
 def test_plugin_json_version_is_0_2_0():
     data = json.loads(Path("plugin.json").read_text())
-    assert data["version"] == "0.2.0"
+    assert data["version"] == "2.0.0"
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `pytest tests/test_version.py -v`
-Expected: FAIL (currently 0.2.0-dev).
+Expected: FAIL (currently 2.0.0-dev).
 
 - [ ] **Step 3: Write minimal implementation**
 
 Update `pyproject.toml`:
 
 ```toml
-version = "0.2.0"
+version = "2.0.0"
 ```
 
 Update `plugin.json`:
 
 ```json
-"version": "0.2.0"
+"version": "2.0.0"
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -321,7 +321,7 @@ Expected: PASS.
 
 ```bash
 git add pyproject.toml plugin.json tests/test_version.py
-git commit -m "chore: bump version to 0.2.0"
+git commit -m "chore: bump version to 2.0.0"
 ```
 
 ---
@@ -347,15 +347,15 @@ from scripts import release
 def test_build_dist_creates_versioned_dir(tmp_path, monkeypatch):
     monkeypatch.chdir(Path.cwd())  # ensure we run from the repo
     target = tmp_path / "dist"
-    release.build(version="0.2.0", target_root=target)
-    assert (target / "v0.2.0").exists()
+    release.build(version="2.0.0", target_root=target)
+    assert (target / "v2.0.0").exists()
 
 
 def test_dist_has_manifest_json(tmp_path):
     target = tmp_path / "dist"
-    release.build(version="0.2.0", target_root=target)
-    manifest = json.loads((target / "v0.2.0" / "manifest.json").read_text())
-    assert manifest["version"] == "0.2.0"
+    release.build(version="2.0.0", target_root=target)
+    manifest = json.loads((target / "v2.0.0" / "manifest.json").read_text())
+    assert manifest["version"] == "2.0.0"
     assert "files" in manifest
 
 
@@ -364,8 +364,8 @@ def test_dist_includes_all_skills(tmp_path):
     internal procedures live under internal/<category>/<name>/SKILL.md
     and must all be included in the bundle."""
     target = tmp_path / "dist"
-    release.build(version="0.2.0", target_root=target)
-    bundle = target / "v0.2.0"
+    release.build(version="2.0.0", target_root=target)
+    bundle = target / "v2.0.0"
     # Top-level skills/ holds only the memex:run registration entry.
     assert (bundle / "skills" / "run" / "SKILL.md").exists()
     # The 24 procedures live under internal/<category>/.
@@ -379,16 +379,16 @@ def test_dist_includes_all_skills(tmp_path):
 
 def test_dist_includes_plugin_json(tmp_path):
     target = tmp_path / "dist"
-    release.build(version="0.2.0", target_root=target)
-    assert (target / "v0.2.0" / "plugin.json").exists()
+    release.build(version="2.0.0", target_root=target)
+    assert (target / "v2.0.0" / "plugin.json").exists()
 
 
 def test_dist_includes_install_md(tmp_path):
     target = tmp_path / "dist"
-    release.build(version="0.2.0", target_root=target)
-    install_doc = target / "v0.2.0" / "INSTALL.md"
+    release.build(version="2.0.0", target_root=target)
+    install_doc = target / "v2.0.0" / "INSTALL.md"
     assert install_doc.exists()
-    assert "0.2.0" in install_doc.read_text()
+    assert "2.0.0" in install_doc.read_text()
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -489,12 +489,12 @@ Run `python -m scripts.install` to bootstrap `~/.memex/`. Then check:
 
 ## Embedding setup
 
-v0.2 uses OpenAI text-embedding-3-small by default. Set `OPENAI_API_KEY`
+v2.0 uses OpenAI text-embedding-3-small by default. Set `OPENAI_API_KEY`
 or switch providers via `MEMEX_EMBEDDING_PROVIDER` (`voyage`, `local`).
 
 ## Skills shipped
 
-**Memex v0.2 registers a single skill (`memex:run`)** with Claude Code,
+**Memex v2.0 registers a single skill (`memex:run`)** with Claude Code,
 then routes 24 internal procedures on demand via its body. This stays
 well under Claude Code's 1% skill-description budget — the per-skill
 descriptions for 24 entries would otherwise consume significant
@@ -527,7 +527,7 @@ demand and follows it.
 
 if __name__ == "__main__":
     import sys
-    version = sys.argv[1] if len(sys.argv) > 1 else "0.2.0"
+    version = sys.argv[1] if len(sys.argv) > 1 else "2.0.0"
     out = build(version)
     print(f"Built: {out}")
 ```
@@ -554,7 +554,7 @@ git commit -m "feat(packaging): release.build creates versioned dist bundle with
 
 ---
 
-## Task 5: README rewrite for v0.2
+## Task 5: README rewrite for v2.0
 
 **Files:**
 - Modify: `README.md`
@@ -604,7 +604,7 @@ personal knowledge — articles you read, notes you capture, syntheses you
 produce — and serves as the shared memory layer for AI agents working on
 your behalf.
 
-## What's in v0.2
+## What's in v2.0
 
 Three layers:
 
@@ -621,7 +621,7 @@ Three layers:
 
 ## Installation
 
-See `dist/v0.2.0/INSTALL.md` (after running `python -m scripts.release`).
+See `dist/v2.0.0/INSTALL.md` (after running `python -m scripts.release`).
 
 For development:
 
@@ -661,7 +661,7 @@ See `docs/specs/2026-05-16-memex-v2-redesign-design.md` for the full design.
 
 ## Status
 
-v0.2.0 — released 2026-05-16 (or build date).
+v2.0.0 — released 2026-05-16 (or build date).
 
 ## Layer awareness
 
@@ -677,7 +677,7 @@ Expected: PASS.
 
 ```bash
 git add README.md tests/test_readme.py
-git commit -m "docs: rewrite README for v0.2 three-layer architecture"
+git commit -m "docs: rewrite README for v2.0 three-layer architecture"
 ```
 
 ---
@@ -719,11 +719,11 @@ Expected: FAIL.
 `USER_GUIDE.md`:
 
 ```markdown
-# Memex v0.2 — User Guide
+# Memex v2.0 — User Guide
 
 ## First-time setup
 
-1. Install the plugin (see `dist/v0.2.0/INSTALL.md`).
+1. Install the plugin (see `dist/v2.0.0/INSTALL.md`).
 2. Restart Claude Code.
 3. Run `python -m scripts.install` (one-time bootstrap).
 4. Set `OPENAI_API_KEY` if using the default embedding provider, or
@@ -878,7 +878,7 @@ from pathlib import Path
 
 def test_changelog_has_v0_2_0_section():
     content = Path("CHANGELOG.md").read_text()
-    assert "0.2.0" in content or "v0.2.0" in content
+    assert "2.0.0" in content or "v2.0.0" in content
 
 
 def test_changelog_mentions_breaking_changes():
@@ -889,14 +889,14 @@ def test_changelog_mentions_breaking_changes():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Expected: FAIL (no v0.2.0 section yet).
+Expected: FAIL (no v2.0.0 section yet).
 
 - [ ] **Step 3: Write minimal implementation**
 
 Prepend to `CHANGELOG.md`:
 
 ```markdown
-## v0.2.0 — 2026-05-16
+## v2.0.0 — 2026-05-16
 
 **Major redesign.** Memex is no longer a project-scoped wiki. It is now a
 personal knowledge runtime and shared memory plane for the agent fleet.
@@ -973,7 +973,7 @@ Expected: PASS.
 
 ```bash
 git add CHANGELOG.md tests/test_changelog.py
-git commit -m "docs: CHANGELOG entry for v0.2.0"
+git commit -m "docs: CHANGELOG entry for v2.0.0"
 ```
 
 ---
@@ -1029,7 +1029,7 @@ def test_upgrade_from_v1_archives_then_installs_v2(tmp_memex_home, tmp_path, mon
 
 def test_release_bundle_builds(tmp_path):
     """Build a dist bundle in a temp dir and verify structure."""
-    out = release.build(version="0.2.0", target_root=tmp_path / "dist")
+    out = release.build(version="2.0.0", target_root=tmp_path / "dist")
     assert (out / "manifest.json").exists()
     assert (out / "plugin.json").exists()
     assert (out / "INSTALL.md").exists()
@@ -1057,24 +1057,24 @@ git commit -m "test(packaging): end-to-end install + upgrade + release smoke"
 
 ---
 
-## Task 9: Build the v0.2.0 release artifact
+## Task 9: Build the v2.0.0 release artifact
 
 **Files:**
-- Generates: `dist/v0.2.0/` (manifest tracked; body gitignored)
+- Generates: `dist/v2.0.0/` (manifest tracked; body gitignored)
 
 - [ ] **Step 1: Run the release build**
 
 ```bash
-python -m scripts.release 0.2.0
+python -m scripts.release 2.0.0
 ```
 
-Expected output: `Built: dist/v0.2.0`
+Expected output: `Built: dist/v2.0.0`
 
 - [ ] **Step 2: Verify**
 
 ```bash
-ls dist/v0.2.0/
-cat dist/v0.2.0/manifest.json | head -20
+ls dist/v2.0.0/
+cat dist/v2.0.0/manifest.json | head -20
 ```
 
 Expected: directory contains plugin.json, scripts/, skills/, db/, prompts/, INSTALL.md, manifest.json.
@@ -1082,31 +1082,31 @@ Expected: directory contains plugin.json, scripts/, skills/, db/, prompts/, INST
 - [ ] **Step 3: Sanity check the manifest**
 
 ```bash
-python -c "import json; m = json.load(open('dist/v0.2.0/manifest.json')); print(f'Files: {m[\"file_count\"]}'); print(f'Version: {m[\"version\"]}')"
+python -c "import json; m = json.load(open('dist/v2.0.0/manifest.json')); print(f'Files: {m[\"file_count\"]}'); print(f'Version: {m[\"version\"]}')"
 ```
 
-Expected: file count > 30, version "0.2.0".
+Expected: file count > 30, version "2.0.0".
 
 - [ ] **Step 4: Commit the manifest**
 
 `.gitignore` already excludes `dist/v*/` body but keeps `manifest.json`:
 
 ```bash
-git add dist/v0.2.0/manifest.json
-git commit -m "release: Memex v0.2.0 bundle manifest"
+git add dist/v2.0.0/manifest.json
+git commit -m "release: Memex v2.0.0 bundle manifest"
 ```
 
 - [ ] **Step 5: Tag the release**
 
 ```bash
-git tag -a v0.2.0 -m "Memex v0.2.0 — three-layer redesign"
+git tag -a v2.0.0 -m "Memex v2.0.0 — three-layer redesign"
 ```
 
 Push the tag in a separate step after user review:
 
 ```bash
 # Deferred until user approves
-# git push origin v0.2.0
+# git push origin v2.0.0
 ```
 
 ---
@@ -1131,13 +1131,13 @@ def test_packaging_doc_exists():
 `docs/PACKAGING.md`:
 
 ```markdown
-# Memex v0.2 Packaging
+# Memex v2.0 Packaging
 
-Plan 4 is the final wave of v0.2: packaging, install/upgrade, docs.
+Plan 4 is the final wave of v2.0: packaging, install/upgrade, docs.
 
 ## What ships in the bundle
 
-`dist/v0.2.0/` contains:
+`dist/v2.0.0/` contains:
 - `plugin.json` — Claude Code plugin manifest. **Per spec §8.0 this registers exactly one skill: `memex:run`.** The 1% skill-description budget makes per-procedure top-level registration infeasible.
 - `scripts/` — Python CRUD + agent harness modules
 - `skills/run/SKILL.md` — the single registered skill; its body holds the routing tables for the 24 internal procedures
@@ -1151,10 +1151,10 @@ Plan 4 is the final wave of v0.2: packaging, install/upgrade, docs.
 ## Build
 
 ```bash
-python -m scripts.release 0.2.0
+python -m scripts.release 2.0.0
 ```
 
-Produces `dist/v0.2.0/`. The `dist/v*/` body is gitignored; only
+Produces `dist/v2.0.0/`. The `dist/v*/` body is gitignored; only
 `manifest.json` is tracked.
 
 ## Install flow
@@ -1171,7 +1171,7 @@ Produces `dist/v0.2.0/`. The `dist/v*/` body is gitignored; only
 
 ## Upgrade from v0.1
 
-v0.1 stored data under `<project>/.ai/memex.db`. v0.2 is machine-global at
+v0.1 stored data under `<project>/.ai/memex.db`. v2.0 is machine-global at
 `~/.memex/`. The upgrade process:
 
 1. Set `MEMEX_V1_PATH=<path-to-old-install>` (the directory containing `.ai/`)
@@ -1185,15 +1185,15 @@ v1 wiki content is NOT migrated. The user re-ingests via
 ## Acceptance criteria
 
 1. `pytest tests/` 100% green across all 4 plans' tests
-2. `python -m scripts.release 0.2.0` produces a valid bundle
-3. `dist/v0.2.0/manifest.json` lists all files with SHA-256
-4. `dist/v0.2.0/INSTALL.md` has correct instructions
-5. README + CHANGELOG reflect v0.2.0
+2. `python -m scripts.release 2.0.0` produces a valid bundle
+3. `dist/v2.0.0/manifest.json` lists all files with SHA-256
+4. `dist/v2.0.0/INSTALL.md` has correct instructions
+5. README + CHANGELOG reflect v2.0.0
 6. Bundle structure matches the §8.0 single-skill registration model:
-   - `dist/v0.2.0/plugin.json` registers exactly one skill (`memex:run`)
-   - `dist/v0.2.0/skills/run/SKILL.md` is present and contains routing tables for all 24 procedures
-   - `dist/v0.2.0/internal/{core,index,brain,steward,dba}/` are all present
-7. Git tag `v0.2.0` created (push deferred to user)
+   - `dist/v2.0.0/plugin.json` registers exactly one skill (`memex:run`)
+   - `dist/v2.0.0/skills/run/SKILL.md` is present and contains routing tables for all 24 procedures
+   - `dist/v2.0.0/internal/{core,index,brain,steward,dba}/` are all present
+7. Git tag `v2.0.0` created (push deferred to user)
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -1204,7 +1204,7 @@ Expected: PASS.
 
 ```bash
 git add docs/PACKAGING.md tests/test_packaging_doc.py
-git commit -m "docs: PACKAGING.md for v0.2 release artifact"
+git commit -m "docs: PACKAGING.md for v2.0 release artifact"
 ```
 
 ---
@@ -1213,24 +1213,24 @@ git commit -m "docs: PACKAGING.md for v0.2 release artifact"
 
 - [ ] `pytest tests/` 100% green
 - [ ] `python -m scripts.install` is idempotent and includes v1 archive step
-- [ ] `python -m scripts.release 0.2.0` produces `dist/v0.2.0/`
-- [ ] `dist/v0.2.0/manifest.json` checked into git
+- [ ] `python -m scripts.release 2.0.0` produces `dist/v2.0.0/`
+- [ ] `dist/v2.0.0/manifest.json` checked into git
 - [ ] README, USER_GUIDE, CHANGELOG, PACKAGING docs all present and accurate
-- [ ] `pyproject.toml` and `plugin.json` show version 0.2.0
-- [ ] `v0.2.0` git tag created locally (push is user decision)
+- [ ] `pyproject.toml` and `plugin.json` show version 2.0.0
+- [ ] `v2.0.0` git tag created locally (push is user decision)
 
 ## Release sequence (after all 4 plans complete)
 
 1. Run `pytest tests/` — must be 100% green across all 4 plans
-2. Run `python -m scripts.release 0.2.0`
+2. Run `python -m scripts.release 2.0.0`
 3. Verify the bundle manually: install it locally, run the smoke flow
 4. Commit the manifest
-5. Tag `v0.2.0`
+5. Tag `v2.0.0`
 6. (User decision) Push tag + bundle to distribution channel
 
 ---
 
-## Cross-plan summary — total v0.2 surface
+## Cross-plan summary — total v2.0 surface
 
 Per spec §8.0, `plugin.json` registers exactly one Claude Code skill:
 `memex:run`. All counts below refer to internal procedures at
@@ -1245,4 +1245,4 @@ Per spec §8.0, `plugin.json` registers exactly one Claude Code skill:
 | Packaging | 4 | (no new procedures; ships the bundle) | ~25 |
 | **Total** | | **24 procedures, 1 registered skill (`memex:run`)** | **~175 tests** |
 
-This concludes the v0.2 implementation plan series.
+This concludes the v2.0 implementation plan series.

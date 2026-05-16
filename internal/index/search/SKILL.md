@@ -30,4 +30,4 @@ Any read where the answer might span multiple stores, or where the caller doesn'
 
 ## Notes
 
-- Hybrid retrieval (FTS5 + vector cosine) is used when embeddings are present. In v0.2, embeddings are computed on write; backfill is not yet implemented (see Plan 4 for re-embed tooling).
+- Hybrid retrieval (FTS5 + vector cosine) is used when embeddings are present. In v2.0, embeddings are computed on write; backfill is not yet implemented (see Plan 4 for re-embed tooling).

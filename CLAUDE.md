@@ -1,4 +1,4 @@
-# CLAUDE.md — entering Memex v0.2
+# CLAUDE.md — entering Memex v2.0
 
 You are operating inside the **Memex product repo**. Memex is Product 1 of Skill Atelier — a personal knowledge runtime and shared memory plane for the agent fleet.
 
@@ -8,7 +8,7 @@ Memex registers a single Claude-Code-visible skill — `memex:run` — which rou
 
 ## Read at session start (only if you're working ON Memex itself, not USING it)
 
-1. `docs/specs/2026-05-16-memex-v2-redesign-design.md` — v0.2 design
+1. `docs/specs/2026-05-16-memex-v2-redesign-design.md` — v2.0 design
 2. `docs/plans/2026-05-16-memex-v2-plan-{1,2,3,4}-*.md` — implementation plans
 3. `docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md` — per-layer acceptance docs
 4. `README.md` and `USER_GUIDE.md` — user-facing entry points
@@ -24,13 +24,13 @@ If you're a downstream agent USING Memex from another plugin or session, you don
 
 ## Working rules
 
-1. **Spec-first.** v0.2 design is locked in `docs/specs/2026-05-16-memex-v2-redesign-design.md`. Changes to architecture go through a spec revision, not ad-hoc edits.
+1. **Spec-first.** v2.0 design is locked in `docs/specs/2026-05-16-memex-v2-redesign-design.md`. Changes to architecture go through a spec revision, not ad-hoc edits.
 2. **All writes through the Librarian.** Per spec §6, every document landing in any Memex-managed store must pass through `internal/index/write/` (which routes through the Librarian subagent + Archivist + Memex Core). No bypass paths.
 3. **Internal procedures are agent-only.** Don't register additional skills in `plugin.json`; everything goes through `memex:run` routing. New procedures land at `internal/<category>/<name>/SKILL.md` with a corresponding row in `skills/run/SKILL.md`.
 4. **Tests are the contract.** Every Python module ships with pytest tests; every SKILL.md ships with a presence/frontmatter test. Run `pytest tests/` before claiming done.
 5. **Releases are deliberate.** Use `python -m scripts.release <version>` to build `dist/v<version>/`. Tagging and pushing is a user decision.
 
-## Out-of-scope for v0.2 (do not implement without spec revision)
+## Out-of-scope for v2.0 (do not implement without spec revision)
 
 - Atelier retrofit (Atelier continues to write to its own `.ai/atelier.db`).
 - Multi-machine sync / replication.

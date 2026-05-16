@@ -120,7 +120,7 @@ Expected: FAIL with `AttributeError: module 'scripts.db' has no attribute 'get_c
 ```toml
 [project]
 name = "memex"
-version = "0.2.0-dev"
+version = "2.0.0-dev"
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]
@@ -978,7 +978,7 @@ Create `scripts/registry.py`:
 """Store registry: maps store names → absolute paths + schema version.
 
 Backed by ~/.memex/registry.json. Single-process write semantics
-(short JSON read-modify-write; no inter-process locking in v0.2).
+(short JSON read-modify-write; no inter-process locking in v2.0).
 """
 from __future__ import annotations
 import json
@@ -2172,7 +2172,7 @@ Create or update `plugin.json`:
 ```json
 {
   "name": "memex",
-  "version": "0.2.0-dev",
+  "version": "2.0.0-dev",
   "description": "Memex v2 — personal knowledge runtime and shared memory plane for the agent fleet. Core CRUD substrate (Plan 1); Index + Librarian (Plan 2); Brain (Plan 3) ship in subsequent plans.",
   "skills": [
     { "name": "memex:core:create-store",   "path": "skills/core/create-store/SKILL.md" },

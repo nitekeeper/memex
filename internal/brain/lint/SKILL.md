@@ -15,7 +15,7 @@ None.
 
 ## What happens
 
-Invokes `memex:steward:audit`, scoped (in this v0.2 implementation) to the full Index. Returns the report path.
+Invokes `memex:steward:audit`, scoped (in this v2.0 implementation) to the full Index. Returns the report path.
 
 ## Invocation
 
