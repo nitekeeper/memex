@@ -76,3 +76,17 @@ def test_install_registers_article_in_registry(tmp_memex_home):
     install.run()
     rec = registry.get_store("article")
     assert rec is not None
+
+
+def test_install_archives_v1_if_present(tmp_memex_home, tmp_path, monkeypatch):
+    v1_dir = tmp_path / "memex-v1"
+    v1_dir.mkdir()
+    (v1_dir / ".ai").mkdir()
+    (v1_dir / ".ai" / "memex.db").write_text("v1")
+    monkeypatch.setenv("MEMEX_V1_PATH", str(v1_dir))
+
+    install.run()
+
+    legacy = memex_home() / "legacy" / "v1-wiki"
+    assert legacy.exists()
+    assert (legacy / "memex.db").exists()

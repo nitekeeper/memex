@@ -10,6 +10,10 @@ from db.internal_agents_seed import INTERNAL_AGENTS
 
 
 def run() -> None:
+    # Plan 4: archive v1 if present (no-op otherwise)
+    from scripts import upgrade_from_v1
+    upgrade_from_v1.archive_v1()
+
     home = memex_home()
     home.mkdir(parents=True, exist_ok=True)
     (home / "raw").mkdir(exist_ok=True)
