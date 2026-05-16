@@ -88,3 +88,8 @@ def capture(body: str, caller_agent_id: str, title: str | None = None) -> dict:
         caller_agent_id=caller_agent_id,
     )
     return {"status": "captured", **result}
+
+
+def ask(query: str) -> list[dict]:
+    """Ask a question. Routes through the Reference Librarian."""
+    return reference_librarian.ask(query)
