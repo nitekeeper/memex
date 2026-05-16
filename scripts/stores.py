@@ -68,3 +68,64 @@ def migrate(name: str, migrations_dir: str) -> list[str]:
     conn.commit()
     conn.close()
     return newly_applied
+
+
+def _resolve(name: str) -> str:
+    rec = registry.get_store(name)
+    if rec is None:
+        raise ValueError(f"Unknown store: {name}")
+    return rec["path"]
+
+
+def query(name: str, sql: str, params: tuple = ()) -> list[dict]:
+    """Execute SELECT against a registered store. Returns list of dict rows."""
+    conn = get_connection(_resolve(name))
+    cur = conn.execute(sql, params)
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+def insert(name: str, table: str, row: dict) -> dict:
+    """Insert a row. Returns the inserted row (including the new PK).
+
+    Assumes the table has an integer PRIMARY KEY AUTOINCREMENT column
+    named `id`. For tables with TEXT PKs, the caller supplies `id` in `row`.
+    """
+    cols = list(row.keys())
+    placeholders = ", ".join("?" for _ in cols)
+    col_list = ", ".join(cols)
+    conn = get_connection(_resolve(name))
+    cur = conn.execute(
+        f"INSERT INTO {table} ({col_list}) VALUES ({placeholders})",
+        tuple(row[c] for c in cols),
+    )
+    conn.commit()
+    new_id = row.get("id", cur.lastrowid)
+    fetched = conn.execute(f"SELECT * FROM {table} WHERE id = ?", (new_id,)).fetchone()
+    conn.close()
+    return dict(fetched) if fetched else row
+
+
+def update(name: str, table: str, row_id, updates: dict) -> dict | None:
+    if not updates:
+        return None
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    conn = get_connection(_resolve(name))
+    conn.execute(
+        f"UPDATE {table} SET {set_clause} WHERE id = ?",
+        (*updates.values(), row_id),
+    )
+    conn.commit()
+    fetched = conn.execute(f"SELECT * FROM {table} WHERE id = ?", (row_id,)).fetchone()
+    conn.close()
+    return dict(fetched) if fetched else None
+
+
+def delete(name: str, table: str, row_id) -> bool:
+    conn = get_connection(_resolve(name))
+    cur = conn.execute(f"DELETE FROM {table} WHERE id = ?", (row_id,))
+    conn.commit()
+    deleted = cur.rowcount > 0
+    conn.close()
+    return deleted
