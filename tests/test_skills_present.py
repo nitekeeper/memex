@@ -100,3 +100,11 @@ def test_brain_skills_frontmatter():
     for s in BRAIN_SKILLS:
         content = Path(f"internal/brain/{s}/SKILL.md").read_text(encoding="utf-8")
         assert f"name: memex:brain:{s}" in content
+
+
+def test_run_skill_routes_to_brain_skills():
+    run_content = Path("skills/run/SKILL.md").read_text(encoding="utf-8")
+    for s in BRAIN_SKILLS:
+        assert f"internal/brain/{s}/SKILL.md" in run_content, (
+            f"memex:run missing routing entry for internal/brain/{s}"
+        )

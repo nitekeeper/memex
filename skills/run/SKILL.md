@@ -103,6 +103,20 @@ Plan 2 introduces the federated Index (`~/.memex/index.db`) plus five Memex-inte
 
 The Librarian and Reference Librarian are themselves invoked as LLM subagents inside `index:write` and `index:search` respectively; they read their system prompts from `agents.db.agents.profile`. Archivist, DBA, and Data Steward are deterministic Python modules.
 
+## v2 Brain user-facing intent routing
+
+Plan 3 adds the Memex Brain — the opinionated second-brain layer. Unlike Core / Index / Steward / DBA (which are agent-facing), these 5 procedures are the **daily entry points for the human user**. They live at `internal/brain/<name>/SKILL.md` and are reached via natural-language intent expressed to `memex:run`. The user does NOT invoke `memex:brain:ingest` (or any sibling) as a top-level slash command — those names are not registered in `plugin.json`. Instead the user says e.g. "ingest this article" and `memex:run` routes to the corresponding procedure below.
+
+| User intent | Internal procedure |
+|---|---|
+| Ingest an article / save a URL / capture a clipped page / add a source to my Brain | `internal/brain/ingest/SKILL.md` |
+| Ask a question / search my Brain / recall something I read | `internal/brain/ask/SKILL.md` |
+| Capture a note / jot a thought / log an observation | `internal/brain/capture/SKILL.md` |
+| Run a Brain health check / lint Brain / audit my knowledge | `internal/brain/lint/SKILL.md` |
+| Synthesize across documents / find the through-line / summarize this topic | `internal/brain/synthesize/SKILL.md` |
+
+The Python implementations live in `scripts/brain.py`. Each SKILL.md is a short documentation wrapper; `memex:run` reads it on demand for the procedure contract, then calls the implementation.
+
 ## Authority and override
 
 User instructions override this skill's defaults at all times. If the user provides a direct instruction — "skip the session-start pass," "just answer," or any unambiguous bypass directive — comply immediately without re-asking. This skill defines default behavior; it does not constrain the user's authority to change it.
