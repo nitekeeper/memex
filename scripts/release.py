@@ -88,10 +88,29 @@ Run `python -m scripts.install` to bootstrap `~/.memex/`. Then check:
 - `~/.memex/article.db` exists
 - `~/.memex/registry.json` lists `agents`, `index`, `article`
 
-## Embedding setup
+## Embedding setup (optional — Memex works without it)
 
-v2.0 uses OpenAI text-embedding-3-small by default. Set `OPENAI_API_KEY`
-or switch providers via `MEMEX_EMBEDDING_PROVIDER` (`voyage`, `local`).
+Memex uses hybrid retrieval — FTS5 lexical + vector cosine. FTS5 runs
+unconditionally; vector retrieval requires an embedding provider.
+
+**Memex works fine with NO embedding provider configured.** Brain skills
+detect a missing key, log `warn: embedding skipped`, and persist with
+`embedding=NULL`. Documents are still ingested and FTS5-searchable. You
+can add a key later and run `memex:run → "backfill embeddings"` to fill
+in retroactively.
+
+Three providers are wired:
+
+- `MEMEX_EMBEDDING_PROVIDER=openai` (default) — `OPENAI_API_KEY` required,
+  `text-embedding-3-small` (1536-dim)
+- `MEMEX_EMBEDDING_PROVIDER=voyage` — `VOYAGE_API_KEY` required,
+  `voyage-3` (1024-dim, Anthropic-recommended partner)
+- `MEMEX_EMBEDDING_PROVIDER=local` — no key, uses sentence-transformers
+  (`all-MiniLM-L6-v2`, 384-dim, offline). First call downloads ~80MB.
+
+If you change providers later, embeddings from the old provider become
+dimensionally incomparable — run `memex:run → "re-embed all"` to
+regenerate everything with the new provider.
 
 ## Skills shipped
 
@@ -107,7 +126,7 @@ expresses intent (e.g. "ingest this article"); agents call CRUD
 primitives by name. `memex:run` reads the matching procedure file on
 demand and follows it.
 """
-    (version_dir / "INSTALL.md").write_text(install_md)
+    (version_dir / "INSTALL.md").write_text(install_md, encoding="utf-8")
     files_manifest.append({
         "path": "INSTALL.md",
         "sha256": _hash_file(version_dir / "INSTALL.md"),
@@ -121,7 +140,9 @@ demand and follows it.
         "file_count": len(files_manifest),
         "files": sorted(files_manifest, key=lambda f: f["path"]),
     }
-    (version_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    (version_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
 
     return version_dir
 

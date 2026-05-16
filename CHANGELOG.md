@@ -6,6 +6,15 @@ Format: [version] — date — summary.
 
 ---
 
+## Unreleased
+
+**Embeddings: full hybrid-retrieval plumbing (#2 blocker resolution).**
+
+- Documentation pass — `USER_GUIDE.md` and INSTALL.md template now have explicit "Embeddings & retrieval" sections covering: provider selection (`openai` / `voyage` / `local`), required env vars per provider, what happens with no provider configured (FTS5-only, graceful fallback), and when to backfill / re-embed.
+- (Coming in subsequent commits) Real Voyage and Local provider implementations (replacing the previous NotImplementedError stubs); `memex:run → "backfill embeddings"` skill (one-shot fill of NULL rows); `memex:run → "re-embed all"` skill (regenerate after provider/model change); model-change detection in `registry.json:__embedding_model__`.
+
+---
+
 ## v2.0.0 — 2026-05-16
 
 **Major redesign.** Memex is no longer a project-scoped wiki. It is now a

@@ -5,8 +5,8 @@
 1. Install the plugin (see `dist/v2.0.0/INSTALL.md`).
 2. Restart Claude Code.
 3. Run `python -m scripts.install` (one-time bootstrap).
-4. Set `OPENAI_API_KEY` if using the default embedding provider, or
-   `MEMEX_EMBEDDING_PROVIDER=voyage|local` to switch.
+4. (Optional) Configure embeddings — see "Embeddings & retrieval" below.
+   Memex works without an embedding provider; FTS5 alone retrieves results.
 
 ## How to invoke Memex
 
@@ -71,6 +71,50 @@ Read-only; never auto-fixes. Resolve findings via
 Pass a list of source `index_id`s and a topic. The Synthesizer LLM
 produces a unified prose synthesis with inline citations. Result is
 indexed as a `synthesis` document.
+
+## Embeddings & retrieval
+
+`memex:brain:ask` (and the lower-level `memex:index:search`) use **hybrid retrieval** — FTS5 lexical search + vector cosine similarity. Embeddings are optional but improve recall for semantic queries.
+
+### Provider configuration
+
+Set the provider via env var (default if unset: `openai`):
+
+```
+$env:MEMEX_EMBEDDING_PROVIDER = "openai"  # or "voyage" or "local"
+```
+
+| Provider | Env var(s) required | Model (default) | Dim | Notes |
+|---|---|---|---|---|
+| `openai` | `OPENAI_API_KEY` | `text-embedding-3-small` | 1536 | Default. Most ecosystem-compatible. |
+| `voyage` | `VOYAGE_API_KEY` | `voyage-3` | 1024 | Anthropic-recommended embedding partner. |
+| `local` | (none) | `all-MiniLM-L6-v2` (sentence-transformers) | 384 | Zero-API-cost, offline. First call downloads ~80MB model. |
+
+### What happens without any provider configured
+
+If `embeddings.encode()` raises (no key, provider error, network unreachable), the Brain skills catch the exception and persist with `embedding = NULL`. The document is still ingested and FTS5-searchable. You lose vector cosine on that row until you backfill (below).
+
+This means **Memex works fine with no embedding config at all** — you just get FTS5-only retrieval. Add a key when you want richer semantic recall.
+
+### Backfilling NULL embeddings
+
+If you've ingested documents without a key and later configure one, run:
+
+```
+memex:run → "backfill embeddings"   (routes to internal/embed/backfill/SKILL.md)
+```
+
+This re-encodes every `documents.embedding IS NULL` row using the current provider. Idempotent — non-NULL rows are left alone. Existing audits / Index / target stores are untouched.
+
+### Re-embedding after a model change
+
+If you switch providers (e.g., `openai` → `voyage`), existing 1536-dim embeddings are dimensionally incomparable with new 1024-dim embeddings. Cosine similarity returns garbage. To recover:
+
+```
+memex:run → "re-embed all"   (routes to internal/embed/reembed/SKILL.md)
+```
+
+This re-encodes EVERY row (not just NULLs) using the current provider, replacing whatever's there. Heavier than backfill — only run when you genuinely changed models. Memex tracks the active provider+model in `~/.memex/registry.json` under `__embedding_model__` and the re-embed skill detects mismatches.
 
 ## Working with multiple stores
 
