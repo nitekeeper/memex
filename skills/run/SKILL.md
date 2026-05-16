@@ -85,6 +85,24 @@ The Python implementations live under `scripts/` (`db.py`, `roles.py`, `agents.p
 
 Plan 2 (Index + 5 internal agents) and Plan 3 (Brain) will add further routing rows here as they land — `internal/index/...`, `internal/brain/...`, `internal/steward/...`, `internal/dba/...`.
 
+## v2 Index, Steward, and DBA routing (agent-facing)
+
+Plan 2 introduces the federated Index (`~/.memex/index.db`) plus five Memex-internal agents: Librarian, Reference Librarian, Archivist, DBA, Data Steward. Their procedures live at `internal/<category>/<name>/SKILL.md` and are invoked through the table below. Like Core, these are agent-only — the human typically reaches them through Brain (Plan 3) rather than directly.
+
+| Agent intent | Internal procedure |
+|---|---|
+| Submit a document for centralized indexing (mandatory write path; archives raw, classifies, embeds, persists) | `internal/index/write/SKILL.md` |
+| Ask a natural-language question against the federated Index; returns ranked, citation-ready results | `internal/index/search/SKILL.md` |
+| Archive a raw payload to `~/.memex/raw/` without indexing (rare; usually called internally by index:write) | `internal/index/archive/SKILL.md` |
+| Run a full integrity audit across every store + the Index; write a structured report | `internal/steward/audit/SKILL.md` |
+| Audit a single registered store (reverse orphans, schema drift) | `internal/steward/audit-store/SKILL.md` |
+| Authorized resolution of a flagged orphan (delete-index / reindex / note) | `internal/steward/reconcile-orphan/SKILL.md` |
+| Run a WAL checkpoint on a registered store | `internal/dba/checkpoint/SKILL.md` |
+| Run `PRAGMA integrity_check` on a registered store | `internal/dba/integrity-check/SKILL.md` |
+| Run `VACUUM` on a registered store (maintenance) | `internal/dba/vacuum/SKILL.md` |
+
+The Librarian and Reference Librarian are themselves invoked as LLM subagents inside `index:write` and `index:search` respectively; they read their system prompts from `agents.db.agents.profile`. Archivist, DBA, and Data Steward are deterministic Python modules.
+
 ## Authority and override
 
 User instructions override this skill's defaults at all times. If the user provides a direct instruction — "skip the session-start pass," "just answer," or any unambiguous bypass directive — comply immediately without re-asking. This skill defines default behavior; it does not constrain the user's authority to change it.
