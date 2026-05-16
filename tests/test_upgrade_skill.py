@@ -1,18 +1,18 @@
 import pathlib
 import frontmatter as fm
 
-SKILL_MD = pathlib.Path(__file__).parent.parent / "skills" / "upgrade" / "SKILL.md"
-REFERENCE_MD = pathlib.Path(__file__).parent.parent / "skills" / "upgrade" / "REFERENCE.md"
+SKILL_MD = pathlib.Path(__file__).parent.parent / "internal" / "upgrade" / "SKILL.md"
+REFERENCE_MD = pathlib.Path(__file__).parent.parent / "internal" / "upgrade" / "REFERENCE.md"
 
 
 def test_skill_md_exists():
-    """skills/upgrade/SKILL.md must exist."""
-    assert SKILL_MD.exists(), "skills/upgrade/SKILL.md must exist"
+    """internal/upgrade/SKILL.md must exist."""
+    assert SKILL_MD.exists(), "internal/upgrade/SKILL.md must exist"
 
 
 def test_skill_md_under_150_lines():
     """SKILL.md must stay ≤150 lines."""
-    assert SKILL_MD.exists(), "skills/upgrade/SKILL.md must exist"
+    assert SKILL_MD.exists(), "internal/upgrade/SKILL.md must exist"
     with open(SKILL_MD, encoding="utf-8") as f:
         lines = f.readlines()
     assert len(lines) <= 150, f"SKILL.md is {len(lines)} lines — must be ≤150"
@@ -27,8 +27,8 @@ def test_skill_description_under_1024_chars():
 
 
 def test_reference_md_exists():
-    """skills/upgrade/REFERENCE.md must exist."""
-    assert REFERENCE_MD.exists(), "skills/upgrade/REFERENCE.md must exist"
+    """internal/upgrade/REFERENCE.md must exist."""
+    assert REFERENCE_MD.exists(), "internal/upgrade/REFERENCE.md must exist"
 
 
 def test_skill_has_version_detection():

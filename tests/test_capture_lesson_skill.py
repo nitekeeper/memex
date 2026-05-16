@@ -4,8 +4,8 @@ import frontmatter as fm
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures" / "capture-lesson-output"
 INBOX_LESSON = FIXTURES_DIR / "lessons" / "inbox" / "test-lesson.md"
 FEEDBACK_LESSON = FIXTURES_DIR / "lessons" / "feedback" / "test-feedback.md"
-SKILL_MD = pathlib.Path(__file__).parent.parent / "skills" / "capture-lesson" / "SKILL.md"
-REFERENCE_MD = pathlib.Path(__file__).parent.parent / "skills" / "capture-lesson" / "REFERENCE.md"
+SKILL_MD = pathlib.Path(__file__).parent.parent / "internal" / "capture-lesson" / "SKILL.md"
+REFERENCE_MD = pathlib.Path(__file__).parent.parent / "internal" / "capture-lesson" / "REFERENCE.md"
 LESSON_FORMAT_MD = pathlib.Path(__file__).parent.parent / "docs" / "LESSON_FORMAT.md"
 
 
@@ -58,7 +58,7 @@ def test_lesson_body_has_required_sections():
 
 def test_skill_md_under_150_lines():
     """SKILL.md must stay ≤150 lines."""
-    assert SKILL_MD.exists(), "skills/capture-lesson/SKILL.md must exist"
+    assert SKILL_MD.exists(), "internal/capture-lesson/SKILL.md must exist"
     with open(SKILL_MD, encoding="utf-8") as f:
         lines = f.readlines()
     assert len(lines) <= 150, f"SKILL.md is {len(lines)} lines — must be ≤150"
@@ -73,8 +73,8 @@ def test_skill_description_under_1024_chars():
 
 
 def test_reference_md_exists():
-    """skills/capture-lesson/REFERENCE.md must exist."""
-    assert REFERENCE_MD.exists(), "skills/capture-lesson/REFERENCE.md must exist"
+    """internal/capture-lesson/REFERENCE.md must exist."""
+    assert REFERENCE_MD.exists(), "internal/capture-lesson/REFERENCE.md must exist"
 
 
 def test_lesson_format_doc_exists():

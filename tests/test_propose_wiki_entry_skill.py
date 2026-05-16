@@ -3,18 +3,18 @@ import frontmatter as fm
 
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures" / "propose-wiki-entry-output"
 WIKI_FROM_LESSON = FIXTURES_DIR / ".ai" / "wiki" / "test-from-lesson.md"
-SKILL_MD = pathlib.Path(__file__).parent.parent / "skills" / "propose-wiki-entry" / "SKILL.md"
-REFERENCE_MD = pathlib.Path(__file__).parent.parent / "skills" / "propose-wiki-entry" / "REFERENCE.md"
+SKILL_MD = pathlib.Path(__file__).parent.parent / "internal" / "propose-wiki-entry" / "SKILL.md"
+REFERENCE_MD = pathlib.Path(__file__).parent.parent / "internal" / "propose-wiki-entry" / "REFERENCE.md"
 
 
 def test_skill_md_exists():
-    """skills/propose-wiki-entry/SKILL.md must exist."""
-    assert SKILL_MD.exists(), "skills/propose-wiki-entry/SKILL.md must exist"
+    """internal/propose-wiki-entry/SKILL.md must exist."""
+    assert SKILL_MD.exists(), "internal/propose-wiki-entry/SKILL.md must exist"
 
 
 def test_skill_md_under_150_lines():
     """SKILL.md must stay ≤150 lines."""
-    assert SKILL_MD.exists(), "skills/propose-wiki-entry/SKILL.md must exist"
+    assert SKILL_MD.exists(), "internal/propose-wiki-entry/SKILL.md must exist"
     with open(SKILL_MD, encoding="utf-8") as f:
         lines = f.readlines()
     assert len(lines) <= 150, f"SKILL.md is {len(lines)} lines — must be ≤150"
@@ -29,8 +29,8 @@ def test_skill_description_under_1024_chars():
 
 
 def test_reference_md_exists():
-    """skills/propose-wiki-entry/REFERENCE.md must exist."""
-    assert REFERENCE_MD.exists(), "skills/propose-wiki-entry/REFERENCE.md must exist"
+    """internal/propose-wiki-entry/REFERENCE.md must exist."""
+    assert REFERENCE_MD.exists(), "internal/propose-wiki-entry/REFERENCE.md must exist"
 
 
 def test_wiki_fixture_from_lesson_parses():

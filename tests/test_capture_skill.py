@@ -13,7 +13,7 @@ FIXTURE_PAGE = str(
     / "fixtures" / "capture-output" / ".ai" / "wiki" / "capture-design.md"
 )
 SKILL_MD = str(
-    pathlib.Path(__file__).parent.parent / "skills" / "capture" / "SKILL.md"
+    pathlib.Path(__file__).parent.parent / "internal" / "capture" / "SKILL.md"
 )
 
 

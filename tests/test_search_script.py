@@ -8,7 +8,7 @@ import pytest
 
 SEARCH_SCRIPT = str(pathlib.Path(__file__).parent.parent / "scripts" / "search.py")
 REBUILD_SCRIPT = str(pathlib.Path(__file__).parent.parent / "scripts" / "rebuild.py")
-SKILL_MD = str(pathlib.Path(__file__).parent.parent / "skills" / "ask" / "SKILL.md")
+SKILL_MD = str(pathlib.Path(__file__).parent.parent / "internal" / "ask" / "SKILL.md")
 
 
 def _run_search(ai_dir, *args):

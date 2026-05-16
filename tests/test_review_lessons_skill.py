@@ -5,18 +5,18 @@ FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures" / "review-lessons-outp
 PROMOTED_LESSON = FIXTURES_DIR / "lessons" / "promoted" / "test-promoted.md"
 DISCARDED_LESSON = FIXTURES_DIR / "lessons" / "inbox" / "test-discarded.md"
 HELD_LESSON = FIXTURES_DIR / "lessons" / "inbox" / "test-held.md"
-SKILL_MD = pathlib.Path(__file__).parent.parent / "skills" / "review-lessons" / "SKILL.md"
-REFERENCE_MD = pathlib.Path(__file__).parent.parent / "skills" / "review-lessons" / "REFERENCE.md"
+SKILL_MD = pathlib.Path(__file__).parent.parent / "internal" / "review-lessons" / "SKILL.md"
+REFERENCE_MD = pathlib.Path(__file__).parent.parent / "internal" / "review-lessons" / "REFERENCE.md"
 
 
 def test_skill_md_exists():
-    """skills/review-lessons/SKILL.md must exist."""
-    assert SKILL_MD.exists(), "skills/review-lessons/SKILL.md must exist"
+    """internal/review-lessons/SKILL.md must exist."""
+    assert SKILL_MD.exists(), "internal/review-lessons/SKILL.md must exist"
 
 
 def test_skill_md_under_150_lines():
     """SKILL.md must stay ≤150 lines."""
-    assert SKILL_MD.exists(), "skills/review-lessons/SKILL.md must exist"
+    assert SKILL_MD.exists(), "internal/review-lessons/SKILL.md must exist"
     with open(SKILL_MD, encoding="utf-8") as f:
         lines = f.readlines()
     assert len(lines) <= 150, f"SKILL.md is {len(lines)} lines — must be ≤150"
@@ -31,8 +31,8 @@ def test_skill_description_under_1024_chars():
 
 
 def test_reference_md_exists():
-    """skills/review-lessons/REFERENCE.md must exist."""
-    assert REFERENCE_MD.exists(), "skills/review-lessons/REFERENCE.md must exist"
+    """internal/review-lessons/REFERENCE.md must exist."""
+    assert REFERENCE_MD.exists(), "internal/review-lessons/REFERENCE.md must exist"
 
 
 def test_promoted_lesson_fixture_parses():

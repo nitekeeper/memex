@@ -22,7 +22,7 @@ Runs the full pipeline without approval gates.
 
 ### Step 1 — Capture
 
-Sweep the current conversation for lesson candidates (same logic as `capture-lesson` session-end mode):
+Sweep the current conversation for lesson candidates (same logic as `internal/capture-lesson/SKILL.md` session-end mode):
 - Non-obvious observations, mid-session corrections, decisions with a "why", patterns that help a future AI avoid a mistake
 - Skip: task-local notes, obvious-from-code items, ephemeral state, any slug already in `lessons/` or `.ai/wiki/`
 - If no active conversation: tell the user "Solo mode requires an active conversation. Start a session first." Stop.
@@ -51,8 +51,8 @@ Before reviewing, exclude any lesson file where `held-for-review: true` — oper
 - **Defer** (leave as draft) if ambiguous or requires context not available in this session
 - **Discard** if it duplicates something already in `lessons/` or `.ai/wiki/`, or is purely session-local
 
-Then run `propose-wiki-entry` solo on any promoted lessons.
-If no lessons were promoted, skip `propose-wiki-entry` and show `Wiki entries proposed: 0` in the summary.
+Then run `internal/propose-wiki-entry/SKILL.md` solo on any promoted lessons.
+If no lessons were promoted, skip `internal/propose-wiki-entry/SKILL.md` and show `Wiki entries proposed: 0` in the summary.
 
 ### Step 4 — Summary + commit
 
@@ -75,12 +75,12 @@ b) Queue review — review held items and existing drafts (no fresh capture)
 ### Step 2 — Execute
 
 **Option a — Full loop:**
-1. Run `capture-lesson` (session-end mode)
-2. Run `review-lessons` (held items surface first)
-3. Run `propose-wiki-entry`
+1. Run `internal/capture-lesson/SKILL.md` (session-end mode)
+2. Run `internal/review-lessons/SKILL.md` (held items surface first)
+3. Run `internal/propose-wiki-entry/SKILL.md`
 
 **Option b — Queue review:**
-1. Run `review-lessons` (held items surface first)
-2. Run `propose-wiki-entry`
+1. Run `internal/review-lessons/SKILL.md` (held items surface first)
+2. Run `internal/propose-wiki-entry/SKILL.md`
 
 Each skill runs its own approval gates. Nothing is written without user confirmation.

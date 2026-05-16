@@ -12,7 +12,7 @@ You are operating inside the **Memex product repo**. Memex is Product 1 of Skill
 
 At the start of every session, before responding to any user message, run the self-improvement queue-processing pass:
 
-1. **`review-lessons` (solo)** — scan `lessons/feedback/` then `lessons/inbox/` for `status: draft` lessons.
+1. **`internal/review-lessons/SKILL.md` (solo)** — scan `lessons/feedback/` then `lessons/inbox/` for `status: draft` lessons.
    - **Promote** if the lesson is factual, self-contained, and has a concrete how-to-apply.
    - **Defer** (leave as draft) if the lesson touches goals, priorities, design philosophy, or contradicts an existing approved wiki entry.
    - **Discard** if it duplicates something already in the wiki or is purely session-local.
@@ -20,10 +20,10 @@ At the start of every session, before responding to any user message, run the se
    If either `lessons/feedback/` or `lessons/inbox/` does not exist, treat it as empty and proceed to the next step.
    Treat a lesson file with no `status` field as `draft`.
 
-2. **`propose-wiki-entry` (solo)** — convert all newly promoted lessons into draft wiki entries in `.ai/wiki/`. Apply directly — no approval gate.
+2. **`internal/propose-wiki-entry/SKILL.md` (solo)** — convert all newly promoted lessons into draft wiki entries in `.ai/wiki/`. Apply directly — no approval gate.
    If a slug already exists in `.ai/wiki/`, skip that entry and note the conflict in the summary — do not overwrite.
 
-3. **`sync`** — run `python scripts/sync.py .ai/` from the Memex product root (`C:\Users\user\Documents\Skills\memex`) to surface stale wiki entries. If the script fails, set `Stale entries flagged: 0` in the summary and add a `Sync error: <error message>` line immediately below it. Proceed to Step 4 — do not abort the pass.
+3. **`internal/sync/SKILL.md`** — run `python scripts/sync.py .ai/` from the Memex product root (`C:\Users\user\Documents\Skills\memex`) to surface stale wiki entries. If the script fails, set `Stale entries flagged: 0` in the summary and add a `Sync error: <error message>` line immediately below it. Proceed to Step 4 — do not abort the pass.
 
 4. **Show summary** using this exact format:
 

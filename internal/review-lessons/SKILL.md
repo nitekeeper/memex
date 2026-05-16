@@ -86,7 +86,7 @@ A project is detectable if it contains `lessons/inbox/` at its root — check ea
 2. Move the file to `lessons/promoted/<slug>.md` (preserve filename).
 3. Stage the move: `git rm lessons/<stream>/<slug>.md` + `git add lessons/promoted/<slug>.md`.
 4. Show the lesson's **How to apply** section and suggest a follow-up:
-   - If lesson feels like a wiki entry: "Consider running `capture` to create a wiki entry."
+   - If lesson feels like a wiki entry: "Consider running `internal/capture/SKILL.md` to create a wiki entry."
    - If lesson points to a skill update: "Consider updating the relevant skill."
    - If unsure: "Consider whether this warrants a wiki entry or skill update."
    The follow-up is informational only — do not take further action automatically.

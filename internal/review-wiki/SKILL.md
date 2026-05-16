@@ -19,7 +19,7 @@ A project is detectable if it contains `.ai/wiki/` at its root. Check each root 
 1. **Scan** `.ai/wiki/` for all `.md` files with parseable frontmatter.
    - Bucket by priority:
      - **Priority 1 — draft**: `status: draft` entries (need a curation decision)
-     - **Priority 2 — stale**: `status: approved` entries where `describes-files` is non-empty (staleness shown as informational only — run `sync` to assess)
+     - **Priority 2 — stale**: `status: approved` entries where `describes-files` is non-empty (staleness shown as informational only — run `internal/sync/SKILL.md` to assess)
      - **Priority 3 — all others**: `status: approved` with no `describes-files` (already healthy; skip unless user requests full review)
    - Default pass: Priority 1 only. If no drafts found, report "No draft wiki entries to review." and offer to include Priority 2 if stale entries exist.
 

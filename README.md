@@ -46,13 +46,13 @@ See `dist/USER_GUIDE.md` for full setup and workflow instructions.
 
 | Skill | When to use |
 |---|---|
-| `capture` | Write or update a wiki entry |
-| `sync` | Check whether file-tracked entries have gone stale |
-| `ask` | Answer a question from the wiki (FTS), then web, then model |
-| `capture-lesson` | Record a session observation as a lesson |
-| `review-lessons` | Promote, defer, or discard draft lessons |
-| `propose-wiki-entry` | Convert promoted lessons into wiki entries |
-| `review-wiki` | Curation pass — approve drafts, archive stale entries |
+| `internal/capture/SKILL.md` | Write or update a wiki entry |
+| `internal/sync/SKILL.md` | Check whether file-tracked entries have gone stale |
+| `internal/ask/SKILL.md` | Answer a question from the wiki (FTS), then web, then model |
+| `internal/capture-lesson/SKILL.md` | Record a session observation as a lesson |
+| `internal/review-lessons/SKILL.md` | Promote, defer, or discard draft lessons |
+| `internal/propose-wiki-entry/SKILL.md` | Convert promoted lessons into wiki entries |
+| `internal/review-wiki/SKILL.md` | Curation pass — approve drafts, archive stale entries |
 
 ---
 

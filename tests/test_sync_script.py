@@ -7,7 +7,7 @@ import frontmatter as fm
 import pytest
 
 SYNC_SCRIPT = str(pathlib.Path(__file__).parent.parent / "scripts" / "sync.py")
-SKILL_MD = str(pathlib.Path(__file__).parent.parent / "skills" / "sync" / "SKILL.md")
+SKILL_MD = str(pathlib.Path(__file__).parent.parent / "internal" / "sync" / "SKILL.md")
 
 
 def _git(args, cwd):
