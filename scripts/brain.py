@@ -68,3 +68,23 @@ def ingest(
         caller_agent_id=caller_agent_id,
     )
     return {"status": "ingested", **result}
+
+
+def capture(body: str, caller_agent_id: str, title: str | None = None) -> dict:
+    """Capture a free-form note into article.db.captures.
+
+    Lighter than ingest — no source URL, no hash check, but still routes
+    through the Librarian.
+    """
+    payload = {
+        "title": title,
+        "body": body,
+        "created_by": caller_agent_id,
+    }
+    result = librarian.index_write(
+        payload=payload,
+        target_store="article",
+        target_table="captures",
+        caller_agent_id=caller_agent_id,
+    )
+    return {"status": "captured", **result}
