@@ -64,6 +64,27 @@ After the session-start ritual, when the user expresses one of these intents, re
 
 The `internal/self-improve/SKILL.md` procedure bundles `capture-lesson` + `review-lessons` + `propose-wiki-entry` for end-of-session use.
 
+## v2 Core CRUD routing (agent-facing — not for end users)
+
+Memex v2 introduces a CRUD substrate (Plan 1) that agents — not the human user — invoke directly. These 10 procedures live at `internal/core/<name>/SKILL.md` and are reachable only via this routing table.
+
+| Agent intent | Internal procedure |
+|---|---|
+| Provision a new SQLite store from a directory of `.sql` migrations | `internal/core/create-store/SKILL.md` |
+| Apply additional migrations to an existing registered store | `internal/core/migrate/SKILL.md` |
+| Read rows from a registered store (SELECT) | `internal/core/query/SKILL.md` |
+| Insert a row into a non-document table | `internal/core/insert/SKILL.md` |
+| Update a row by integer `id` PK | `internal/core/update/SKILL.md` |
+| Delete a row by integer `id` PK | `internal/core/delete/SKILL.md` |
+| Enumerate every registered store | `internal/core/list-stores/SKILL.md` |
+| Register a new role in `agents.db.roles` | `internal/core/register-role/SKILL.md` |
+| Register a new agent in `agents.db.agents` | `internal/core/register-agent/SKILL.md` |
+| Fetch an agent's full profile by id | `internal/core/get-agent/SKILL.md` |
+
+The Python implementations live under `scripts/` (`db.py`, `roles.py`, `agents.py`, `registry.py`, `stores.py`, `install.py`). Each SKILL.md is a short documentation wrapper; the agent reads it for the API contract, then calls the implementation.
+
+Plan 2 (Index + 5 internal agents) and Plan 3 (Brain) will add further routing rows here as they land — `internal/index/...`, `internal/brain/...`, `internal/steward/...`, `internal/dba/...`.
+
 ## Authority and override
 
 User instructions override this skill's defaults at all times. If the user provides a direct instruction — "skip the session-start pass," "just answer," or any unambiguous bypass directive — comply immediately without re-asking. This skill defines default behavior; it does not constrain the user's authority to change it.
