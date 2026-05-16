@@ -23,3 +23,21 @@ def get_connection(db_path: str) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA temp_store = MEMORY")
     return conn
+
+
+import os
+
+
+def memex_home() -> Path:
+    """Resolve the Memex home directory.
+
+    Order: $MEMEX_HOME if set, else $HOME/.memex (POSIX) or
+    $USERPROFILE/.memex (Windows).
+    """
+    explicit = os.environ.get("MEMEX_HOME")
+    if explicit:
+        return Path(explicit)
+    user_home = os.environ.get("HOME") or os.environ.get("USERPROFILE")
+    if not user_home:
+        raise RuntimeError("Cannot resolve user home directory")
+    return Path(user_home) / ".memex"
