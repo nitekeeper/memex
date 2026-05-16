@@ -85,3 +85,18 @@ def test_run_skill_routes_to_index_steward_dba_skills():
         assert f"internal/dba/{s}/SKILL.md" in run_content, (
             f"memex:run missing routing entry for internal/dba/{s}"
         )
+
+
+BRAIN_SKILLS = ["ingest", "ask", "capture", "lint", "synthesize"]
+
+
+def test_brain_skills_present():
+    for s in BRAIN_SKILLS:
+        p = Path(f"internal/brain/{s}/SKILL.md")
+        assert p.exists(), f"Missing: brain/{s}"
+
+
+def test_brain_skills_frontmatter():
+    for s in BRAIN_SKILLS:
+        content = Path(f"internal/brain/{s}/SKILL.md").read_text(encoding="utf-8")
+        assert f"name: memex:brain:{s}" in content
