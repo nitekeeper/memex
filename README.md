@@ -1,80 +1,72 @@
 # Memex
 
-A project-wiki capability for AI systems — persistent, searchable knowledge with exact git-commit staleness detection and a built-in self-improvement loop.
+**A personal knowledge runtime and shared memory plane for the agent fleet.**
 
-The name comes from Vannevar Bush's 1945 *As We May Think* — a memory extender that follows associative trails through documents.
+Memex is the second-brain product of Skill Atelier (Product 1). It hosts your
+personal knowledge — articles you read, notes you capture, syntheses you
+produce — and serves as the shared memory layer for AI agents working on
+your behalf.
 
----
+## What's in v0.2
 
-## What it does
+Three layers:
 
-Memex gives AI agents the ability to:
+1. **Memex Brain** — opinionated second-brain skill layer. `ingest`, `ask`,
+   `capture`, `lint`, `synthesize`. Stores articles, notes, and syntheses
+   in `~/.memex/article.db`.
+2. **Memex Index + 5 internal agents** — Librarian, Reference Librarian,
+   Archivist, Database Administrator, Data Steward. Mandatory write-path
+   gateway. Federated metadata, FTS5, embeddings, cross-store relationships.
+3. **Memex Core** — CRUD substrate. Provisions and hosts arbitrary SQLite
+   stores from consumer-supplied SQL migration files. Schema-agnostic.
 
-- **Build and maintain a project wiki** — structured entries in `.ai/wiki/`, indexed in SQLite for full-text search
-- **Know precisely what's stale** — not heuristically, but by comparing `synced-at-commit` to repo HEAD
-- **Capture and promote lessons** — surface non-obvious observations from sessions, review them, promote them into wiki entries
-- **Curate deliberately** — every write and promotion requires explicit approval; nothing is written silently
+24 internal procedures routed via the single `memex:run` skill, distributed via the Claude Code plugin. Per spec §8.0 only `memex:run` is registered with Claude Code — it routes natural-language user intents and agent-facing CRUD operations to the matching procedure on demand, keeping the plugin's skill-description footprint well under Claude Code's 1% budget.
 
----
+## Installation
 
-## Install
+See `dist/v0.2.0/INSTALL.md` (after running `python -m scripts.release`).
 
-**Requirements:** Claude Code, Python 3.9+, git
+For development:
 
 ```bash
-# 1. Install the Python dependency
-pip install python-frontmatter
-
-# 2. Copy the Memex skills into your Claude Code skills directory
-#    (copy dist/skills/ to wherever your project loads skills from)
-
-# 3. Create the project directories
-mkdir -p .ai/wiki lessons/inbox lessons/feedback lessons/promoted
-
-# 4. Add the DB to .gitignore
-echo ".ai/memex.db" >> .gitignore
-
-# 5. Build the index
-python /path/to/memex/scripts/rebuild.py .ai/
+python -m scripts.install
 ```
 
-See `dist/USER_GUIDE.md` for full setup and workflow instructions.
+This bootstraps `~/.memex/`, seeds the 5 internal agents, creates the
+default `article.db`, and registers everything in the global registry.
 
----
+## Key design decisions (locked)
 
-## Skills
+- Personal KM is the primary use case; project memory is a secondary
+  capability via consumer stores (Atelier-style).
+- SQLite-first; markdown is an export view, not the source of truth.
+- Every document goes through the Librarian — no bypass.
+- Eventually consistent across (Index, target store); Data Steward
+  reconciles orphans.
+- Open-ended `rel_type` vocabulary; Librarian's prompt is the consistency
+  mechanism.
+- Hybrid retrieval: FTS5 + vector embeddings from day one.
 
-| Skill | When to use |
-|---|---|
-| `internal/capture/SKILL.md` | Write or update a wiki entry |
-| `internal/sync/SKILL.md` | Check whether file-tracked entries have gone stale |
-| `internal/ask/SKILL.md` | Answer a question from the wiki (FTS), then web, then model |
-| `internal/capture-lesson/SKILL.md` | Record a session observation as a lesson |
-| `internal/review-lessons/SKILL.md` | Promote, defer, or discard draft lessons |
-| `internal/propose-wiki-entry/SKILL.md` | Convert promoted lessons into wiki entries |
-| `internal/review-wiki/SKILL.md` | Curation pass — approve drafts, archive stale entries |
+See `docs/specs/2026-05-16-memex-v2-redesign-design.md` for the full design.
 
----
-
-## Quick start
+## Layout
 
 ```
-Session ends → run capture-lesson → review-lessons → propose-wiki-entry
-                                                     → review-wiki (quarterly)
-Question arises → run ask
-Source files change → run sync
+~/.memex/
+├── agents.db       # roles + agents (5 Memex internal, plus your registered self)
+├── index.db        # documents + relations + FTS5 + embeddings
+├── article.db      # Brain's default store (articles + captures + syntheses)
+├── registry.json   # registered stores
+├── raw/            # Archivist's content-addressable raw archive
+├── audits/         # Data Steward reports
+└── legacy/         # v1 install (archived, not migrated)
 ```
 
----
+## Status
 
-## Releases
+v0.2.0 — released 2026-05-16 (or build date).
 
-Current release: **v0.1.0** (2026-05-10) — 7 skills, 3 scripts, dogfood-validated against Skill Atelier.
+## Layer awareness
 
-See `CHANGELOG.md` for release history and `dist/MANIFEST.md` for what's in the current release.
-
----
-
-## Contributing / development
-
-This is Product 1 of [Skill Atelier](https://github.com/nitekeeper/skill-atelier). See `CLAUDE.md` for session entry instructions and `DESIGN_NOTES.md` for decisions made so far.
+This repo is Layer 2 (a Skill Atelier product). Framework changes live at
+the Skill Atelier repo; product changes live here.
