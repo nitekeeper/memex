@@ -44,12 +44,34 @@ def test_e2e_brain_lifecycle_phase1(tmp_memex_home):
     assert Path(report).exists()
 
 
-@pytest.mark.skip(
-    reason="brain.ask requires Reference Librarian Phase-2 refactor."
-)
-def test_e2e_brain_ask():
-    """Placeholder — re-enable when Phase 2 lands."""
-    pass
+def test_e2e_brain_ask(tmp_memex_home):
+    """Phase-2 path: ask_prepare → synthetic query plan → ask_execute."""
+    install.run()
+    onboarding.register_human("human-test", "Test", "User")
+
+    # Seed an index entry directly (bypassing the ingest LLM dispatch — that's
+    # covered in test_e2e_brain_lifecycle_phase1).
+    from scripts.db import get_connection, memex_home
+    conn = get_connection(str(memex_home() / "index.db"))
+    conn.execute(
+        "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
+        "searchable, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("idx-cat", "cats", "article", "article", "articles", "1",
+         "cats are fascinating creatures", "librarian-1"),
+    )
+    conn.commit()
+    conn.close()
+
+    prep = brain.ask_prepare("tell me about cats")
+    synthetic_plan = {
+        "fts_query": "cats",
+        "vector_query": None,
+        "filters": {},
+        "limit": 5,
+    }
+    results = brain.ask_execute(prep, synthetic_plan)
+    ids = {r["index_id"] for r in results}
+    assert "idx-cat" in ids
 
 
 @pytest.mark.skip(

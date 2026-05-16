@@ -1,16 +1,16 @@
 import pytest
 from pathlib import Path
 from scripts import install, stores
-from scripts.agents import librarian, data_steward
+from scripts.agents import librarian, reference_librarian, data_steward
 from scripts.db import memex_home, get_connection
 
 
-def test_e2e_index_write_and_audit(tmp_memex_home, tmp_path):
-    """Full write (via new write_entry API) -> orphan-audit cycle.
+def test_e2e_index_write_search_and_audit(tmp_memex_home, tmp_path):
+    """Full write -> search -> orphan-audit cycle.
 
-    Phase 1 (Option-B refactor) coverage: Librarian's persistence layer
-    via librarian.write_entry with synthetic LLM output. The search half
-    of the original test (Reference Librarian) is deferred to Phase 2.
+    Phase 1 + Phase 2 (Option-B refactor) coverage: Librarian's persistence
+    via write_entry, then Reference Librarian's plan execution via
+    ask_prepare/ask_execute. Both LLM steps faked with synthetic output.
     """
     install.run()
 
@@ -46,6 +46,18 @@ def test_e2e_index_write_and_audit(tmp_memex_home, tmp_path):
         embedding=b"\x00\x00\x00\x00",
     )
     assert result["index_id"] == "idx-1"
+
+    # Phase 2 search: ask_prepare + synthetic query plan + ask_execute
+    rl_prep = reference_librarian.ask_prepare("hello")
+    synthetic_plan = {
+        "fts_query": "hello",
+        "vector_query": None,
+        "filters": {},
+        "limit": 10,
+    }
+    results = reference_librarian.ask_execute(rl_prep, synthetic_plan)
+    ids = [r["index_id"] for r in results]
+    assert "idx-1" in ids
 
     # Audit should find no orphans (everything consistent)
     index_db = str(memex_home() / "index.db")

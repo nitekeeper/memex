@@ -638,17 +638,19 @@ attribution (`created_by`, audit-report authorship), but no LLM call.
 `plugin.json`.** They're discoverable only via the routing table in
 `skills/run/SKILL.md`.
 
-**Rollout phasing (in progress):**
+**Rollout phasing:**
 
-- **Phase 1** (current): Librarian flow refactored — `ingest_prepare/complete`,
+- **Phase 1** (landed): Librarian flow — `ingest_prepare/complete`,
   `capture_prepare/complete`, and `librarian.write_entry`. The skill
   markdowns for `brain/ingest`, `brain/capture`, and `index/write` are
   the new orchestration recipes.
-- **Phase 2**: Reference Librarian — `ask_prepare/execute` and the
-  `brain/ask` + `index/search` skill recipes.
-- **Phase 3**: Synthesizer — `synthesize_prepare/post/complete` and the
-  `brain/synthesize` skill recipe (which dispatches both Synthesizer and
-  Librarian subagents).
+- **Phase 2** (landed): Reference Librarian — `ask_prepare/execute` and
+  the `brain/ask` + `index/search` skill recipes. Hybrid retrieval
+  (FTS5 + vector) is best-effort; the skill falls back to FTS5-only on
+  embedding errors.
+- **Phase 3** (pending): Synthesizer — `synthesize_prepare/post/complete`
+  and the `brain/synthesize` skill recipe (dispatches both Synthesizer
+  and Librarian subagents).
 
 ---
 

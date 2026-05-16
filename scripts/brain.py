@@ -224,17 +224,30 @@ def capture_complete(
     return {"status": "captured", **result}
 
 
-# ── ask (Reference Librarian — Phase 2+ refactor not yet done) ─────────────
+# ── ask (Reference Librarian — Phase 2 refactor) ───────────────────────────
 
 
-def ask(query: str) -> list[dict]:
-    """Ask a question. Routes through the Reference Librarian.
+def ask_prepare(query: str, caller_agent_id: str = "reference-librarian-1") -> dict:
+    """Phase 1 of brain ask. Builds the Reference Librarian subagent prompt.
 
-    NOTE: This still calls reference_librarian.ask() which has the legacy
-    _invoke_llm stub (NotImplementedError). Will be refactored in Phase 2
-    of the Option-B rollout (same prepare/complete pattern).
+    Returns {"status": "ready", "query": <q>, "caller_agent_id": <id>,
+             "subagent_prompt": <full Task-tool prompt>}.
+
+    Skill markdown dispatches the subagent, parses the query plan, and
+    calls ask_execute() with both.
     """
-    return reference_librarian.ask(query)
+    return reference_librarian.ask_prepare(query, caller_agent_id=caller_agent_id)
+
+
+def ask_execute(
+    prepare_result: dict,
+    query_plan: dict,
+    with_embedding: bool = False,
+) -> list[dict]:
+    """Phase 2 of brain ask. Executes the query plan and returns ranked results."""
+    return reference_librarian.ask_execute(
+        prepare_result, query_plan, with_embedding=with_embedding,
+    )
 
 
 # ── lint (no LLM; Data Steward audit) ──────────────────────────────────────

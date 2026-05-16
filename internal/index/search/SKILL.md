@@ -1,33 +1,66 @@
 ---
 name: memex:index:search
-description: Ask the Memex Reference Librarian a natural-language question. Returns a ranked list of relevant documents across every registered store, with full content fetched from target stores. Replaces direct querying of any single store for read operations.
+description: Federated search across every registered Memex store via the Reference Librarian. Lower-level primitive that memex:brain:ask builds on — use directly when a consumer (Atelier, custom plugin) needs raw query results without Brain-specific formatting.
 ---
 
 # memex:index:search
 
 ## When to use
 
-Any read where the answer might span multiple stores, or where the caller doesn't know which store holds the relevant content. Brain's `ask` skill wraps this directly. Atelier or any consumer can also invoke it.
+A consumer needs ranked, citation-ready hits from the federated Index without going through Brain. `memex:brain:ask` is a convenience wrapper around this skill that adds user-friendly reporting; use this skill when you want the raw ranked list.
 
 ## Inputs
 
-- `query` — natural-language question
-- (optional) `filters` — dict, e.g., `{"domain": "article", "store": "brain"}` to constrain
-- (optional) `limit` — max results (default 10)
+- `query` — natural-language question (string)
+- (optional) `caller_agent_id` — defaults to `"reference-librarian-1"` (the Reference Librarian itself acts as the caller for audit purposes)
 
-## What happens
+## Recipe (Option-B Task-tool dispatch)
 
-1. Reference Librarian (LLM subagent) parses the query, builds an FTS5 + vector query plan.
-2. Plan executes against `~/.memex/index.db`.
-3. Top N candidate `index_id`s are returned.
-4. For each candidate, the target row is fetched from its store via Core.
-5. If a row fetch fails (transient orphan), it is logged + skipped. Data Steward is notified asynchronously.
-6. Returns ranked list of dicts: `[{index_id, store, key, domain, body, relevance, ...}, ...]`.
+### Step 1 — Prepare
 
-## Invocation
+```python
+from scripts.agents import reference_librarian
+prep = reference_librarian.ask_prepare(query, caller_agent_id="reference-librarian-1")
+```
 
-`scripts/agents/reference_librarian.py:ask(query)`
+### Step 2 — Dispatch the Reference Librarian subagent
+
+Use the **Task tool**:
+
+- `subagent_type`: `general-purpose`
+- `description`: `Reference Librarian: build query plan`
+- `prompt`: `prep["subagent_prompt"]`
+
+Subagent returns a JSON query plan with `fts_query`, `vector_query`, `filters`, `limit`.
+
+### Step 3 — Parse + handle clarification
+
+```python
+query_plan = reference_librarian.parse_query_plan(subagent_response)
+if "clarify" in query_plan:
+    return {"status": "needs_clarification", "question": query_plan["clarify"]}
+```
+
+Retry once on parse failure. After two failures, return BLOCKED.
+
+### Step 4 — Execute
+
+```python
+try:
+    results = reference_librarian.ask_execute(prep, query_plan, with_embedding=True)
+except Exception:
+    results = reference_librarian.ask_execute(prep, query_plan, with_embedding=False)
+```
+
+Returns a list of dicts: `[{index_id, key, domain, store, table_name, row_id, searchable, embedding}, ...]`. Ordered by relevance.
+
+### Step 5 — Return raw results
+
+This skill does NOT fetch full rows from target stores; the caller decides whether to hydrate. Just return the list from Step 4.
 
 ## Notes
 
-- Hybrid retrieval (FTS5 + vector cosine) is used when embeddings are present. In v2.0, embeddings are computed on write; backfill is not yet implemented (see Plan 4 for re-embed tooling).
+- Hybrid retrieval (FTS5 + vector cosine) is attempted by default; the skill falls back to FTS5-only if embedding encoding fails (no API key, provider error, etc.).
+- Filters supported: `domain` (e.g., `"article"`, `"decision"`), `store` (e.g., `"article"`, `"atelier-projectX"`). The Reference Librarian decides whether to set them based on the user's question.
+- Limit defaults to 10. The subagent can raise it for broad survey queries, lower it for focused lookups.
+- Caller's context isolation: same as Librarian — the Reference Librarian's profile and reasoning stay in the subagent's context; the caller's context carries only the parsed plan + results list.
