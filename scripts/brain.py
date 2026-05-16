@@ -93,3 +93,9 @@ def capture(body: str, caller_agent_id: str, title: str | None = None) -> dict:
 def ask(query: str) -> list[dict]:
     """Ask a question. Routes through the Reference Librarian."""
     return reference_librarian.ask(query)
+
+
+def lint() -> str:
+    """Run a Data Steward audit and return the report path."""
+    index_db = str(memex_home() / "index.db")
+    return data_steward.audit(index_db)
