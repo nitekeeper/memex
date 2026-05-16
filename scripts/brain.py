@@ -99,3 +99,50 @@ def lint() -> str:
     """Run a Data Steward audit and return the report path."""
     index_db = str(memex_home() / "index.db")
     return data_steward.audit(index_db)
+
+
+def _invoke_synthesizer(prompt: str) -> str:
+    """LLM invocation for synthesis. Mocked in tests; production wires to subagent."""
+    raise NotImplementedError("Synthesizer LLM invocation TBD")
+
+
+def _fetch_source_bodies(index_ids: list[str]) -> list[dict]:
+    """Fetch the full row for each index_id from its target store."""
+    sources = []
+    for idx in index_ids:
+        rows = stores.query("article", "SELECT * FROM articles WHERE index_id = ?", (idx,))
+        if rows:
+            sources.append({"index_id": idx, "body": rows[0]["body"], "title": rows[0].get("title", "")})
+    return sources
+
+
+def synthesize(
+    topic: str,
+    input_index_ids: list[str],
+    caller_agent_id: str,
+) -> dict:
+    """Produce a multi-source synthesis on a topic. Stores in syntheses table."""
+    sources = _fetch_source_bodies(input_index_ids)
+    sources_md = "\n\n".join([
+        f"### [{s['index_id']}] {s.get('title', '')}\n\n{s['body']}"
+        for s in sources
+    ])
+
+    template = Path("prompts/synthesizer.md").read_text(encoding="utf-8")
+    prompt = template.replace("{{TOPIC}}", topic).replace("{{SOURCES}}", sources_md)
+
+    synthesis_body = _invoke_synthesizer(prompt)
+
+    payload = {
+        "topic": topic,
+        "body": synthesis_body,
+        "inputs_json": json.dumps(input_index_ids),
+        "created_by": caller_agent_id,
+    }
+    result = librarian.index_write(
+        payload=payload,
+        target_store="article",
+        target_table="syntheses",
+        caller_agent_id=caller_agent_id,
+    )
+    return {"status": "synthesized", **result}
