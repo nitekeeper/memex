@@ -1,5 +1,4 @@
 ---
-name: memex:sync
 description: "Use when the user wants to check whether project-wiki pages that track source files are still accurate, or to review and update stale pages. Also use when the user invokes /sync. Do NOT use for writing new pages (use capture) or ingesting external sources (use meta:ingest-source)."
 ---
 

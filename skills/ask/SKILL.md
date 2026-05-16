@@ -1,5 +1,4 @@
 ---
-name: memex:ask
 description: "Use when the user asks a question about their project and wants an answer drawn from the project wiki first, then the web, then model knowledge. Also use when the user invokes /ask. Do NOT use for writing or updating wiki pages (use capture) or for checking page staleness (use sync)."
 ---
 

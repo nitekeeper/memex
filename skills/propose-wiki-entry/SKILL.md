@@ -1,5 +1,4 @@
 ---
-name: memex:propose-wiki-entry
 description: "Use when the user wants to convert promoted lessons into wiki entries — either after a review-lessons session or on demand. Also use when the user wants to propose a wiki entry from an observed pattern without going through lesson capture first. Do NOT use for reviewing existing wiki entries (use review-wiki), writing arbitrary wiki pages (use capture), or reviewing lesson drafts (use review-lessons)."
 ---
 

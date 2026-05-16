@@ -1,5 +1,4 @@
 ---
-name: memex:self-improve
 description: "Use when the user wants to run the self-improvement loop — either solo (Claude runs it autonomously without gates) or collaboratively (user and Claude work through it together with approval at each step). Trigger on: \"self-improve\", \"run self-improve\", \"self-improvement loop\", \"run the loop solo\", \"let's do self-improve together\", \"self-improve on your own\". Also trigger when the user asks Claude to capture and review lessons as a batch in one invocation."
 ---
 
