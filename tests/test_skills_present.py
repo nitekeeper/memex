@@ -37,3 +37,32 @@ def test_run_skill_routes_to_core_skills():
         assert f"internal/core/{skill}/SKILL.md" in run_content, (
             f"memex:run missing routing entry for internal/core/{skill}"
         )
+
+
+INDEX_SKILLS = ["write", "search", "archive"]
+STEWARD_SKILLS = ["audit", "audit-store", "reconcile-orphan"]
+DBA_SKILLS = ["checkpoint", "integrity-check", "vacuum"]
+
+
+def test_index_skills_present():
+    for s in INDEX_SKILLS:
+        p = Path(f"internal/index/{s}/SKILL.md")
+        assert p.exists(), f"Missing skill: index/{s}"
+
+
+def test_index_skills_have_frontmatter_name():
+    for s in INDEX_SKILLS:
+        content = Path(f"internal/index/{s}/SKILL.md").read_text(encoding="utf-8")
+        assert f"name: memex:index:{s}" in content
+
+
+def test_steward_skills_present():
+    for s in STEWARD_SKILLS:
+        p = Path(f"internal/steward/{s}/SKILL.md")
+        assert p.exists()
+
+
+def test_dba_skills_present():
+    for s in DBA_SKILLS:
+        p = Path(f"internal/dba/{s}/SKILL.md")
+        assert p.exists()
