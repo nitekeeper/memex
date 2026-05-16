@@ -24,7 +24,7 @@ Three layers:
 
 ## Installation
 
-See `dist/v2.1.0/INSTALL.md` (after running `python -m scripts.release`).
+See `dist/v2.2.0/INSTALL.md` (after running `python -m scripts.release`).
 
 For development:
 
@@ -64,7 +64,7 @@ See `docs/specs/2026-05-16-memex-v2-redesign-design.md` for the full design.
 
 ## Status
 
-v2.1.0 — released 2026-05-16 (or build date).
+v2.2.0 — released 2026-05-16 (or build date).
 
 ## Layer awareness
 

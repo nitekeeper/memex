@@ -1,31 +1,31 @@
 {
-  "version": "2.1.0",
-  "built_at": "2026-05-16T18:45:56.346430+00:00",
+  "version": "2.2.0",
+  "built_at": "2026-05-16T21:15:40.782808+00:00",
   "file_count": 60,
   "files": [
     {
       "path": ".claude-plugin\\plugin.json",
-      "sha256": "0ade6a6df0b70352d753778b18896c8f4d7488d24b870bd96acea6eaefc19c84",
+      "sha256": "3d4b9c230279dda565d9e18033b794ad4d65ea888fc968d0dbb6c26ab4f5cede",
       "bytes": 707
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "dc3f3b41a0767694eebacfa5f99412bcb88f9198c0dca3bde7c79cef1461a174",
-      "bytes": 8255
+      "sha256": "f047b8dc0bf8ca80c928e0b57a11670ae60c14b22302bb8f6ca3377dc7754a7b",
+      "bytes": 10050
     },
     {
       "path": "INSTALL.md",
-      "sha256": "9399ae75a7cc8a86d55deb1d9379f0cc173be44231276c3fda95e34160fbc1f1",
+      "sha256": "99c5b90028bb9ff90eea918d4746adfad2678546548aaf2b439415ab23482bee",
       "bytes": 2816
     },
     {
       "path": "README.md",
-      "sha256": "bfc6cd695781082a761acfcd9e0025a83c656d37e4003dd45cb8adcdeb7e9065",
+      "sha256": "5af9a59c5a2df847e48b44471a57ee1d4e64e8a3eaaac6d206cb8b1dc3427509",
       "bytes": 2952
     },
     {
       "path": "USER_GUIDE.md",
-      "sha256": "fc9daa46eadb20fc279ff2d3000955e8c917c76c4a2fa19cd11c378e9b960c10",
+      "sha256": "13b7c08cd143dc487804585fef34b6166b3e8b22b6b7a42c8d71275f9b0ae111",
       "bytes": 6825
     },
     {
@@ -170,8 +170,8 @@
     },
     {
       "path": "internal\\index\\write\\SKILL.md",
-      "sha256": "9a5cbee4bbb651c849d8abf2ed7e679038a1ffa399c02ff2dd4831da6b4b7ab9",
-      "bytes": 3898
+      "sha256": "4b719c67edf1a3bd72c4e0a18821960db791e2e15a34ab420fff493c080b566b",
+      "bytes": 6411
     },
     {
       "path": "internal\\steward\\audit-store\\SKILL.md",
@@ -205,7 +205,7 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "8b86fa262315d63a6b0ca4a038abaadce2c41e64ea7efbd11225fd2f0beb0402",
+      "sha256": "af3f31f03c51bb587a00de148a5dab41befa6b3f47d2cb876f538e0d59dddc56",
       "bytes": 217
     },
     {
@@ -235,8 +235,8 @@
     },
     {
       "path": "scripts\\agents\\librarian.py",
-      "sha256": "c17b2edc804e860dafb33a12ee9b2ad3901476a7d811b4a299d5494b41b9be32",
-      "bytes": 8251
+      "sha256": "36a6571120e13cfaab322d60e8d29c6640ad3c78f9c59dfd3b2623dab85fcc0c",
+      "bytes": 9236
     },
     {
       "path": "scripts\\agents\\reference_librarian.py",

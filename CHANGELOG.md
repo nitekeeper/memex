@@ -12,6 +12,39 @@ Format: [version] — date — summary.
 
 ---
 
+## v2.2.0 — 2026-05-16
+
+**Caller-built classification for consumer writes (Atelier-style fast path).**
+
+- **`memex:index:write` accepts an optional `librarian_output`.** When a
+  consumer (Atelier `tasks` / `decisions` / `meetings`, or any future
+  structured-row writer) already knows the document's `domain`, can build
+  `searchable` deterministically from the row, and has explicit relations
+  in its data model, it passes a Python-built `librarian_output` dict and
+  the Librarian subagent dispatch is skipped. Steps 1–3 of the recipe
+  (build prompt, dispatch, parse) collapse to a single
+  `librarian.validate_output()` call. Persistence still flows through
+  `librarian.write_entry()`, so the Index↔target-store coupling and Data
+  Steward orphan-detection contracts are unchanged. See
+  [memex#1](https://github.com/nitekeeper/memex/pull/1).
+- **New helper `librarian.validate_output(obj)`.** Single source of truth
+  for the `librarian_output` schema (`index_id`, `key`, `domain`,
+  `searchable` required; `metadata` / `relations` optional with defaults).
+  Both `parse_response()` (subagent path) and `write_entry()`
+  (persistence) now route through it.
+- **Spec amended.** New §6.3 *Caller-built classification (consumer fast
+  path)* documents the dual-mode contract alongside the original
+  LLM-mediated flow. Architectural invariant unchanged: every write is
+  mediated by the Librarian write surface; what varies is whether the
+  classification step is LLM-mediated or caller-supplied.
+- **Reserve the subagent path for prose ingest** (Brain `ingest`,
+  transcripts, free-form notes) where `domain` and `relations` need to be
+  extracted from text.
+- 244 tests passing (was 238 in v2.1.0; 6 new tests cover the
+  caller-built path).
+
+---
+
 ## v2.1.0 — 2026-05-16
 
 **Embeddings: full hybrid-retrieval plumbing (#2 blocker resolved).**

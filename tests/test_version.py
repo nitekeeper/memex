@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 
 
-EXPECTED_VERSION = "2.1.0"
+EXPECTED_VERSION = "2.2.0"
 
 
 def test_pyproject_version():
