@@ -29,9 +29,8 @@ You want to install Memex alongside your other Claude Code plugins and use it to
 1. **Get the bundle.** Download the latest release archive from [GitHub Releases](https://github.com/nitekeeper/memex/releases). Each release ships an `INSTALL.md` inside the bundle with the authoritative steps; the summary below is the typical case.
 2. **Place the bundle** in your Claude Code plugins directory, typically `~/.claude-code/plugins/memex/`.
 3. **Restart Claude Code**, or invoke `/plugin reload memex` if your version supports it.
-4. **Invoke `memex:run`** and express an intent in natural language (e.g., *"ingest this article"*, *"what do I know about X?"*, *"capture this thought"*). On first use of any Brain operation you'll be prompted to register yourself as a human agent — one-time setup.
-
-After step 4, `~/.memex/` is bootstrapped automatically with `agents.db`, `index.db`, `article.db`, and the registry. You're done.
+4. **Bootstrap `~/.memex/`** by running once: `python -m scripts.install`. This seeds the 5 internal agents, creates the default `article.db`, and registers everything in the global registry. (If you skip this, the first Brain operation will error with a helpful pointer back to this step.)
+5. **Invoke `memex:run`** and express an intent in natural language (e.g., *"ingest this article"*, *"what do I know about X?"*, *"capture this thought"*). On first use of any Brain operation you'll be prompted to register yourself as a human agent — one-time setup.
 
 **Optional but recommended:** configure an embedding provider for hybrid retrieval (FTS5 + vector cosine). Memex works without one — FTS5 alone retrieves results — but the dashed-line search quality is meaningfully better with embeddings. See the bundle's `INSTALL.md` for provider options (`openai`, `voyage`, or local sentence-transformers) and the env vars each one expects.
 
