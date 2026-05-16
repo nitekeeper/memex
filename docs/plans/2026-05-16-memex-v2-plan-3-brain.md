@@ -4,7 +4,7 @@
 
 **Goal:** Ship the Memex Brain — the human-facing second-brain skill layer. Brain stores articles, captures, and syntheses in the default `article.db` store, all routed through the Librarian. End state: a human can ingest an article via `memex:brain:ingest`, ask a question via `memex:brain:ask`, capture a free-form note via `memex:brain:capture`, run a health-check via `memex:brain:lint`, and produce a cross-document synthesis via `memex:brain:synthesize`. First Brain invocation triggers human-agent onboarding. Plan 3 also implements the previously-stubbed `memex:steward:reconcile-orphan`.
 
-**Architecture:** Brain skills are thin wrappers over Plan 2's `memex:index:*` skills. `ingest` adds hash-based rerun safety on top of `index:write`. `ask` and `synthesize` use LLM post-processing on `index:search` results. `capture` is `index:write` with minimal payload. `lint` calls `steward:audit-store` scoped to `article.db`.
+**Architecture:** Brain procedures are thin wrappers over Plan 2's `memex:index:*` procedures. `ingest` adds hash-based rerun safety on top of `index:write`. `ask` and `synthesize` use LLM post-processing on `index:search` results. `capture` is `index:write` with minimal payload. `lint` calls `steward:audit-store` scoped to `article.db`. Per spec §8.0 the plugin manifest registers only `memex:run`; Brain's 5 procedures live at `internal/brain/<name>/SKILL.md` and are reached on demand via the user-facing intent routing table inside `skills/run/SKILL.md`. Plan 3 extends that table rather than registering top-level skills.
 
 **Tech Stack:** Python 3.10+, same dependencies as Plans 1 + 2. No new external libraries.
 
@@ -23,7 +23,7 @@ memex/
 ├── scripts/
 │   ├── brain.py                                   # NEW: brain operations
 │   └── onboarding.py                              # NEW: first-invocation human registration
-├── skills/
+├── internal/
 │   ├── brain/
 │   │   ├── ingest/SKILL.md                        # NEW
 │   │   ├── ask/SKILL.md                           # NEW
@@ -32,6 +32,8 @@ memex/
 │   │   └── synthesize/SKILL.md                    # NEW
 │   └── steward/
 │       └── reconcile-orphan/                      # MODIFY: actual implementation
+├── skills/
+│   └── run/SKILL.md                               # MODIFY: extend routing table
 ├── scripts/install.py                             # MODIFY: extend to create article.db
 ├── scripts/agents/data_steward.py                 # MODIFY: add reconcile_orphan function
 ├── prompts/
@@ -1180,11 +1182,11 @@ git commit -m "feat(brain): data_steward.reconcile_orphan with delete-index and 
 ## Task 10: `memex:brain:*` SKILL.md files
 
 **Files:**
-- Create: `skills/brain/ingest/SKILL.md`
-- Create: `skills/brain/ask/SKILL.md`
-- Create: `skills/brain/capture/SKILL.md`
-- Create: `skills/brain/lint/SKILL.md`
-- Create: `skills/brain/synthesize/SKILL.md`
+- Create: `internal/brain/ingest/SKILL.md`
+- Create: `internal/brain/ask/SKILL.md`
+- Create: `internal/brain/capture/SKILL.md`
+- Create: `internal/brain/lint/SKILL.md`
+- Create: `internal/brain/synthesize/SKILL.md`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1196,13 +1198,13 @@ BRAIN_SKILLS = ["ingest", "ask", "capture", "lint", "synthesize"]
 
 def test_brain_skills_present():
     for s in BRAIN_SKILLS:
-        p = Path(f"skills/brain/{s}/SKILL.md")
+        p = Path(f"internal/brain/{s}/SKILL.md")
         assert p.exists(), f"Missing: brain/{s}"
 
 
 def test_brain_skills_frontmatter():
     for s in BRAIN_SKILLS:
-        content = Path(f"skills/brain/{s}/SKILL.md").read_text()
+        content = Path(f"internal/brain/{s}/SKILL.md").read_text()
         assert f"name: memex:brain:{s}" in content
 ```
 
@@ -1212,7 +1214,7 @@ Expected: FAIL.
 
 - [ ] **Step 3: Write minimal implementation**
 
-`skills/brain/ingest/SKILL.md`:
+`internal/brain/ingest/SKILL.md`:
 
 ```markdown
 ---
@@ -1255,7 +1257,7 @@ If `caller_agent_id` is not registered:
 - Calls `scripts/onboarding.py:register_human()`, then retries the ingest.
 ```
 
-`skills/brain/ask/SKILL.md`:
+`internal/brain/ask/SKILL.md`:
 
 ```markdown
 ---
@@ -1302,7 +1304,7 @@ You want to find or remember something. Replaces v1 blueprint's wiki/web/trainin
 ```
 ```
 
-`skills/brain/capture/SKILL.md`:
+`internal/brain/capture/SKILL.md`:
 
 ```markdown
 ---
@@ -1331,7 +1333,7 @@ Indexed by Librarian, stored in `article.db.captures`.
 `scripts/brain.py:capture(body, caller_agent_id, title)`
 ```
 
-`skills/brain/lint/SKILL.md`:
+`internal/brain/lint/SKILL.md`:
 
 ```markdown
 ---
@@ -1358,7 +1360,7 @@ Invokes `memex:steward:audit`, scoped (in this v0.2 implementation) to the full 
 `scripts/brain.py:lint()`
 ```
 
-`skills/brain/synthesize/SKILL.md`:
+`internal/brain/synthesize/SKILL.md`:
 
 ```markdown
 ---
@@ -1398,35 +1400,38 @@ Expected: All PASSED.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add skills/brain/
+git add internal/brain/
 git commit -m "docs(brain): SKILL.md for memex:brain:ingest, ask, capture, lint, synthesize"
 ```
 
 ---
 
-## Task 11: Plugin manifest update
+## Task 11: Update `memex:run` routing for Brain procedures
 
 **Files:**
-- Modify: `plugin.json`
-- Modify: `tests/test_plugin_manifest.py`
+- Modify: `skills/run/SKILL.md`
+- Modify: `tests/test_skills_present.py`
+
+> Per spec §8.0 the plugin manifest registers ONLY `memex:run`. `plugin.json` is NOT touched in Plan 3. Brain's 5 procedures live at `internal/brain/<name>/SKILL.md` and become reachable by appending a user-facing intent routing section to the body of `skills/run/SKILL.md`. Unlike Plan 1's CRUD routing and Plan 2's agent-facing operation routing, Brain routing maps natural-language user intents (e.g. "ingest this article", "ask about X") onto procedures — these are the daily second-brain entry points for the human user.
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/test_plugin_manifest.py`:
+Append to `tests/test_skills_present.py`:
 
 ```python
-def test_plugin_manifest_lists_brain_skills():
-    import json
-    data = json.loads(Path("plugin.json").read_text())
-    skill_names = {s.get("name") for s in data.get("skills", [])}
-    for required in [
-        "memex:brain:ingest",
-        "memex:brain:ask",
-        "memex:brain:capture",
-        "memex:brain:lint",
-        "memex:brain:synthesize",
-    ]:
-        assert required in skill_names
+BRAIN_PROCEDURES = ["ingest", "ask", "capture", "lint", "synthesize"]
+
+
+def test_run_skill_routes_to_brain_procedures():
+    """memex:run must contain routing entries for every Brain procedure,
+    so the human user can invoke them via natural-language intent without
+    Claude Code auto-loading their descriptions."""
+    run_content = Path("skills/run/SKILL.md").read_text(encoding="utf-8")
+    for name in BRAIN_PROCEDURES:
+        expected = f"internal/brain/{name}/SKILL.md"
+        assert expected in run_content, (
+            f"memex:run missing routing entry for {expected}"
+        )
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1435,14 +1440,30 @@ Expected: FAIL.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Add to `plugin.json` skills array:
+Append a new section to `skills/run/SKILL.md` (after the Plan 2 "v2 Index, Steward, and DBA routing" section):
 
-```json
-{ "name": "memex:brain:ingest",     "path": "skills/brain/ingest/SKILL.md" },
-{ "name": "memex:brain:ask",        "path": "skills/brain/ask/SKILL.md" },
-{ "name": "memex:brain:capture",    "path": "skills/brain/capture/SKILL.md" },
-{ "name": "memex:brain:lint",       "path": "skills/brain/lint/SKILL.md" },
-{ "name": "memex:brain:synthesize", "path": "skills/brain/synthesize/SKILL.md" }
+```markdown
+## v2 Brain user-facing intent routing
+
+Plan 3 adds the Memex Brain — the opinionated second-brain layer. These
+5 procedures are the daily entry points for the human user. They live
+at `internal/brain/<name>/SKILL.md` and are reached via natural-language
+intent expressed to `memex:run`. The user does NOT invoke
+`memex:brain:ingest` as a top-level skill — that name no longer exists
+in `plugin.json`. Instead the user says e.g. "ingest this article" and
+`memex:run` routes to the corresponding procedure.
+
+| User intent | Internal procedure |
+|---|---|
+| Add an external article / source / page to my Brain | `internal/brain/ingest/SKILL.md` |
+| Ask a natural-language question against my Brain | `internal/brain/ask/SKILL.md` |
+| Capture a free-form note or observation | `internal/brain/capture/SKILL.md` |
+| Run a Brain health-check / lint / audit | `internal/brain/lint/SKILL.md` |
+| Produce a cross-document synthesis on a topic | `internal/brain/synthesize/SKILL.md` |
+
+The Python implementations live in `scripts/brain.py`. Each SKILL.md is
+a short documentation wrapper; `memex:run` reads it on demand for the
+procedure contract, then calls the implementation.
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -1452,8 +1473,8 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin.json tests/test_plugin_manifest.py
-git commit -m "feat(brain): register 5 memex:brain:* skills in plugin manifest"
+git add skills/run/SKILL.md tests/test_skills_present.py
+git commit -m "feat(brain): extend memex:run routing for Brain user-facing intents"
 ```
 
 ---
@@ -1567,17 +1588,27 @@ Expected: FAIL.
 # Memex Brain (Plan 3)
 
 Brain is Memex's opinionated second-brain layer. It owns `article.db`
-and exposes five skills for daily use.
+and exposes five procedures for daily use.
 
-## Skills
+## Invocation
 
-| Skill | Purpose |
-|---|---|
-| memex:brain:ingest | Add an external article (with hash-based rerun safety) |
-| memex:brain:ask | Natural-language query, ranked results |
-| memex:brain:capture | Free-form note |
-| memex:brain:lint | Data Steward audit scoped to Brain |
-| memex:brain:synthesize | Multi-source synthesis with provenance |
+Per spec §8.0, only `memex:run` is registered as a top-level Claude
+Code skill. Brain procedures live at `internal/brain/<name>/SKILL.md`
+and are reached on demand via the natural-language intent routing
+table inside `skills/run/SKILL.md`. To use Brain, the user expresses
+an intent to `memex:run` — e.g. "ingest this article", "ask about X",
+"capture a thought" — and `memex:run` reads the matching procedure
+file and follows it.
+
+## Procedures
+
+| Procedure | Path | Purpose |
+|---|---|---|
+| memex:brain:ingest | internal/brain/ingest/SKILL.md | Add an external article (with hash-based rerun safety) |
+| memex:brain:ask | internal/brain/ask/SKILL.md | Natural-language query, ranked results |
+| memex:brain:capture | internal/brain/capture/SKILL.md | Free-form note |
+| memex:brain:lint | internal/brain/lint/SKILL.md | Data Steward audit scoped to Brain |
+| memex:brain:synthesize | internal/brain/synthesize/SKILL.md | Multi-source synthesis with provenance |
 
 ## Storage
 
@@ -1627,8 +1658,9 @@ git commit -m "docs(brain): Plan 3 acceptance criteria"
 - [ ] `pytest tests/` 100% green
 - [ ] `install.run()` creates and registers article.db
 - [ ] Onboarding flow registers a human agent on first invocation
-- [ ] All 5 Brain skills functional with mocked LLM
+- [ ] All 5 Brain procedures functional with mocked LLM, present at `internal/brain/<name>/SKILL.md`
 - [ ] reconcile-orphan supports delete-index and note actions
-- [ ] Plugin manifest lists 24 skills total (10 core + 9 plan2 + 5 brain)
+- [ ] `skills/run/SKILL.md` contains user-facing intent routing for all 5 Brain procedures
+- [ ] `plugin.json` still registers only `memex:run` (per spec §8.0) — no per-Brain skill entries
 
 Plan 4 (Packaging) provides the install scripts, v1 plugin migration, and user-facing docs.
