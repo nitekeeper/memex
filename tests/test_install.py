@@ -1,5 +1,5 @@
 import pytest
-from scripts import install, registry, roles
+from scripts import install, registry, roles, agents
 from scripts.db import memex_home
 
 
@@ -25,10 +25,43 @@ def test_install_idempotent(tmp_memex_home):
     assert rec is not None
 
 
-def test_install_does_not_seed_internal_agents_in_core(tmp_memex_home):
-    """Plan 1 (Core) does NOT seed the 5 Memex internal agents.
-    That happens in Plan 2 (Index + agents). Core only sets up infrastructure."""
+def test_install_seeds_five_internal_roles(tmp_memex_home):
     install.run()
     agents_db = str(memex_home() / "agents.db")
     listed = roles.list_roles(agents_db)
-    assert listed == []
+    role_names = {r["name"] for r in listed}
+    assert role_names == {
+        "Librarian", "Reference Librarian", "Archivist",
+        "Database Administrator", "Data Steward",
+    }
+
+
+def test_install_seeds_five_internal_agents(tmp_memex_home):
+    install.run()
+    agents_db = str(memex_home() / "agents.db")
+    listed = agents.list_agents(agents_db)
+    agent_ids = {a["id"] for a in listed}
+    assert agent_ids == {
+        "librarian-1", "reference-librarian-1", "archivist-1",
+        "dba-1", "data-steward-1",
+    }
+
+
+def test_install_creates_index_db(tmp_memex_home):
+    install.run()
+    assert (memex_home() / "index.db").exists()
+
+
+def test_install_registers_index_in_registry(tmp_memex_home):
+    install.run()
+    rec = registry.get_store("index")
+    assert rec is not None
+    assert rec["path"] == str(memex_home() / "index.db")
+
+
+def test_install_is_idempotent_with_seeds(tmp_memex_home):
+    install.run()
+    install.run()  # second call must not duplicate or error
+    agents_db = str(memex_home() / "agents.db")
+    listed = agents.list_agents(agents_db)
+    assert len(listed) == 5  # not 10
