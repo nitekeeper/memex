@@ -5,5 +5,5 @@ __pycache__/
 .worktrees/
 
 # Memex dist bundles — manifest tracked separately
-dist/v*/
+dist/v*/**
 !dist/v*/manifest.json
