@@ -69,7 +69,7 @@ def update_agent(db_path: str, agent_id: str, **kwargs) -> dict | None:
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     conn = get_connection(db_path)
     conn.execute(
-        f"UPDATE agents SET {set_clause} WHERE id = ?",
+        f"UPDATE agents SET {set_clause} WHERE id = ?",  # nosec B608 - columns whitelisted via `allowed` above
         (*updates.values(), agent_id),
     )
     conn.commit()

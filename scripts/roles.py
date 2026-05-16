@@ -61,7 +61,7 @@ def update_role(db_path: str, role_id: int, **kwargs) -> dict | None:
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     conn = get_connection(db_path)
     conn.execute(
-        f"UPDATE roles SET {set_clause} WHERE id = ?",
+        f"UPDATE roles SET {set_clause} WHERE id = ?",  # nosec B608 - columns whitelisted via `allowed` above
         (*updates.values(), role_id),
     )
     conn.commit()

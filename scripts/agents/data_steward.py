@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from scripts import registry
-from scripts.db import get_connection, memex_home
+from scripts.db import get_connection, memex_home, safe_identifier
 
 
 def _index_conn(index_db: str):
@@ -38,8 +38,9 @@ def find_orphans(index_db: str) -> list[dict]:
             continue
         target_conn = get_connection(rec["path"])
         try:
+            safe_table = safe_identifier(d["table_name"])
             row = target_conn.execute(
-                f"SELECT 1 FROM {d['table_name']} WHERE id = ?",
+                f"SELECT 1 FROM {safe_table} WHERE id = ?",  # nosec B608 - identifier validated
                 (d["row_id"],),
             ).fetchone()
             if row is None:
@@ -60,10 +61,11 @@ def find_reverse_orphans(index_db: str, store: str, table: str) -> list[dict]:
 
     store_conn = get_connection(rec["path"])
     try:
+        safe_table = safe_identifier(table)
         rows = [
             dict(r)
             for r in store_conn.execute(
-                f"SELECT id, index_id FROM {table} WHERE index_id IS NOT NULL"
+                f"SELECT id, index_id FROM {safe_table} WHERE index_id IS NOT NULL"  # nosec B608 - identifier validated
             )
         ]
     except Exception:

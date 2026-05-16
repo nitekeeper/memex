@@ -29,7 +29,7 @@ def foreign_key_check(db_path: str) -> list[dict]:
     conn = get_connection(db_path)
     cur = conn.execute("PRAGMA foreign_key_check")
     cols = [c[0] for c in cur.description]
-    rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+    rows = [dict(zip(cols, r, strict=True)) for r in cur.fetchall()]
     conn.close()
     return rows
 

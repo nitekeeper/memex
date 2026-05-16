@@ -24,7 +24,6 @@ def installed_with_two_sources(tmp_memex_home):
     onboarding.register_human("human-test", "Test", "User")
 
     # Seed two articles with matching index entries.
-    article_db = str(memex_home() / "article.db")
     index_db = str(memex_home() / "index.db")
 
     for idx, title, body in [

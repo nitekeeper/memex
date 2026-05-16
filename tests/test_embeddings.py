@@ -20,7 +20,7 @@ def test_encode_returns_blob():
     with patch("scripts.embeddings._call_provider", return_value=[0.1, 0.2, 0.3]):
         result = embeddings.encode("hello")
     assert isinstance(result, bytes)
-    assert len(result) == 12  # 3 floats × 4 bytes
+    assert len(result) == 12  # 3 floats * 4 bytes
 
 
 def test_decode_round_trips():
@@ -345,7 +345,7 @@ def test_reembed_all_overwrites_existing(tmp_memex_home):
     conn = get_connection(str(memex_home() / "index.db"))
     rows = list(conn.execute("SELECT embedding FROM documents"))
     conn.close()
-    # All rows now have the new 16-byte float32 BLOB (4 floats × 4 bytes), not
+    # All rows now have the new 16-byte float32 BLOB (4 floats * 4 bytes), not
     # the 8-byte placeholders we seeded.
     for r in rows:
         assert len(r["embedding"]) == 16

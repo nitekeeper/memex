@@ -32,7 +32,7 @@ def test_find_orphans_index_has_no_target_row(post_install, tmp_path):
         "CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, index_id TEXT, body TEXT);"
     )
     stores.create_store("test-store", str(tmp_path / "ts.db"), str(md))
-    row = stores.insert("test-store", "items", {"index_id": "idx-A", "body": "x"})
+    stores.insert("test-store", "items", {"index_id": "idx-A", "body": "x"})
 
     # Add an index entry that points to a row that doesn't exist.
     index_db = str(post_install / "index.db")

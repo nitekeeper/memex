@@ -47,6 +47,10 @@ ignore = [
     "B011",   # assert-false — pytest tests use bare assert
     "SIM117", # nested-with — sometimes clearer in test setup
 ]
+# Agent profiles are long-form natural-language strings with deliberate
+# typography (em-dashes, en-dashes for ranges, etc.). Linting them as code
+# strings is a false positive.
+"db/internal_agents_seed.py" = ["RUF001", "RUF003"]
 
 # ----------------------------------------------------------------------------
 # Security — Bandit

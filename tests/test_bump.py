@@ -99,7 +99,7 @@ def test_bump_rejects_malformed_version(tmp_repo):
     from scripts import bump
 
     for bad in ["v9.9.9", "9.9", "9.9.9-rc1", "abc", "9.9.9.9"]:
-        with pytest.raises(ValueError, match="X.Y.Z"):
+        with pytest.raises(ValueError, match=r"X\.Y\.Z"):
             bump.bump(bad)
 
 

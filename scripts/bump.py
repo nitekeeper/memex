@@ -28,6 +28,7 @@ What this does NOT do (deliberate):
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import sys
@@ -88,10 +89,8 @@ def _remove_old_manifest(old: str) -> Path | None:
     if p.exists():
         p.unlink()
         # Also remove the empty version dir if it's now empty
-        try:
+        with contextlib.suppress(OSError):
             p.parent.rmdir()
-        except OSError:
-            pass
         return p
     return None
 
