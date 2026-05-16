@@ -3,9 +3,11 @@
 The Reference Librarian subagent's role is faked by passing synthetic
 query plans directly to ask_execute.
 """
+
 import pytest
-from scripts import install, brain, onboarding
-from scripts.db import memex_home, get_connection
+
+from scripts import brain, install, onboarding
+from scripts.db import get_connection, memex_home
 
 
 @pytest.fixture
@@ -26,7 +28,16 @@ def test_ask_execute_returns_results_from_index(installed_with_human):
     conn.execute(
         "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, searchable, created_by) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        ("idx-a", "k", "article", "article", "articles", "1", "cats are interesting", "librarian-1"),
+        (
+            "idx-a",
+            "k",
+            "article",
+            "article",
+            "articles",
+            "1",
+            "cats are interesting",
+            "librarian-1",
+        ),
     )
     conn.commit()
     conn.close()

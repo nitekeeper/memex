@@ -1,6 +1,4 @@
-import pytest
-from unittest.mock import patch
-from scripts import install, onboarding, agents, roles
+from scripts import agents, install, onboarding, roles
 from scripts.db import memex_home
 
 

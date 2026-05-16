@@ -8,8 +8,15 @@ def test_core_doc_exists():
 def test_core_doc_lists_acceptance_criteria():
     content = Path("docs/CORE.md").read_text()
     for required in [
-        "create-store", "migrate", "query", "insert", "update",
-        "delete", "register-role", "register-agent", "get-agent",
+        "create-store",
+        "migrate",
+        "query",
+        "insert",
+        "update",
+        "delete",
+        "register-role",
+        "register-agent",
+        "get-agent",
         "list-stores",
     ]:
         assert required in content, f"Doc missing reference to {required}"

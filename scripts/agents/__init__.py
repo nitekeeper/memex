@@ -11,6 +11,7 @@ Provides:
     scripts.agents.librarian    — LLM-driven indexing harness  (Plan 2 W-C)
     scripts.agents.reference_librarian — LLM-driven retrieval harness (Plan 2 W-C)
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -53,9 +54,7 @@ def list_agents(db_path: str) -> list[dict]:
 
 def list_by_role(db_path: str, role_id: int) -> list[dict]:
     conn = get_connection(db_path)
-    cur = conn.execute(
-        "SELECT * FROM agents WHERE role_id = ? ORDER BY id", (role_id,)
-    )
+    cur = conn.execute("SELECT * FROM agents WHERE role_id = ? ORDER BY id", (role_id,))
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
@@ -88,18 +87,21 @@ def delete_agent(db_path: str, agent_id: str) -> bool:
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
+
     from scripts.db import memex_home
 
     db_path = str(memex_home() / "agents.db")
     cmd = sys.argv[1]
 
     if cmd == "create":
-        print(json.dumps(
-            create_agent(db_path, sys.argv[2], sys.argv[3], int(sys.argv[4]), sys.argv[5]),
-            indent=2,
-        ))
+        print(
+            json.dumps(
+                create_agent(db_path, sys.argv[2], sys.argv[3], int(sys.argv[4]), sys.argv[5]),
+                indent=2,
+            )
+        )
     elif cmd == "get":
         result = get_agent(db_path, sys.argv[2])
         print(json.dumps(result, indent=2) if result else "Not found")

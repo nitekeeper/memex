@@ -1,5 +1,3 @@
-import pytest
-from pathlib import Path
 from scripts import install, release
 from scripts.db import memex_home
 

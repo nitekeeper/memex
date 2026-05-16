@@ -1,6 +1,8 @@
-import pytest
 from pathlib import Path
-from scripts import install, stores, registry
+
+import pytest
+
+from scripts import install, stores
 from scripts.agents import data_steward
 from scripts.db import get_connection, memex_home
 
@@ -24,7 +26,8 @@ def _seed_doc(index_db: str, index_id: str, store: str, table: str, row_id: str)
 
 def test_find_orphans_index_has_no_target_row(post_install, tmp_path):
     # Set up a registered store with one row.
-    md = tmp_path / "m"; md.mkdir()
+    md = tmp_path / "m"
+    md.mkdir()
     (md / "001.sql").write_text(
         "CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, index_id TEXT, body TEXT);"
     )
@@ -42,7 +45,8 @@ def test_find_orphans_index_has_no_target_row(post_install, tmp_path):
 
 
 def test_find_reverse_orphans_store_row_without_index_entry(post_install, tmp_path):
-    md = tmp_path / "m"; md.mkdir()
+    md = tmp_path / "m"
+    md.mkdir()
     (md / "001.sql").write_text(
         "CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, index_id TEXT, body TEXT);"
     )

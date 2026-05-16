@@ -3,7 +3,9 @@
 No LLM involvement. The DBA's profile defines the operating rules; this
 module implements them as Python functions.
 """
+
 from __future__ import annotations
+
 from scripts.db import get_connection
 
 

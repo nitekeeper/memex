@@ -1,17 +1,19 @@
 """One-shot ~/.memex/ bootstrap. Extended in Plan 2 to seed internal agents
 and create index.db."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
-from scripts.db import get_connection, memex_home
-from scripts import registry, roles, agents
 from db.internal_agents_seed import INTERNAL_AGENTS
+from scripts import agents, registry, roles
+from scripts.db import get_connection, memex_home
 
 
 def run() -> None:
     # Plan 4: archive v1 if present (no-op otherwise)
     from scripts import upgrade_from_v1
+
     upgrade_from_v1.archive_v1()
 
     home = memex_home()

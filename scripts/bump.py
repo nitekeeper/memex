@@ -25,7 +25,9 @@ What this does NOT do (deliberate):
   - Commit, tag, or push — the release workflow triggers on tag push, but
     the tag itself is a human decision (see .github/workflows/release.yml).
 """
+
 from __future__ import annotations
+
 import json
 import re
 import sys
@@ -33,16 +35,12 @@ from pathlib import Path
 
 from scripts import release
 
-
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
 
 def _parse_version(s: str) -> tuple[int, int, int]:
     if not _VERSION_RE.match(s):
-        raise ValueError(
-            f"version must look like X.Y.Z (got {s!r}). "
-            "Do not include a leading 'v'."
-        )
+        raise ValueError(f"version must look like X.Y.Z (got {s!r}). Do not include a leading 'v'.")
     return tuple(int(p) for p in s.split("."))  # type: ignore[return-value]
 
 
@@ -80,9 +78,7 @@ def _update_pyproject(new: str) -> str:
     if not match:
         raise RuntimeError("pyproject.toml has no top-level version field")
     old = match.group(2)
-    new_content = (
-        content[: match.start(2)] + new + content[match.end(2) :]
-    )
+    new_content = content[: match.start(2)] + new + content[match.end(2) :]
     path.write_text(new_content, encoding="utf-8")
     return old
 
@@ -147,9 +143,9 @@ def main(argv: list[str]) -> int:
     print()
     print("Next steps:")
     print(f"  1. Add a CHANGELOG.md entry for v{result['new']} (editorial — done by hand).")
-    print( "  2. Commit the bump (plugin.json, pyproject.toml, CHANGELOG.md, dist/).")
+    print("  2. Commit the bump (plugin.json, pyproject.toml, CHANGELOG.md, dist/).")
     print(f"  3. After merge: git tag v{result['new']} && git push --tags")
-    print( "     (the release workflow builds the GitHub Release from there).")
+    print("     (the release workflow builds the GitHub Release from there).")
     return 0
 
 

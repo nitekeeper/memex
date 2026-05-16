@@ -28,12 +28,15 @@ skill markdown via the Task tool, not in Python). Legacy `ask()` is
 retained as a thin convenience wrapper for callers passing through
 `brain.ask` until those callers move to the prepare/execute split.
 """
+
 from __future__ import annotations
+
 import json
 from pathlib import Path
 
+from scripts import agents as agents_mod
+from scripts import embeddings
 from scripts.db import get_connection, memex_home
-from scripts import embeddings, agents as agents_mod
 
 
 def _get_agent(agent_id: str) -> dict:
@@ -68,9 +71,8 @@ def build_prompt(query: str, caller_agent_id: str = "reference-librarian-1") -> 
     template = Path("prompts/reference_librarian.md").read_text(encoding="utf-8")
     agent = _get_agent(caller_agent_id)
     profile_block = f"You are {agent['name']}.\n\n{agent['profile']}"
-    return (template
-        .replace("{{REFERENCE_LIBRARIAN_PROFILE}}", profile_block)
-        .replace("{{QUERY}}", query)
+    return template.replace("{{REFERENCE_LIBRARIAN_PROFILE}}", profile_block).replace(
+        "{{QUERY}}", query
     )
 
 

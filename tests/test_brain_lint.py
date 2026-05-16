@@ -1,7 +1,7 @@
-import pytest
 from pathlib import Path
-from scripts import install, brain
-from scripts.db import memex_home, get_connection
+
+from scripts import brain, install
+from scripts.db import get_connection, memex_home
 
 
 def test_lint_returns_report_path(tmp_memex_home):

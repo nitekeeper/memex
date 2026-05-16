@@ -1,11 +1,12 @@
 """Store provisioning and generic CRUD."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scripts.db import get_connection
 from scripts import registry
+from scripts.db import get_connection
 
 
 def _now() -> str:
@@ -50,9 +51,7 @@ def migrate(name: str, migrations_dir: str) -> list[str]:
         raise ValueError(f"Unknown store: {name}")
 
     conn = get_connection(rec["path"])
-    applied_set = {
-        r["filename"] for r in conn.execute("SELECT filename FROM migrations")
-    }
+    applied_set = {r["filename"] for r in conn.execute("SELECT filename FROM migrations")}
 
     sql_files = sorted(Path(migrations_dir).glob("*.sql"))
     newly_applied: list[str] = []

@@ -1,4 +1,5 @@
 import pytest
+
 from scripts import stores
 from scripts.db import get_connection
 

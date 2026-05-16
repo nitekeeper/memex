@@ -1,4 +1,5 @@
 """roles table CRUD. Pattern mirrors Atelier's scripts/roles.py."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -14,8 +15,7 @@ def create_role(db_path: str, name: str, description: str) -> dict:
     conn = get_connection(db_path)
     now = _now()
     cur = conn.execute(
-        "INSERT INTO roles (name, description, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?)",
+        "INSERT INTO roles (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)",
         (name, description, now, now),
     )
     conn.commit()
@@ -79,8 +79,9 @@ def delete_role(db_path: str, role_id: int) -> bool:
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
+
     from scripts.db import memex_home
 
     db_path = str(memex_home() / "agents.db")

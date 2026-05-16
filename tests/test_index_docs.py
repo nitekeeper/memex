@@ -7,7 +7,13 @@ def test_index_doc_exists():
 
 def test_index_doc_lists_internal_agents():
     content = Path("docs/INDEX.md").read_text(encoding="utf-8")
-    for agent in ["Librarian", "Reference Librarian", "Archivist", "Database Administrator", "Data Steward"]:
+    for agent in [
+        "Librarian",
+        "Reference Librarian",
+        "Archivist",
+        "Database Administrator",
+        "Data Steward",
+    ]:
         assert agent in content
 
 

@@ -3,8 +3,8 @@
 Walks the full Plan 1 surface: install -> register role -> register agent ->
 create-store -> insert -> query -> migrate -> update -> delete -> list-stores.
 """
-import pytest
-from scripts import install, roles, agents, stores, registry
+
+from scripts import agents, install, registry, roles, stores
 from scripts.db import memex_home
 
 
@@ -26,10 +26,7 @@ def test_e2e_core_lifecycle(tmp_memex_home, tmp_path):
     migrations_dir = tmp_path / "migrations"
     migrations_dir.mkdir()
     (migrations_dir / "001_items.sql").write_text(
-        "CREATE TABLE items ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "name TEXT NOT NULL"
-        ");"
+        "CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);"
     )
     target = tmp_path / "smoke-store.db"
     stores.create_store("smoke-store", str(target), str(migrations_dir))

@@ -1,10 +1,10 @@
 """Database connection and Memex home-directory helpers."""
+
 from __future__ import annotations
 
 import os
 import sqlite3
 from pathlib import Path
-
 
 MEMEX_DIR_NAME = ".memex"
 

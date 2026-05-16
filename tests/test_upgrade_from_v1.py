@@ -1,5 +1,3 @@
-import pytest
-from pathlib import Path
 from scripts import upgrade_from_v1
 from scripts.db import memex_home
 

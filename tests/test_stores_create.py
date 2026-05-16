@@ -1,6 +1,6 @@
 import pytest
-from pathlib import Path
-from scripts import stores, registry
+
+from scripts import registry, stores
 from scripts.db import get_connection
 
 
@@ -34,7 +34,9 @@ def test_create_store_records_applied_migrations(tmp_memex_home, tmp_path):
     target = tmp_path / "alpha.db"
     stores.create_store("alpha", str(target), str(migrations_dir))
     conn = get_connection(str(target))
-    applied = [r["filename"] for r in conn.execute("SELECT filename FROM migrations ORDER BY filename")]
+    applied = [
+        r["filename"] for r in conn.execute("SELECT filename FROM migrations ORDER BY filename")
+    ]
     conn.close()
     assert applied == ["001_init.sql", "002_more.sql"]
 

@@ -6,3 +6,58 @@ requires-python = ">=3.10"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# ----------------------------------------------------------------------------
+# Lint & format — Ruff
+# ----------------------------------------------------------------------------
+# Ruff replaces flake8 / isort / pyupgrade / pylint here. The selected rule set
+# is pragmatic: catch real bugs and stale syntax, avoid stylistic bikeshed.
+# Run locally:  ruff check --fix && ruff format
+# CI enforces:  ruff check && ruff format --check
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+    "dist",                          # release bundles (manifest tracked, body gitignored)
+    ".superpowers",                  # local brainstorm session artifacts
+    "tests/fixtures",                # test fixtures may include intentionally-malformed data
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes (unused imports, undefined names)
+    "I",    # isort (import ordering)
+    "B",    # flake8-bugbear (likely bugs)
+    "C4",   # comprehensions
+    "UP",   # pyupgrade (modern syntax)
+    "SIM",  # simplify
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",   # line-too-long — the formatter handles wrapping where it can; long URLs/strings get a pass
+    "SIM108", # ternary-instead-of-if-else — sometimes hurts readability
+    "B008",   # function-call-in-default-arg — Path() and similar are fine as defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "B011",   # assert-false — pytest tests use bare assert
+    "SIM117", # nested-with — sometimes clearer in test setup
+]
+
+# ----------------------------------------------------------------------------
+# Security — Bandit
+# ----------------------------------------------------------------------------
+# Bandit catches Python-specific security antipatterns: shell injection,
+# hardcoded credentials, weak crypto, unsafe deserialization, etc.
+# Run locally:  bandit -c pyproject.toml -r scripts internal skills
+# CI enforces the same.
+
+[tool.bandit]
+exclude_dirs = ["tests", "dist", ".superpowers", ".github"]
+skips = [
+    "B101",   # assert_used — assertions in production code are intentional invariants here
+]
