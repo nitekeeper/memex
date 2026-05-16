@@ -5,13 +5,17 @@ plan from the user's question. Python's role is prompt assembly, plan
 parsing, and plan execution against index.db. There is no `_invoke_llm`
 to mock — tests feed a synthetic query plan directly into `ask_execute`.
 """
+
 import json
+
 import pytest
+
 from scripts.agents import reference_librarian as rl
 
 
 def test_build_prompt_includes_profile(tmp_memex_home):
     from scripts import install
+
     install.run()
     prompt = rl.build_prompt(query="what is X?", caller_agent_id="reference-librarian-1")
     assert "Whitfield" in prompt
@@ -20,6 +24,7 @@ def test_build_prompt_includes_profile(tmp_memex_home):
 
 def test_fetch_context_returns_profile_and_name(tmp_memex_home):
     from scripts import install
+
     install.run()
     ctx = rl.fetch_context()
     assert ctx["name"] == "Dr. Eleanor Whitfield"
@@ -28,6 +33,7 @@ def test_fetch_context_returns_profile_and_name(tmp_memex_home):
 
 def test_ask_prepare_returns_subagent_prompt(tmp_memex_home):
     from scripts import install
+
     install.run()
     prep = rl.ask_prepare("tell me about cats")
     assert prep["status"] == "ready"
@@ -37,12 +43,14 @@ def test_ask_prepare_returns_subagent_prompt(tmp_memex_home):
 
 
 def test_parse_query_plan():
-    mock_plan = json.dumps({
-        "fts_query": "machine learning",
-        "vector_query": "machine learning",
-        "filters": {"domain": "article"},
-        "limit": 10,
-    })
+    mock_plan = json.dumps(
+        {
+            "fts_query": "machine learning",
+            "vector_query": "machine learning",
+            "filters": {"domain": "article"},
+            "limit": 10,
+        }
+    )
     parsed = rl.parse_query_plan(mock_plan)
     assert parsed["fts_query"] == "machine learning"
     assert parsed["filters"]["domain"] == "article"
@@ -57,8 +65,10 @@ def test_parse_query_plan_strips_code_fences():
 def test_execute_query_plan_fts_only(tmp_memex_home, tmp_path):
     """FTS5-only execution (no embedding pathway)."""
     from scripts import install
+
     install.run()
     from scripts.db import get_connection, memex_home
+
     conn = get_connection(str(memex_home() / "index.db"))
     conn.execute(
         "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, searchable, created_by) "
@@ -82,8 +92,10 @@ def test_execute_query_plan_fts_only(tmp_memex_home, tmp_path):
 def test_ask_execute_with_synthetic_plan(tmp_memex_home):
     """End-to-end ask flow with synthetic Reference Librarian output."""
     from scripts import install
+
     install.run()
     from scripts.db import get_connection, memex_home
+
     conn = get_connection(str(memex_home() / "index.db"))
     for index_id, text in [("a", "cats are interesting"), ("b", "dogs are fun")]:
         conn.execute(
@@ -115,8 +127,10 @@ def test_ask_execute_refuses_non_ready_prepare():
 def test_ask_execute_filters_by_domain(tmp_memex_home):
     """Plan filters carry through to the SQL WHERE clause."""
     from scripts import install
+
     install.run()
     from scripts.db import get_connection, memex_home
+
     conn = get_connection(str(memex_home() / "index.db"))
     conn.execute(
         "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, searchable, created_by) "

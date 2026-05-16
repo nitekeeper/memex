@@ -6,13 +6,14 @@ INSTALL.md instructions.
 
 dist/ body is gitignored; only manifest tracking is committed.
 """
+
 from __future__ import annotations
+
+import hashlib
 import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-import hashlib
-
 
 # Claude Code reads .claude-plugin/plugin.json (the canonical manifest); the
 # dist bundle MUST include that directory for `claude --plugin-dir` to work.
@@ -44,11 +45,13 @@ def build(version: str, target_root: Path | str = "dist") -> Path:
         shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         for f in dst.rglob("*"):
             if f.is_file():
-                files_manifest.append({
-                    "path": str(f.relative_to(version_dir)),
-                    "sha256": _hash_file(f),
-                    "bytes": f.stat().st_size,
-                })
+                files_manifest.append(
+                    {
+                        "path": str(f.relative_to(version_dir)),
+                        "sha256": _hash_file(f),
+                        "bytes": f.stat().st_size,
+                    }
+                )
 
     # Copy individual files
     for fname in _INCLUDE_FILES:
@@ -57,11 +60,13 @@ def build(version: str, target_root: Path | str = "dist") -> Path:
             continue
         dst = version_dir / fname
         shutil.copy2(src, dst)
-        files_manifest.append({
-            "path": fname,
-            "sha256": _hash_file(dst),
-            "bytes": dst.stat().st_size,
-        })
+        files_manifest.append(
+            {
+                "path": fname,
+                "sha256": _hash_file(dst),
+                "bytes": dst.stat().st_size,
+            }
+        )
 
     # INSTALL.md (generated, not copied)
     install_md = f"""# Memex v{version} Install Instructions
@@ -127,11 +132,13 @@ primitives by name. `memex:run` reads the matching procedure file on
 demand and follows it.
 """
     (version_dir / "INSTALL.md").write_text(install_md, encoding="utf-8")
-    files_manifest.append({
-        "path": "INSTALL.md",
-        "sha256": _hash_file(version_dir / "INSTALL.md"),
-        "bytes": (version_dir / "INSTALL.md").stat().st_size,
-    })
+    files_manifest.append(
+        {
+            "path": "INSTALL.md",
+            "sha256": _hash_file(version_dir / "INSTALL.md"),
+            "bytes": (version_dir / "INSTALL.md").stat().st_size,
+        }
+    )
 
     # Manifest
     manifest = {
@@ -140,15 +147,14 @@ demand and follows it.
         "file_count": len(files_manifest),
         "files": sorted(files_manifest, key=lambda f: f["path"]),
     }
-    (version_dir / "manifest.json").write_text(
-        json.dumps(manifest, indent=2), encoding="utf-8"
-    )
+    (version_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
     return version_dir
 
 
 if __name__ == "__main__":
     import sys
+
     version = sys.argv[1] if len(sys.argv) > 1 else "2.0.0"
     out = build(version)
     print(f"Built: {out}")

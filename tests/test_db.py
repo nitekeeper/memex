@@ -1,7 +1,9 @@
 import sqlite3
 
+import pytest
+
 from scripts import db
-from scripts.db import get_connection, memex_home
+from scripts.db import get_connection, memex_home, safe_identifier
 
 
 def test_module_importable():
@@ -55,3 +57,59 @@ def test_memex_home_defaults_to_user_home(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(fake_home))
     monkeypatch.setenv("USERPROFILE", str(fake_home))
     assert memex_home() == fake_home / ".memex"
+
+
+class TestSafeIdentifier:
+    """safe_identifier() is the only sanctioned way to interpolate SQL
+    identifiers in this codebase. These tests pin its contract."""
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "articles",
+            "test_table",
+            "_underscore_start",
+            "TableCamelCase",
+            "t1",
+            "snake_case_with_99_digits",
+        ],
+    )
+    def test_accepts_valid_identifiers(self, name):
+        assert safe_identifier(name) == name
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "1starts_with_digit",
+            "has-dash",
+            "has space",
+            "has;semicolon",
+            "DROP TABLE users",
+            "table; DROP TABLE users--",
+            "",
+            "with.dot",
+            "with'quote",
+            'with"doublequote',
+            "with(paren",
+            "unicode-é",
+        ],
+    )
+    def test_rejects_invalid_identifiers(self, name):
+        with pytest.raises(ValueError, match="invalid SQL identifier"):
+            safe_identifier(name)
+
+    def test_rejects_non_string_types(self):
+        with pytest.raises(ValueError, match="must be str"):
+            safe_identifier(123)  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="must be str"):
+            safe_identifier(None)  # type: ignore[arg-type]
+
+    def test_injection_payload_blocked(self):
+        """The whole point: a classic injection payload must not pass."""
+        for payload in [
+            "users; DROP TABLE users; --",
+            "1 OR 1=1",
+            "users UNION SELECT * FROM secrets",
+        ]:
+            with pytest.raises(ValueError):
+                safe_identifier(payload)

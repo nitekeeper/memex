@@ -5,13 +5,17 @@ is prep work, prompt construction, response parsing, and persistence. There
 is no `_invoke_llm` to mock — tests feed synthetic JSON directly into
 `write_entry()` to exercise the persistence half.
 """
+
 import json
+
 import pytest
+
 from scripts.agents import librarian
 
 
 def test_build_prompt_includes_agent_profile(tmp_memex_home):
     from scripts import install
+
     install.run()
     prompt = librarian.build_prompt(
         payload="hello world",
@@ -27,20 +31,20 @@ def test_build_prompt_includes_agent_profile(tmp_memex_home):
 def test_build_prompt_includes_existing_index_snippet(tmp_memex_home):
     """Prompt must include a snippet of existing index for context."""
     from scripts import install
+
     install.run()
     prompt = librarian.build_prompt(
         payload="hello",
         target_store="article",
         caller_agent_id="librarian-1",
-        existing_index_snippet=[
-            {"index_id": "x", "key": "prior-article", "domain": "article"}
-        ],
+        existing_index_snippet=[{"index_id": "x", "key": "prior-article", "domain": "article"}],
     )
     assert "prior-article" in prompt
 
 
 def test_fetch_context_returns_profile_and_snippet(tmp_memex_home):
     from scripts import install
+
     install.run()
     ctx = librarian.fetch_context(target_store="article")
     assert "profile" in ctx
@@ -52,16 +56,16 @@ def test_fetch_context_returns_profile_and_snippet(tmp_memex_home):
 
 
 def test_parse_response_extracts_structured_output():
-    mock_response = json.dumps({
-        "index_id": "idx-abc",
-        "key": "test-key",
-        "domain": "article",
-        "searchable": "test searchable text",
-        "metadata": {"author": "X"},
-        "relations": [
-            {"to_index_id": "idx-other", "rel_type": "cites"}
-        ]
-    })
+    mock_response = json.dumps(
+        {
+            "index_id": "idx-abc",
+            "key": "test-key",
+            "domain": "article",
+            "searchable": "test searchable text",
+            "metadata": {"author": "X"},
+            "relations": [{"to_index_id": "idx-other", "rel_type": "cites"}],
+        }
+    )
     parsed = librarian.parse_response(mock_response)
     assert parsed["index_id"] == "idx-abc"
     assert parsed["domain"] == "article"
@@ -70,9 +74,11 @@ def test_parse_response_extracts_structured_output():
 
 def test_parse_response_strips_markdown_code_fences():
     """Subagents often wrap JSON in ```json ... ```; parser must handle it."""
-    fenced = "```json\n" + json.dumps({
-        "index_id": "x", "key": "k", "domain": "article", "searchable": "s"
-    }) + "\n```"
+    fenced = (
+        "```json\n"
+        + json.dumps({"index_id": "x", "key": "k", "domain": "article", "searchable": "s"})
+        + "\n```"
+    )
     parsed = librarian.parse_response(fenced)
     assert parsed["index_id"] == "x"
 
@@ -86,12 +92,14 @@ def test_parse_response_raises_on_missing_required_field():
 def test_validate_output_accepts_caller_built_dict():
     """Consumers (e.g. Atelier) that build librarian_output deterministically
     must be able to validate it against the same schema parse_response uses."""
-    out = librarian.validate_output({
-        "index_id": "idx-1",
-        "key": "k",
-        "domain": "task",
-        "searchable": "title. body excerpt.",
-    })
+    out = librarian.validate_output(
+        {
+            "index_id": "idx-1",
+            "key": "k",
+            "domain": "task",
+            "searchable": "title. body excerpt.",
+        }
+    )
     # Defaults are filled in
     assert out["metadata"] == {}
     assert out["relations"] == []
@@ -101,14 +109,16 @@ def test_validate_output_accepts_caller_built_dict():
 
 
 def test_validate_output_preserves_caller_metadata_and_relations():
-    out = librarian.validate_output({
-        "index_id": "idx-2",
-        "key": "k2",
-        "domain": "task",
-        "searchable": "s",
-        "metadata": {"project_id": "atl-7"},
-        "relations": [{"to_index_id": "idx-proj", "rel_type": "part_of"}],
-    })
+    out = librarian.validate_output(
+        {
+            "index_id": "idx-2",
+            "key": "k2",
+            "domain": "task",
+            "searchable": "s",
+            "metadata": {"project_id": "atl-7"},
+            "relations": [{"to_index_id": "idx-proj", "rel_type": "part_of"}],
+        }
+    )
     assert out["metadata"] == {"project_id": "atl-7"}
     assert out["relations"][0]["rel_type"] == "part_of"
 
@@ -137,9 +147,11 @@ def test_write_entry_accepts_caller_built_librarian_output(tmp_memex_home, tmp_p
     Same persistence behavior as the subagent path — both go through
     librarian.write_entry, which is the single write surface."""
     from scripts import install, stores
+
     install.run()
 
-    md = tmp_path / "m"; md.mkdir()
+    md = tmp_path / "m"
+    md.mkdir()
     (md / "001.sql").write_text(
         "CREATE TABLE tasks ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -173,6 +185,7 @@ def test_write_entry_accepts_caller_built_librarian_output(tmp_memex_home, tmp_p
 
     # Index row landed with the caller-supplied domain
     from scripts.db import get_connection, memex_home
+
     conn = get_connection(str(memex_home() / "index.db"))
     row = conn.execute(
         "SELECT domain, store, table_name FROM documents WHERE index_id = ?",
@@ -192,10 +205,12 @@ def test_write_entry_persists_to_index_and_target_store(tmp_memex_home, tmp_path
     """Feed a synthetic Librarian output into write_entry and verify both
     index.db.documents and the target-store row land correctly."""
     from scripts import install, stores
+
     install.run()
 
     # Create a target store
-    md = tmp_path / "m"; md.mkdir()
+    md = tmp_path / "m"
+    md.mkdir()
     (md / "001.sql").write_text(
         "CREATE TABLE articles ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -213,7 +228,7 @@ def test_write_entry_persists_to_index_and_target_store(tmp_memex_home, tmp_path
         "domain": "article",
         "searchable": "hello world body content",
         "metadata": {"topic": "greeting"},
-        "relations": []
+        "relations": [],
     }
 
     result = librarian.write_entry(
@@ -230,10 +245,9 @@ def test_write_entry_persists_to_index_and_target_store(tmp_memex_home, tmp_path
 
     # Verify index.db row was written
     from scripts.db import get_connection, memex_home
+
     conn = get_connection(str(memex_home() / "index.db"))
-    row = conn.execute(
-        "SELECT * FROM documents WHERE index_id = ?", ("idx-test-1",)
-    ).fetchone()
+    row = conn.execute("SELECT * FROM documents WHERE index_id = ?", ("idx-test-1",)).fetchone()
     conn.close()
     assert row is not None
     assert row["domain"] == "article"
@@ -251,9 +265,11 @@ def test_write_entry_works_without_embedding(tmp_memex_home, tmp_path):
     """v2.0 graceful degradation: if no OPENAI_API_KEY, skill passes
     embedding=None; FTS5 still works, vector cosine is skipped."""
     from scripts import install, stores
+
     install.run()
 
-    md = tmp_path / "m"; md.mkdir()
+    md = tmp_path / "m"
+    md.mkdir()
     (md / "001.sql").write_text(
         "CREATE TABLE articles ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -282,6 +298,7 @@ def test_write_entry_works_without_embedding(tmp_memex_home, tmp_path):
     )
 
     from scripts.db import get_connection, memex_home
+
     conn = get_connection(str(memex_home() / "index.db"))
     row = conn.execute(
         "SELECT embedding FROM documents WHERE index_id = ?", ("idx-no-embed",)
@@ -293,9 +310,11 @@ def test_write_entry_works_without_embedding(tmp_memex_home, tmp_path):
 def test_write_entry_records_relations(tmp_memex_home, tmp_path):
     from scripts import install, stores
     from scripts.db import get_connection, memex_home
+
     install.run()
 
-    md = tmp_path / "m"; md.mkdir()
+    md = tmp_path / "m"
+    md.mkdir()
     (md / "001.sql").write_text(
         "CREATE TABLE articles (id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "index_id TEXT NOT NULL UNIQUE, body TEXT);"
@@ -304,26 +323,35 @@ def test_write_entry_records_relations(tmp_memex_home, tmp_path):
 
     # Insert a target doc that the new doc will cite
     target_output = {
-        "index_id": "idx-target", "key": "t", "domain": "article",
-        "searchable": "target", "metadata": {}, "relations": [],
+        "index_id": "idx-target",
+        "key": "t",
+        "domain": "article",
+        "searchable": "target",
+        "metadata": {},
+        "relations": [],
     }
     librarian.write_entry(
         payload={"body": "target body"},
         librarian_output=target_output,
-        target_store="rels", target_table="articles",
+        target_store="rels",
+        target_table="articles",
         caller_agent_id="librarian-1",
     )
 
     # Now insert a doc that cites it
     citing_output = {
-        "index_id": "idx-citing", "key": "c", "domain": "article",
-        "searchable": "citing", "metadata": {},
+        "index_id": "idx-citing",
+        "key": "c",
+        "domain": "article",
+        "searchable": "citing",
+        "metadata": {},
         "relations": [{"to_index_id": "idx-target", "rel_type": "cites"}],
     }
     librarian.write_entry(
         payload={"body": "citing body"},
         librarian_output=citing_output,
-        target_store="rels", target_table="articles",
+        target_store="rels",
+        target_table="articles",
         caller_agent_id="librarian-1",
     )
 

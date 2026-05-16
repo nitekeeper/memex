@@ -1,0 +1,33 @@
+# Dependabot — keeps deps up to date and opens PRs for known vulnerabilities.
+# https://docs.github.com/en/code-security/dependabot
+
+version: 2
+updates:
+  # Python deps declared in pyproject.toml. Currently empty, but Dependabot
+  # is configured up front so updates start flowing as soon as deps are added.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+    commit-message:
+      prefix: deps
+      include: scope
+
+  # GitHub Actions versions used in .github/workflows/*.yml.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: deps(actions)
+      include: scope

@@ -22,12 +22,12 @@ Vectors are packed as little-endian float32 BLOBs in
 recorded in `~/.memex/registry.json` under the reserved key
 `__embedding_model__` so backfill/reembed tooling can detect changes.
 """
-from __future__ import annotations
-import os
-import math
-import struct
-from typing import List
 
+from __future__ import annotations
+
+import math
+import os
+import struct
 
 # ── Provider defaults ─────────────────────────────────────────────────────
 
@@ -48,12 +48,12 @@ DEFAULT_DIM = 1536
 # ── Pack / unpack ─────────────────────────────────────────────────────────
 
 
-def _pack(vec: List[float]) -> bytes:
+def _pack(vec: list[float]) -> bytes:
     """Pack a list of floats as little-endian float32 BLOB."""
     return struct.pack(f"<{len(vec)}f", *vec)
 
 
-def _unpack(blob: bytes) -> List[float]:
+def _unpack(blob: bytes) -> list[float]:
     """Unpack a float32 BLOB to a list of floats."""
     n = len(blob) // 4
     return list(struct.unpack(f"<{n}f", blob))
@@ -78,7 +78,7 @@ def _active_model() -> str:
     raise ValueError(f"Unknown embedding provider: {provider}")
 
 
-def _call_provider(text: str) -> List[float]:
+def _call_provider(text: str) -> list[float]:
     """Call the configured embedding provider. Returns a list of floats."""
     provider = _active_provider()
     if provider == "openai":
@@ -91,7 +91,7 @@ def _call_provider(text: str) -> List[float]:
         raise ValueError(f"Unknown embedding provider: {provider}")
 
 
-def _openai_encode(text: str) -> List[float]:
+def _openai_encode(text: str) -> list[float]:
     """Call OpenAI text-embedding-3-small (or `MEMEX_OPENAI_MODEL` override).
     Requires OPENAI_API_KEY env var. Lazy import so the SDK isn't required
     when using a different provider."""
@@ -108,7 +108,7 @@ def _openai_encode(text: str) -> List[float]:
     return list(resp.data[0].embedding)
 
 
-def _voyage_encode(text: str) -> List[float]:
+def _voyage_encode(text: str) -> list[float]:
     """Call Voyage voyage-3 (or `MEMEX_VOYAGE_MODEL` override). Requires
     VOYAGE_API_KEY env var. Anthropic recommends Voyage for embeddings
     used alongside Claude. Lazy import."""
@@ -120,9 +120,7 @@ def _voyage_encode(text: str) -> List[float]:
             "or switch to a different provider via MEMEX_EMBEDDING_PROVIDER."
         ) from e
     if not os.environ.get("VOYAGE_API_KEY"):
-        raise RuntimeError(
-            "VOYAGE_API_KEY environment variable is not set."
-        )
+        raise RuntimeError("VOYAGE_API_KEY environment variable is not set.")
     client = voyageai.Client()  # picks up VOYAGE_API_KEY from env
     model = _active_model()
     # Voyage's SDK takes a list and returns an EmbeddingsObject with
@@ -147,7 +145,7 @@ def _voyage_dim(model: str) -> int:
     }.get(model, -1)
 
 
-def _local_encode(text: str) -> List[float]:
+def _local_encode(text: str) -> list[float]:
     """Call sentence-transformers (default model all-MiniLM-L6-v2, 384-dim).
     No API key required. First call downloads model weights (~80MB) to the
     HuggingFace cache. Lazy import + cached model instance."""
@@ -180,6 +178,7 @@ def _record_model_info(dim: int) -> None:
     registry.json under `__embedding_model__`. Used by backfill and reembed
     tooling to detect changes that invalidate existing embeddings."""
     from scripts import registry
+
     data = registry._load()
     data["__embedding_model__"] = {
         "provider": _active_provider(),
@@ -219,6 +218,7 @@ def recorded_model_info() -> dict | None:
     """Return the LAST recorded provider/model/dim from registry.json, or
     None if nothing has been recorded yet."""
     from scripts import registry
+
     return registry._load().get("__embedding_model__")
 
 
@@ -329,9 +329,7 @@ def reembed_all(batch_size: int = 100, dry_run: bool = False) -> dict:
     previous = recorded_model_info()
 
     conn = get_connection(index_db)
-    all_rows = conn.execute(
-        "SELECT index_id, searchable FROM documents"
-    ).fetchall()
+    all_rows = conn.execute("SELECT index_id, searchable FROM documents").fetchall()
     conn.close()
 
     summary = {
@@ -401,7 +399,7 @@ def cosine(blob_a: bytes, blob_b: bytes) -> float:
     b = _unpack(blob_b)
     if len(a) != len(b):
         raise ValueError(f"Dimension mismatch: {len(a)} vs {len(b)}")
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(y * y for y in b))
     if norm_a == 0 or norm_b == 0:

@@ -1,9 +1,16 @@
 from pathlib import Path
 
-
 CORE_SKILLS = [
-    "create-store", "migrate", "query", "insert", "update",
-    "delete", "list-stores", "register-role", "register-agent", "get-agent",
+    "create-store",
+    "migrate",
+    "query",
+    "insert",
+    "update",
+    "delete",
+    "list-stores",
+    "register-role",
+    "register-agent",
+    "get-agent",
 ]
 
 

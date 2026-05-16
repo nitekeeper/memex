@@ -10,10 +10,10 @@ pyproject.toml. Skills registration is NOT in this manifest (Claude Code
 auto-discovers skills/<name>/SKILL.md); tests for that live in
 test_skills_present.py.
 """
+
 import json
 import re
 from pathlib import Path
-
 
 CANONICAL_MANIFEST = Path(".claude-plugin/plugin.json")
 
@@ -54,8 +54,7 @@ def test_plugin_manifest_version_matches_pyproject():
     match = re.search(r'version\s*=\s*"([^"]+)"', pyproject)
     assert match, "pyproject.toml is missing a version line"
     assert manifest.get("version") == match.group(1), (
-        f"Version mismatch: manifest={manifest.get('version')!r} "
-        f"pyproject={match.group(1)!r}"
+        f"Version mismatch: manifest={manifest.get('version')!r} pyproject={match.group(1)!r}"
     )
 
 

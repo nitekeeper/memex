@@ -10,17 +10,17 @@ The Synthesizer flow has an extra step in the middle (the Synthesizer
 subagent produces text that the Librarian then classifies); see
 synthesize_prepare/complete for the contract.
 """
+
 from __future__ import annotations
+
 import hashlib
 import json
 import re
 from pathlib import Path
 
 from scripts import stores
-from scripts.agents import librarian, reference_librarian, archivist
-from scripts.agents import data_steward
+from scripts.agents import archivist, data_steward, librarian, reference_librarian
 from scripts.db import memex_home
-
 
 # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -52,15 +52,15 @@ def _fetch_source_bodies(index_ids: list[str]) -> list[dict]:
     """Fetch the full row for each index_id from the article store."""
     sources = []
     for idx in index_ids:
-        rows = stores.query(
-            "article", "SELECT * FROM articles WHERE index_id = ?", (idx,)
-        )
+        rows = stores.query("article", "SELECT * FROM articles WHERE index_id = ?", (idx,))
         if rows:
-            sources.append({
-                "index_id": idx,
-                "body": rows[0]["body"],
-                "title": rows[0].get("title", ""),
-            })
+            sources.append(
+                {
+                    "index_id": idx,
+                    "body": rows[0]["body"],
+                    "title": rows[0].get("title", ""),
+                }
+            )
     return sources
 
 
@@ -101,9 +101,7 @@ def ingest_prepare(
             "existing_index_id": existing["index_id"],
         }
 
-    archive_result = archivist.archive(
-        body.encode("utf-8"), filename=f"{_slugify(title)}.md"
-    )
+    archive_result = archivist.archive(body.encode("utf-8"), filename=f"{_slugify(title)}.md")
 
     payload = {
         "title": title,
@@ -246,7 +244,9 @@ def ask_execute(
 ) -> list[dict]:
     """Phase 2 of brain ask. Executes the query plan and returns ranked results."""
     return reference_librarian.ask_execute(
-        prepare_result, query_plan, with_embedding=with_embedding,
+        prepare_result,
+        query_plan,
+        with_embedding=with_embedding,
     )
 
 
@@ -282,17 +282,12 @@ def synthesize_prepare(
     then calls synthesize_complete().
     """
     sources = _fetch_source_bodies(input_index_ids)
-    sources_md = "\n\n".join([
-        f"### [{s['index_id']}] {s.get('title', '')}\n\n{s['body']}"
-        for s in sources
-    ])
+    sources_md = "\n\n".join(
+        [f"### [{s['index_id']}] {s.get('title', '')}\n\n{s['body']}" for s in sources]
+    )
 
     template = Path("prompts/synthesizer.md").read_text(encoding="utf-8")
-    synthesizer_prompt = (
-        template
-        .replace("{{TOPIC}}", topic)
-        .replace("{{SOURCES}}", sources_md)
-    )
+    synthesizer_prompt = template.replace("{{TOPIC}}", topic).replace("{{SOURCES}}", sources_md)
 
     return {
         "status": "ready",
@@ -345,10 +340,12 @@ def synthesize_complete(
     for input_id in prepare_result["input_index_ids"]:
         key = (input_id, "synthesizes")
         if key not in existing:
-            enriched_relations.append({
-                "to_index_id": input_id,
-                "rel_type": "synthesizes",
-            })
+            enriched_relations.append(
+                {
+                    "to_index_id": input_id,
+                    "rel_type": "synthesizes",
+                }
+            )
             existing.add(key)
     enriched_output = {**librarian_output, "relations": enriched_relations}
 

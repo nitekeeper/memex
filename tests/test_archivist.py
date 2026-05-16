@@ -1,5 +1,5 @@
 import hashlib
-import pytest
+
 from scripts.agents import archivist
 
 
@@ -18,6 +18,7 @@ def test_archive_writes_to_hash_prefixed_subdir(tmp_memex_home):
     payload = b"unique-content-A"
     result = archivist.archive(payload, filename="a.txt")
     from pathlib import Path
+
     path = Path(result["path"])
     # Should be under ~/.memex/raw/<hash-prefix>/a.txt
     assert path.parent.parent == tmp_memex_home / "raw"

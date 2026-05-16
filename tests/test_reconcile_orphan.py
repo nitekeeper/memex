@@ -1,7 +1,8 @@
 import pytest
+
 from scripts import install
 from scripts.agents import data_steward
-from scripts.db import memex_home, get_connection
+from scripts.db import get_connection, memex_home
 
 
 def _seed_orphan(index_id: str, store: str = "no-store", table: str = "t", row_id: str = "1"):

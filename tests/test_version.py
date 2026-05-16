@@ -13,6 +13,7 @@ constant — releases only touch the two manifests; this test stays untouched.
 To check that `plugin.json:description` also reflects the same version, see
 `test_plugin_description_matches_version`.
 """
+
 import json
 import re
 from pathlib import Path

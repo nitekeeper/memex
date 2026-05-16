@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from scripts.db import get_connection
 from scripts import roles
+from scripts.db import get_connection
 
 
 @pytest.fixture

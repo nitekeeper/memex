@@ -33,14 +33,16 @@ invocation no longer happens in Python — the skill markdown dispatches
 the Librarian subagent via Task tool and passes the parsed response to
 `write_entry()`. See internal/brain/ingest/SKILL.md for the recipe.
 """
+
 from __future__ import annotations
+
 import json
 import uuid
 from pathlib import Path
 
-from scripts import stores, agents as agents_mod
+from scripts import agents as agents_mod
+from scripts import stores
 from scripts.db import get_connection, memex_home
-
 
 _REQUIRED_FIELDS = {"index_id", "key", "domain", "searchable"}
 
@@ -60,10 +62,13 @@ def _get_profile(agent_id: str) -> str:
 def _recent_index_snippet(limit: int = 20) -> list[dict]:
     index_db = str(memex_home() / "index.db")
     conn = get_connection(index_db)
-    rows = [dict(r) for r in conn.execute(
-        "SELECT index_id, key, domain FROM documents ORDER BY created_at DESC LIMIT ?",
-        (limit,),
-    )]
+    rows = [
+        dict(r)
+        for r in conn.execute(
+            "SELECT index_id, key, domain FROM documents ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        )
+    ]
     conn.close()
     return rows
 
@@ -98,12 +103,15 @@ def build_prompt(
         existing_index_snippet = _recent_index_snippet()
     template = _load_template()
     profile = _get_profile("librarian-1")
-    return (template
-        .replace("{{LIBRARIAN_PROFILE}}", profile)
+    return (
+        template.replace("{{LIBRARIAN_PROFILE}}", profile)
         .replace("{{TARGET_STORE}}", target_store)
         .replace("{{CALLER_AGENT_ID}}", caller_agent_id)
         .replace("{{PAYLOAD_JSON}}", json.dumps(payload, ensure_ascii=False, indent=2))
-        .replace("{{EXISTING_INDEX_SNIPPET}}", json.dumps(existing_index_snippet, ensure_ascii=False, indent=2))
+        .replace(
+            "{{EXISTING_INDEX_SNIPPET}}",
+            json.dumps(existing_index_snippet, ensure_ascii=False, indent=2),
+        )
     )
 
 

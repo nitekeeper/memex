@@ -1,0 +1,73 @@
+name: CI
+
+# Fast PR gate: lint, format, security, and tests. All four must pass
+# before a PR can be merged (enforced via branch protection rules).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint & format (Ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Lint (ruff check)
+        run: ruff check .
+
+      - name: Format check (ruff format --check)
+        run: ruff format --check .
+
+  security:
+    name: Security (Bandit + pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Bandit and pip-audit
+        run: pip install bandit pip-audit
+
+      - name: Bandit (AST security scan)
+        run: bandit -c pyproject.toml -r scripts internal skills db
+
+      - name: pip-audit (dependency CVE scan)
+        # pyproject.toml has no `[project] dependencies` yet — pip-audit
+        # warns and exits 0. Once deps are added, this gate starts blocking
+        # PRs that introduce vulnerable packages.
+        run: pip-audit .
+
+  tests:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run test suite
+        run: pytest tests/ -q

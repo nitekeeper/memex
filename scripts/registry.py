@@ -3,6 +3,7 @@
 Backed by ~/.memex/registry.json. Single-process write semantics
 (short JSON read-modify-write; no inter-process locking in v2.0).
 """
+
 from __future__ import annotations
 
 import json
@@ -73,6 +74,7 @@ def update_schema_version(name: str, new_version: str) -> dict | None:
 
 if __name__ == "__main__":
     import sys
+
     cmd = sys.argv[1]
 
     if cmd == "register":

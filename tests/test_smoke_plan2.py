@@ -1,8 +1,8 @@
-import pytest
 from pathlib import Path
+
 from scripts import install, stores
-from scripts.agents import librarian, reference_librarian, data_steward
-from scripts.db import memex_home, get_connection
+from scripts.agents import data_steward, librarian, reference_librarian
+from scripts.db import get_connection, memex_home
 
 
 def test_e2e_index_write_search_and_audit(tmp_memex_home, tmp_path):
@@ -15,7 +15,8 @@ def test_e2e_index_write_search_and_audit(tmp_memex_home, tmp_path):
     install.run()
 
     # Create a target store
-    md = tmp_path / "m"; md.mkdir()
+    md = tmp_path / "m"
+    md.mkdir()
     (md / "001.sql").write_text(
         "CREATE TABLE articles ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -70,7 +71,8 @@ def test_e2e_orphan_creation_and_audit(tmp_memex_home, tmp_path):
     Data Steward must detect."""
     install.run()
 
-    md = tmp_path / "m"; md.mkdir()
+    md = tmp_path / "m"
+    md.mkdir()
     (md / "001.sql").write_text(
         "CREATE TABLE articles ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
