@@ -149,3 +149,50 @@ def audit(index_db: str) -> str:
 
     report_path.write_text("\n".join(lines))
     return str(report_path)
+
+
+def reconcile_orphan(index_id: str, action: str, note_text: str | None = None) -> dict:
+    """Resolve a flagged orphan.
+
+    Actions:
+      - delete-index: remove the documents row AND its relations (target row already gone)
+      - reindex: re-run Librarian on the orphaned target row (Plan 3+; raises
+        NotImplementedError for now if the target row also missing)
+      - note: leave as-is but record acknowledgment in audits/
+
+    Returns dict describing the action taken.
+    """
+    valid_actions = {"delete-index", "reindex", "note"}
+    if action not in valid_actions:
+        raise ValueError(f"Unknown action: {action}. Valid: {valid_actions}")
+
+    index_db = str(memex_home() / "index.db")
+    if action == "delete-index":
+        conn = get_connection(index_db)
+        # Delete relations first (FK)
+        conn.execute(
+            "DELETE FROM relations WHERE from_index_id = ? OR to_index_id = ?",
+            (index_id, index_id),
+        )
+        conn.execute("DELETE FROM documents WHERE index_id = ?", (index_id,))
+        conn.commit()
+        conn.close()
+        return {"action": "delete-index", "index_id": index_id, "result": "removed"}
+
+    elif action == "note":
+        audits_dir = memex_home() / "audits"
+        audits_dir.mkdir(parents=True, exist_ok=True)
+        log_path = audits_dir / "reconciliation-log.md"
+        entry = (
+            f"\n- {datetime.now(timezone.utc).isoformat()} | index_id={index_id} | "
+            f"action=note | text={note_text or ''}\n"
+        )
+        with open(log_path, "a") as f:
+            f.write(entry)
+        return {"action": "note", "index_id": index_id, "result": "logged"}
+
+    elif action == "reindex":
+        # Reverse-orphan case: row exists in target store but not in index.
+        # Full implementation would re-invoke Librarian on the target row.
+        # Plan 3 stub: raise NotImplementedError pointing to Plan 4 enhancement.
+        raise NotImplementedError("reindex action requires Plan 4 re-embedding tooling")
