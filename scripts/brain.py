@@ -259,25 +259,28 @@ def lint() -> str:
     return data_steward.audit(index_db)
 
 
-# ── synthesize (Synthesizer — Phase 3 refactor not yet done) ───────────────
+# ── synthesize (Synthesizer — Phase 3 Option-B refactor) ───────────────────
 
 
-def _invoke_synthesizer(prompt: str) -> str:
-    """LEGACY stub. Will be removed in Phase 3 of the Option-B rollout (the
-    Synthesizer subagent is dispatched by the skill markdown via Task tool,
-    not invoked from Python)."""
-    raise NotImplementedError("Synthesizer LLM invocation TBD — see Phase 3")
-
-
-def synthesize(
+def synthesize_prepare(
     topic: str,
     input_index_ids: list[str],
     caller_agent_id: str,
 ) -> dict:
-    """LEGACY: pre-Option-B path; still calls _invoke_synthesizer +
-    librarian.index_write (which no longer exists). Will be refactored
-    in Phase 3 of the Option-B rollout into synthesize_prepare /
-    synthesize_complete (and Synthesizer subagent dispatch in the skill)."""
+    """Phase 1 of brain synthesize: fetch source bodies, build Synthesizer prompt.
+
+    Returns {"status": "ready",
+             "topic": <str>,
+             "input_index_ids": <list[str]>,
+             "caller_agent_id": <id>,
+             "sources": [{"index_id", "body", "title"}, ...],
+             "synthesizer_prompt": <full Task-tool prompt for the Synthesizer>}.
+
+    Skill markdown dispatches the Synthesizer subagent (subagent_type=
+    general-purpose, prompt=synthesizer_prompt), receives the synthesis
+    body, then dispatches the Librarian subagent to classify the synthesis,
+    then calls synthesize_complete().
+    """
     sources = _fetch_source_bodies(input_index_ids)
     sources_md = "\n\n".join([
         f"### [{s['index_id']}] {s.get('title', '')}\n\n{s['body']}"
@@ -285,15 +288,83 @@ def synthesize(
     ])
 
     template = Path("prompts/synthesizer.md").read_text(encoding="utf-8")
-    prompt = template.replace("{{TOPIC}}", topic).replace("{{SOURCES}}", sources_md)
-
-    synthesis_body = _invoke_synthesizer(prompt)
-
-    # The next line will fail (librarian.index_write removed in Phase 1) —
-    # this whole function is slated for Phase 3 refactor. Kept here as a
-    # placeholder so the module imports cleanly; tests that exercise it
-    # must be updated as part of Phase 3.
-    raise NotImplementedError(
-        "synthesize() is pending Phase 3 refactor; use librarian helpers + "
-        "Task tool dispatch from internal/brain/synthesize/SKILL.md instead."
+    synthesizer_prompt = (
+        template
+        .replace("{{TOPIC}}", topic)
+        .replace("{{SOURCES}}", sources_md)
     )
+
+    return {
+        "status": "ready",
+        "topic": topic,
+        "input_index_ids": list(input_index_ids),
+        "caller_agent_id": caller_agent_id,
+        "sources": sources,
+        "synthesizer_prompt": synthesizer_prompt,
+    }
+
+
+def synthesize_complete(
+    prepare_result: dict,
+    synthesis_body: str,
+    librarian_output: dict,
+    embedding: bytes | None = None,
+) -> dict:
+    """Phase 3 of brain synthesize: persist the synthesis + index entry.
+
+    Args:
+        prepare_result: dict from synthesize_prepare() with status="ready".
+        synthesis_body: text returned by the Synthesizer subagent.
+        librarian_output: parsed JSON from librarian.parse_response() applied
+            to the Librarian subagent's classification of `synthesis_body`.
+        embedding: optional embedding of librarian_output["searchable"].
+
+    Augments the Librarian's relations with one `synthesizes` edge per
+    input_index_id (deterministic — we know what got synthesized; the
+    Librarian's relations are kept for any additional cross-references it
+    inferred from the synthesis text).
+
+    Returns {"status": "synthesized", **librarian_output_with_relations,
+             "row_id": ...}.
+
+    Raises:
+        ValueError: prepare_result is not "ready", or librarian_output malformed.
+    """
+    if prepare_result.get("status") != "ready":
+        raise ValueError(
+            f"synthesize_complete called with prepare_result.status="
+            f"{prepare_result.get('status')!r}; expected 'ready'"
+        )
+
+    # Auto-add `synthesizes` relations for each input. These are deterministic
+    # (we know the inputs from prepare_result) — don't rely on the Librarian
+    # to rediscover them. Merge with whatever the Librarian found, dedup by
+    # (to_index_id, rel_type).
+    enriched_relations = list(librarian_output.get("relations") or [])
+    existing = {(r["to_index_id"], r["rel_type"]) for r in enriched_relations}
+    for input_id in prepare_result["input_index_ids"]:
+        key = (input_id, "synthesizes")
+        if key not in existing:
+            enriched_relations.append({
+                "to_index_id": input_id,
+                "rel_type": "synthesizes",
+            })
+            existing.add(key)
+    enriched_output = {**librarian_output, "relations": enriched_relations}
+
+    payload = {
+        "topic": prepare_result["topic"],
+        "body": synthesis_body,
+        "inputs_json": json.dumps(prepare_result["input_index_ids"]),
+        "created_by": prepare_result["caller_agent_id"],
+    }
+
+    result = librarian.write_entry(
+        payload=payload,
+        librarian_output=enriched_output,
+        target_store="article",
+        target_table="syntheses",
+        caller_agent_id=prepare_result["caller_agent_id"],
+        embedding=embedding,
+    )
+    return {"status": "synthesized", **result}

@@ -74,9 +74,74 @@ def test_e2e_brain_ask(tmp_memex_home):
     assert "idx-cat" in ids
 
 
-@pytest.mark.skip(
-    reason="brain.synthesize requires Synthesizer Phase-3 refactor."
-)
-def test_e2e_brain_synthesize():
-    """Placeholder — re-enable when Phase 3 lands."""
-    pass
+def test_e2e_brain_synthesize(tmp_memex_home):
+    """Phase-3 path: synthesize_prepare → (Synthesizer Task) → librarian.build_prompt
+       → (Librarian Task) → synthesize_complete. Both LLM calls faked here."""
+    from scripts import stores
+    from scripts.db import get_connection, memex_home
+
+    install.run()
+    onboarding.register_human("human-test", "Test", "User")
+
+    # Seed two source articles
+    for idx, body in [("idx-src-1", "first src"), ("idx-src-2", "second src")]:
+        stores.insert("article", "articles", {
+            "index_id": idx, "title": idx, "body": body,
+            "source_url": None, "source_hash": f"h-{idx}",
+            "raw_path": "", "created_by": "human-test",
+        })
+        conn = get_connection(str(memex_home() / "index.db"))
+        conn.execute(
+            "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
+            "searchable, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (idx, idx, "article", "article", "articles", "1", body, "librarian-1"),
+        )
+        conn.commit()
+        conn.close()
+
+    prep = brain.synthesize_prepare(
+        topic="srcs", input_index_ids=["idx-src-1", "idx-src-2"],
+        caller_agent_id="human-test",
+    )
+    assert prep["status"] == "ready"
+
+    # Synthesizer subagent would produce this — faked.
+    synthesis_body = "Both sources discuss srcs."
+
+    # Librarian subagent would classify the synthesis — faked.
+    librarian_output = {
+        "index_id": "idx-syn-smoke",
+        "key": "smoke-synthesis",
+        "domain": "synthesis",
+        "searchable": "smoke synthesis",
+        "metadata": {},
+        "relations": [],
+    }
+
+    result = brain.synthesize_complete(
+        prepare_result=prep,
+        synthesis_body=synthesis_body,
+        librarian_output=librarian_output,
+    )
+    assert result["status"] == "synthesized"
+    assert result["index_id"] == "idx-syn-smoke"
+
+    # The synthesis row landed in article.db.syntheses
+    rows = stores.query(
+        "article", "SELECT * FROM syntheses WHERE index_id = ?", ("idx-syn-smoke",),
+    )
+    assert len(rows) == 1
+    assert rows[0]["body"] == synthesis_body
+
+    # Auto-added synthesizes relations
+    conn = get_connection(str(memex_home() / "index.db"))
+    rels = {
+        (r["to_index_id"], r["rel_type"])
+        for r in conn.execute(
+            "SELECT to_index_id, rel_type FROM relations WHERE from_index_id = ?",
+            ("idx-syn-smoke",),
+        )
+    }
+    conn.close()
+    assert ("idx-src-1", "synthesizes") in rels
+    assert ("idx-src-2", "synthesizes") in rels

@@ -638,7 +638,7 @@ attribution (`created_by`, audit-report authorship), but no LLM call.
 `plugin.json`.** They're discoverable only via the routing table in
 `skills/run/SKILL.md`.
 
-**Rollout phasing:**
+**Rollout phasing (complete):**
 
 - **Phase 1** (landed): Librarian flow — `ingest_prepare/complete`,
   `capture_prepare/complete`, and `librarian.write_entry`. The skill
@@ -648,9 +648,20 @@ attribution (`created_by`, audit-report authorship), but no LLM call.
   the `brain/ask` + `index/search` skill recipes. Hybrid retrieval
   (FTS5 + vector) is best-effort; the skill falls back to FTS5-only on
   embedding errors.
-- **Phase 3** (pending): Synthesizer — `synthesize_prepare/post/complete`
-  and the `brain/synthesize` skill recipe (dispatches both Synthesizer
-  and Librarian subagents).
+- **Phase 3** (landed): Synthesizer — `synthesize_prepare/complete` and
+  the `brain/synthesize` skill recipe. Two subagent dispatches per
+  synthesis (Synthesizer produces prose → Librarian classifies); the
+  skill uses `librarian.build_prompt()` between them to construct the
+  classifier's prompt. `synthesize_complete` auto-adds `synthesizes`
+  relations for each input_index_id (deterministic by construction);
+  any additional relations the Librarian infers from the synthesis text
+  are preserved alongside.
+
+All five Memex-internal agents (Librarian, Reference Librarian,
+Archivist, DBA, Data Steward) are now invokable end-to-end. Archivist,
+DBA, and Data Steward are deterministic Python (no subagent dispatch);
+Librarian, Reference Librarian, and Synthesizer use Task-tool dispatch
+per the pattern above.
 
 ---
 
