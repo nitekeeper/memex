@@ -1,5 +1,6 @@
 import sqlite3
 from pathlib import Path
+
 from scripts.db import get_connection
 
 
@@ -9,9 +10,7 @@ def test_index_schema_applies_cleanly(tmp_path):
     conn = get_connection(str(db))
     conn.executescript(sql)
     conn.commit()
-    tables = {r["name"] for r in conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table'"
-    )}
+    tables = {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     conn.close()
     assert "documents" in tables
     assert "relations" in tables
@@ -64,6 +63,7 @@ def test_relations_pk_composite(tmp_path):
         ("a", "b", "cites"),
     )
     import pytest
+
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
             "INSERT INTO relations (from_index_id, to_index_id, rel_type) VALUES (?, ?, ?)",

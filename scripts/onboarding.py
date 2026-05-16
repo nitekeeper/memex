@@ -5,15 +5,20 @@ the caller (Brain skill wrapper) prompts the user for id/name/role and
 calls register_human(). After successful registration, future Brain calls
 skip onboarding.
 """
+
 from __future__ import annotations
-from scripts import roles, agents
+
+from scripts import agents, roles
 from scripts.db import memex_home
 
 # Memex's 5 internal agents that should be filtered out when looking
 # for "the human."
 _INTERNAL_AGENT_IDS = {
-    "librarian-1", "reference-librarian-1", "archivist-1",
-    "dba-1", "data-steward-1",
+    "librarian-1",
+    "reference-librarian-1",
+    "archivist-1",
+    "dba-1",
+    "data-steward-1",
 }
 
 
@@ -57,6 +62,7 @@ def register_human(agent_id: str, name: str, role_name: str, profile: str = "") 
 
 if __name__ == "__main__":
     import sys
+
     if sys.argv[1] == "needs":
         print("yes" if needs_onboarding() else "no")
     elif sys.argv[1] == "register":

@@ -1,12 +1,40 @@
 """Database connection and Memex home-directory helpers."""
+
 from __future__ import annotations
 
 import os
+import re
 import sqlite3
 from pathlib import Path
 
-
 MEMEX_DIR_NAME = ".memex"
+
+# SQLite identifier syntax: ASCII letter or underscore, followed by letters,
+# digits, or underscores. Anything else is rejected to prevent SQL injection
+# through interpolated identifiers (SQLite parameter binding only handles
+# values, not table or column names — so identifiers must be interpolated,
+# but only after this whitelist check).
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def safe_identifier(name: str) -> str:
+    """Validate a SQL identifier (table or column name) before interpolation.
+
+    SQLite has no parameter binding for identifiers, so they must be
+    interpolated into the query string. This helper enforces a whitelist
+    of safe characters: ASCII letter/underscore start, then alphanumerics
+    or underscores. Anything else raises ValueError.
+
+    Use this at every site that interpolates an identifier into a query
+    where the identifier comes from outside the module (caller payloads,
+    consumer migrations, etc.). It is the only sanctioned mechanism for
+    identifier interpolation in this codebase.
+    """
+    if not isinstance(name, str):
+        raise ValueError(f"identifier must be str, got {type(name).__name__}")
+    if not _IDENTIFIER_RE.match(name):
+        raise ValueError(f"invalid SQL identifier: {name!r}. Allowed: [A-Za-z_][A-Za-z0-9_]*")
+    return name
 
 
 def get_connection(db_path: str | os.PathLike[str]) -> sqlite3.Connection:

@@ -1,11 +1,12 @@
 """Store provisioning and generic CRUD."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scripts.db import get_connection
 from scripts import registry
+from scripts.db import get_connection, safe_identifier
 
 
 def _now() -> str:
@@ -50,9 +51,7 @@ def migrate(name: str, migrations_dir: str) -> list[str]:
         raise ValueError(f"Unknown store: {name}")
 
     conn = get_connection(rec["path"])
-    applied_set = {
-        r["filename"] for r in conn.execute("SELECT filename FROM migrations")
-    }
+    applied_set = {r["filename"] for r in conn.execute("SELECT filename FROM migrations")}
 
     sql_files = sorted(Path(migrations_dir).glob("*.sql"))
     newly_applied: list[str] = []
@@ -92,17 +91,23 @@ def insert(name: str, table: str, row: dict) -> dict:
     Assumes the table has an integer PRIMARY KEY AUTOINCREMENT column
     named `id`. For tables with TEXT PKs, the caller supplies `id` in `row`.
     """
+    safe_table = safe_identifier(table)
     cols = list(row.keys())
+    for c in cols:
+        safe_identifier(c)
     placeholders = ", ".join("?" for _ in cols)
     col_list = ", ".join(cols)
     conn = get_connection(_resolve(name))
     cur = conn.execute(
-        f"INSERT INTO {table} ({col_list}) VALUES ({placeholders})",
+        f"INSERT INTO {safe_table} ({col_list}) VALUES ({placeholders})",  # nosec B608 - identifiers validated via safe_identifier
         tuple(row[c] for c in cols),
     )
     conn.commit()
     new_id = row.get("id", cur.lastrowid)
-    fetched = conn.execute(f"SELECT * FROM {table} WHERE id = ?", (new_id,)).fetchone()
+    fetched = conn.execute(
+        f"SELECT * FROM {safe_table} WHERE id = ?",  # nosec B608 - identifier validated
+        (new_id,),
+    ).fetchone()
     conn.close()
     return dict(fetched) if fetched else row
 
@@ -110,21 +115,31 @@ def insert(name: str, table: str, row: dict) -> dict:
 def update(name: str, table: str, row_id, updates: dict) -> dict | None:
     if not updates:
         return None
+    safe_table = safe_identifier(table)
+    for k in updates:
+        safe_identifier(k)
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     conn = get_connection(_resolve(name))
     conn.execute(
-        f"UPDATE {table} SET {set_clause} WHERE id = ?",
+        f"UPDATE {safe_table} SET {set_clause} WHERE id = ?",  # nosec B608 - identifiers validated
         (*updates.values(), row_id),
     )
     conn.commit()
-    fetched = conn.execute(f"SELECT * FROM {table} WHERE id = ?", (row_id,)).fetchone()
+    fetched = conn.execute(
+        f"SELECT * FROM {safe_table} WHERE id = ?",  # nosec B608 - identifier validated
+        (row_id,),
+    ).fetchone()
     conn.close()
     return dict(fetched) if fetched else None
 
 
 def delete(name: str, table: str, row_id) -> bool:
+    safe_table = safe_identifier(table)
     conn = get_connection(_resolve(name))
-    cur = conn.execute(f"DELETE FROM {table} WHERE id = ?", (row_id,))
+    cur = conn.execute(
+        f"DELETE FROM {safe_table} WHERE id = ?",  # nosec B608 - identifier validated
+        (row_id,),
+    )
     conn.commit()
     deleted = cur.rowcount > 0
     conn.close()

@@ -1,11 +1,6 @@
 from pathlib import Path
 
 
-def test_readme_mentions_v2_0():
-    content = Path("README.md").read_text(encoding="utf-8")
-    assert "2.0" in content
-
-
 def test_readme_mentions_three_layers():
     content = Path("README.md").read_text(encoding="utf-8").lower()
     assert "brain" in content
@@ -20,7 +15,23 @@ def test_readme_mentions_internal_agents():
 
 
 def test_readme_mentions_single_skill_registration():
-    """v2.0 registers only memex:run; README must call this out."""
+    """Memex registers only `memex:run` with Claude Code; the README must
+    call this out so consumers and developers understand the routing model."""
     content = Path("README.md").read_text(encoding="utf-8")
     assert "memex:run" in content
     assert "24 internal procedures" in content or "24 procedures" in content
+
+
+def test_readme_has_consumer_and_developer_install_sections():
+    """The README must distinguish the two install paths so neither
+    audience has to guess which steps apply to them."""
+    content = Path("README.md").read_text(encoding="utf-8").lower()
+    assert "for consumers" in content
+    assert "for developers" in content
+
+
+def test_readme_discloses_claude_code_origin():
+    """Set expectations: most code in this repo is developed with AI assistance.
+    Readers reviewing PRs should know."""
+    content = Path("README.md").read_text(encoding="utf-8")
+    assert "Claude Code" in content

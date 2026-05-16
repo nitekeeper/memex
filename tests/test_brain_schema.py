@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from scripts.db import get_connection
 
 
@@ -8,9 +9,7 @@ def test_brain_schema_applies(tmp_path):
     conn = get_connection(str(db))
     conn.executescript(sql)
     conn.commit()
-    tables = {r["name"] for r in conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table'"
-    )}
+    tables = {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     for t in ("articles", "captures", "syntheses"):
         assert t in tables
     conn.close()

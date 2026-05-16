@@ -28,12 +28,15 @@ skill markdown via the Task tool, not in Python). Legacy `ask()` is
 retained as a thin convenience wrapper for callers passing through
 `brain.ask` until those callers move to the prepare/execute split.
 """
+
 from __future__ import annotations
+
 import json
 from pathlib import Path
 
+from scripts import agents as agents_mod
+from scripts import embeddings
 from scripts.db import get_connection, memex_home
-from scripts import embeddings, agents as agents_mod
 
 
 def _get_agent(agent_id: str) -> dict:
@@ -68,9 +71,8 @@ def build_prompt(query: str, caller_agent_id: str = "reference-librarian-1") -> 
     template = Path("prompts/reference_librarian.md").read_text(encoding="utf-8")
     agent = _get_agent(caller_agent_id)
     profile_block = f"You are {agent['name']}.\n\n{agent['profile']}"
-    return (template
-        .replace("{{REFERENCE_LIBRARIAN_PROFILE}}", profile_block)
-        .replace("{{QUERY}}", query)
+    return template.replace("{{REFERENCE_LIBRARIAN_PROFILE}}", profile_block).replace(
+        "{{QUERY}}", query
     )
 
 
@@ -146,6 +148,8 @@ def execute_query_plan(plan: dict, with_embedding: bool = True) -> list[dict]:
 
     fts_rows: list[dict] = []
     if fts_q:
+        # nosec B608 - where_extra is composed from hardcoded clause strings
+        # like "d.domain = ?"; all user-supplied values are parameterized
         sql = f"""
             SELECT d.index_id, d.key, d.domain, d.store, d.table_name, d.row_id,
                    d.searchable, d.embedding
@@ -154,7 +158,7 @@ def execute_query_plan(plan: dict, with_embedding: bool = True) -> list[dict]:
             WHERE documents_fts MATCH ?{where_extra}
             ORDER BY rank
             LIMIT ?
-        """
+        """  # nosec B608
         fts_rows = [dict(r) for r in conn.execute(sql, (fts_q, *params, limit))]
 
     if not with_embedding or not plan.get("vector_query"):
@@ -164,11 +168,13 @@ def execute_query_plan(plan: dict, with_embedding: bool = True) -> list[dict]:
     # Hybrid: FTS5 + vector cosine
     qvec_blob = embeddings.encode(plan["vector_query"])
     where_vec = (" AND " + " AND ".join(where_clauses)) if where_clauses else ""
+    # nosec B608 - same as above: where_vec is composed from hardcoded clauses;
+    # user values are parameterized via `params`
     sql_all = f"""
         SELECT index_id, key, domain, store, table_name, row_id, searchable, embedding
         FROM documents d
         WHERE embedding IS NOT NULL{where_vec}
-    """
+    """  # nosec B608
     all_rows = [dict(r) for r in conn.execute(sql_all, params)]
     conn.close()
 
@@ -181,7 +187,7 @@ def execute_query_plan(plan: dict, with_embedding: bool = True) -> list[dict]:
 
     # Merge fts + vector (dedupe by index_id; FTS hits keep their rank order)
     seen = {r["index_id"]: r for r in fts_rows}
-    for score, r in scored[:limit]:
+    for _score, r in scored[:limit]:
         if r["index_id"] not in seen:
             seen[r["index_id"]] = r
     return list(seen.values())[:limit]

@@ -4,9 +4,12 @@ Owns ~/.memex/raw/. Content-addressable: each unique canonical-form
 payload stored under raw/<hash-prefix>/<filename>. Same content → same path
 (idempotent). Different content with same filename → new versioned path.
 """
+
 from __future__ import annotations
+
 import hashlib
 from pathlib import Path
+
 from scripts.db import memex_home
 
 

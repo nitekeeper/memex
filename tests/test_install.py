@@ -1,5 +1,4 @@
-import pytest
-from scripts import install, registry, roles, agents
+from scripts import agents, install, registry, roles
 from scripts.db import memex_home
 
 
@@ -31,8 +30,11 @@ def test_install_seeds_five_internal_roles(tmp_memex_home):
     listed = roles.list_roles(agents_db)
     role_names = {r["name"] for r in listed}
     assert role_names == {
-        "Librarian", "Reference Librarian", "Archivist",
-        "Database Administrator", "Data Steward",
+        "Librarian",
+        "Reference Librarian",
+        "Archivist",
+        "Database Administrator",
+        "Data Steward",
     }
 
 
@@ -42,8 +44,11 @@ def test_install_seeds_five_internal_agents(tmp_memex_home):
     listed = agents.list_agents(agents_db)
     agent_ids = {a["id"] for a in listed}
     assert agent_ids == {
-        "librarian-1", "reference-librarian-1", "archivist-1",
-        "dba-1", "data-steward-1",
+        "librarian-1",
+        "reference-librarian-1",
+        "archivist-1",
+        "dba-1",
+        "data-steward-1",
     }
 
 

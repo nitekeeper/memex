@@ -1,4 +1,3 @@
-import pytest
 from scripts.agents import dba
 from scripts.db import get_connection
 

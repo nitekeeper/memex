@@ -1,6 +1,6 @@
 import json
-import pytest
 from pathlib import Path
+
 from scripts import release
 
 

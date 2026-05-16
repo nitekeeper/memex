@@ -4,11 +4,14 @@ Per design decision §5 of the spec: v1 wiki content is NOT migrated
 to brain.db. The .ai/wiki/ directory is preserved as a legacy archive
 the user can manually re-ingest if desired.
 """
+
 from __future__ import annotations
+
 import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+
 from scripts.db import memex_home
 
 
