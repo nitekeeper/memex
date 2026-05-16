@@ -1,69 +1,43 @@
-# CLAUDE.md — entering Memex
+# CLAUDE.md — entering Memex v0.2
 
-You are operating inside the **Memex product repo**. Memex is Product 1 of Skill Atelier. This repo holds the research, design, skill source, and releases for the Memex product.
+You are operating inside the **Memex product repo**. Memex is Product 1 of Skill Atelier — a personal knowledge runtime and shared memory plane for the agent fleet.
 
-## Read at session start
+## Architecture in one paragraph
 
-1. `GOALS.md` — north-star, current focus, anti-goals.
-2. `ROADMAP.md` — what's in flight and what's next.
-3. `DESIGN_NOTES.md` — decisions made so far.
+Memex registers a single Claude-Code-visible skill — `memex:run` — which routes natural-language intent (for users) and named operations (for agents) to one of 24 internal procedures at `internal/<category>/<name>/SKILL.md` (categories: `core`, `index`, `brain`, `steward`, `dba`). This keeps the plugin under Claude Code's 1% skill-description budget while exposing the full Memex surface on demand. See `docs/specs/2026-05-16-memex-v2-redesign-design.md` (§8.0) for the visibility model.
 
-## Session start
+## Read at session start (only if you're working ON Memex itself, not USING it)
 
-At the start of every session, before responding to any user message, run the self-improvement queue-processing pass:
+1. `docs/specs/2026-05-16-memex-v2-redesign-design.md` — v0.2 design
+2. `docs/plans/2026-05-16-memex-v2-plan-{1,2,3,4}-*.md` — implementation plans
+3. `docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md` — per-layer acceptance docs
+4. `README.md` and `USER_GUIDE.md` — user-facing entry points
+5. `CHANGELOG.md` — version history
 
-1. **`internal/review-lessons/SKILL.md` (solo)** — scan `lessons/feedback/` then `lessons/inbox/` for `status: draft` lessons.
-   - **Promote** if the lesson is factual, self-contained, and has a concrete how-to-apply.
-   - **Defer** (leave as draft) if the lesson touches goals, priorities, design philosophy, or contradicts an existing approved wiki entry.
-   - **Discard** if it duplicates something already in the wiki or is purely session-local.
-   - Apply actions directly — no approval gate.
-   If either `lessons/feedback/` or `lessons/inbox/` does not exist, treat it as empty and proceed to the next step.
-   Treat a lesson file with no `status` field as `draft`.
-
-2. **`internal/propose-wiki-entry/SKILL.md` (solo)** — convert all newly promoted lessons into draft wiki entries in `.ai/wiki/`. Apply directly — no approval gate.
-   If a slug already exists in `.ai/wiki/`, skip that entry and note the conflict in the summary — do not overwrite.
-
-3. **`internal/sync/SKILL.md`** — run `python scripts/sync.py .ai/` from the Memex product root (`C:\Users\user\Documents\Skills\memex`) to surface stale wiki entries. If the script fails, set `Stale entries flagged: 0` in the summary and add a `Sync error: <error message>` line immediately below it. Proceed to Step 4 — do not abort the pass.
-
-4. **Show summary** using this exact format:
-
-   ```
-   Session-start self-improvement pass — YYYY-MM-DD
-     Lessons reviewed: N
-       Promoted: X
-       Deferred (needs collaborative review): Y
-       Discarded: Z
-     Wiki entries proposed: M
-     Wiki entry conflicts skipped: C
-       - <slug> (already exists)
-     Stale entries flagged: K
-       - <title> (.ai/wiki/<slug>.md)
-     Sync error: <error message>    ← sibling field, not a sub-item; only shown when sync fails; omit when sync succeeds
-   ```
-
-   If `K` is 0, show `Stale entries flagged: 0` and omit the bullet list.
-   If `C` is 0, show `Wiki entry conflicts skipped: 0` and omit the bullet list.
-   If both lesson directories were empty (or absent) and no lessons were promoted, show: `Session-start self-improvement pass — nothing in queue. Ready.`
-
-5. **Commit all changes** from the pass in a single commit: `chore: session-start self-improvement pass — YYYY-MM-DD` (substitute today's date). If the pass produced no file changes, skip the commit and note "no changes committed" in the summary.
-
-Then wait for the user's first message.
+If you're a downstream agent USING Memex from another plugin or session, you don't need to read these files — invoke `memex:run` and follow its routing.
 
 ## Layer awareness
 
-- **This repo is Layer 2** (a skill product). It is not the framework (Layer 1). Do not commit framework-level changes here.
+- This repo is **Layer 2** (a Skill Atelier product). It is not the framework (Layer 1). Do not commit framework-level changes here.
 - The framework lives at `C:\Users\user\Documents\Skills\skill-atelier\`.
 - Changes to framework files commit there. Changes to Memex files commit here. Never mix.
 
 ## Working rules
 
-1. **Research before design.** No format or schema is locked until sources are ingested and synthesized. See `sources/` for ingestion workflow.
-2. **Source everything significant.** When research material informs a decision, it should be in `sources/analyzed/` before the decision is logged.
-3. **Capture lessons after meaningful work.** After non-trivial sessions, capture to `lessons/inbox/`.
-4. **Propose wiki entries during sessions; approve at session close.** Do not unilaterally edit `.ai/wiki/` mid-flow. Exception: the session-start queue-processing pass (see ## Session start) may write wiki drafts and promote lessons autonomously — this is the only context where gates are bypassed.
-5. **Releases are deliberate.** Do not auto-promote to `dist/`. The release skill (from Skill Atelier's `meta/cut-release/`) is the only path.
-6. **Surface conflicts with goals.** If a request conflicts with `GOALS.md`, flag before acting.
+1. **Spec-first.** v0.2 design is locked in `docs/specs/2026-05-16-memex-v2-redesign-design.md`. Changes to architecture go through a spec revision, not ad-hoc edits.
+2. **All writes through the Librarian.** Per spec §6, every document landing in any Memex-managed store must pass through `internal/index/write/` (which routes through the Librarian subagent + Archivist + Memex Core). No bypass paths.
+3. **Internal procedures are agent-only.** Don't register additional skills in `plugin.json`; everything goes through `memex:run` routing. New procedures land at `internal/<category>/<name>/SKILL.md` with a corresponding row in `skills/run/SKILL.md`.
+4. **Tests are the contract.** Every Python module ships with pytest tests; every SKILL.md ships with a presence/frontmatter test. Run `pytest tests/` before claiming done.
+5. **Releases are deliberate.** Use `python -m scripts.release <version>` to build `dist/v<version>/`. Tagging and pushing is a user decision.
+
+## Out-of-scope for v0.2 (do not implement without spec revision)
+
+- Atelier retrofit (Atelier continues to write to its own `.ai/atelier.db`).
+- Multi-machine sync / replication.
+- Multi-tenant (multiple humans on one install).
+- Cross-store ATTACH transactions (current contract: eventually consistent, Data Steward reconciles orphans).
+- Re-embedding tooling (one model at a time; backfill deferred).
 
 ## When in doubt
 
-Read `GOALS.md`. Check alignment. If still uncertain, surface it to the user.
+Read the spec. If still uncertain, surface it to the user.
