@@ -8,6 +8,12 @@ Format: [version] — date — summary.
 
 ## Unreleased
 
+(no in-progress work)
+
+---
+
+## v2.1.0 — 2026-05-16
+
 **Embeddings: full hybrid-retrieval plumbing (#2 blocker resolved).**
 
 - **Documentation pass** — `USER_GUIDE.md` and the INSTALL.md template
