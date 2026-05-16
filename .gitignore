@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .worktrees/
+
+# Memex dist bundles — manifest tracked separately
+dist/v*/
+!dist/v*/manifest.json
