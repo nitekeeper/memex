@@ -47,6 +47,21 @@ def run() -> None:
     if registry.get_store("index") is None:
         registry.register_store("index", str(index_db_path), schema_version="v1")
 
+    # article.db (Plan 3 addition)
+    article_db_path = home / "article.db"
+    if not article_db_path.exists():
+        conn = get_connection(str(article_db_path))
+        conn.executescript(Path("db/migrations_table.sql").read_text())
+        conn.executescript(Path("db/brain.sql").read_text())
+        conn.execute(
+            "INSERT INTO migrations (filename) VALUES (?)",
+            ("brain.sql",),
+        )
+        conn.commit()
+        conn.close()
+    if registry.get_store("article") is None:
+        registry.register_store("article", str(article_db_path), schema_version="v1")
+
 
 def _seed_internal(agents_db_path: str) -> None:
     """Idempotent seed of internal roles + agents."""

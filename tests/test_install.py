@@ -65,3 +65,14 @@ def test_install_is_idempotent_with_seeds(tmp_memex_home):
     agents_db = str(memex_home() / "agents.db")
     listed = agents.list_agents(agents_db)
     assert len(listed) == 5  # not 10
+
+
+def test_install_creates_article_db(tmp_memex_home):
+    install.run()
+    assert (memex_home() / "article.db").exists()
+
+
+def test_install_registers_article_in_registry(tmp_memex_home):
+    install.run()
+    rec = registry.get_store("article")
+    assert rec is not None
