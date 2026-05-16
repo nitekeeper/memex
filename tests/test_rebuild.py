@@ -5,7 +5,7 @@ import pytest
 import tempfile
 import textwrap
 
-from rebuild import connect, parse_page, load_page, _insert_links, rebuild
+from scripts.rebuild import connect, parse_page, load_page, _insert_links, rebuild
 
 SCHEMA_PATH = str(pathlib.Path(__file__).parent.parent / "db" / "schema.sql")
 

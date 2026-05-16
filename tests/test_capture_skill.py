@@ -2,7 +2,7 @@ import pathlib
 import sqlite3
 import frontmatter as fm
 
-from rebuild import parse_page, rebuild
+from scripts.rebuild import parse_page, rebuild
 
 SCHEMA_PATH = str(pathlib.Path(__file__).parent.parent / "db" / "schema.sql")
 FIXTURE_AI_DIR = str(
