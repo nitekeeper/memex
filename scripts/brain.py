@@ -1,17 +1,28 @@
-"""Memex Brain operations: ingest, ask, capture, lint, synthesize.
+"""Memex Brain operations.
 
-Brain is a consumer of Memex's Index + Librarian. All writes route
-through memex:index:write. All reads route through memex:index:search.
+Each LLM-mediated flow (ingest, capture, ask, synthesize) is split into
+two Python helpers — `*_prepare` (sync prep) and `*_complete` (sync
+persistence) — around a Task-tool subagent dispatch performed by the
+skill markdown. See spec §8.5 and internal/brain/*/SKILL.md for the
+orchestration recipes.
+
+The Synthesizer flow has an extra step in the middle (the Synthesizer
+subagent produces text that the Librarian then classifies); see
+synthesize_prepare/complete for the contract.
 """
 from __future__ import annotations
 import hashlib
 import json
 import re
 from pathlib import Path
+
 from scripts import stores
 from scripts.agents import librarian, reference_librarian, archivist
 from scripts.agents import data_steward
 from scripts.db import memex_home
+
+
+# ── Internal helpers ──────────────────────────────────────────────────────
 
 
 def _canonical_hash(body: str) -> str:
@@ -21,7 +32,11 @@ def _canonical_hash(body: str) -> str:
 
 
 def _find_existing_by_hash(source_hash: str) -> dict | None:
-    rows = stores.query("article", "SELECT * FROM articles WHERE source_hash = ? LIMIT 1", (source_hash,))
+    rows = stores.query(
+        "article",
+        "SELECT * FROM articles WHERE source_hash = ? LIMIT 1",
+        (source_hash,),
+    )
     return rows[0] if rows else None
 
 
@@ -33,13 +48,50 @@ def _slugify(text: str) -> str:
     return text or "untitled"
 
 
-def ingest(
+def _fetch_source_bodies(index_ids: list[str]) -> list[dict]:
+    """Fetch the full row for each index_id from the article store."""
+    sources = []
+    for idx in index_ids:
+        rows = stores.query(
+            "article", "SELECT * FROM articles WHERE index_id = ?", (idx,)
+        )
+        if rows:
+            sources.append({
+                "index_id": idx,
+                "body": rows[0]["body"],
+                "title": rows[0].get("title", ""),
+            })
+    return sources
+
+
+# ── ingest ─────────────────────────────────────────────────────────────────
+
+
+def ingest_prepare(
     title: str,
     body: str,
     caller_agent_id: str,
     source_url: str | None = None,
 ) -> dict:
-    """Ingest an article into article.db. Returns dict with status+index_id."""
+    """Phase 1 of brain ingest: hash-check, archive, build Librarian prompt.
+
+    Returns one of:
+      {"status": "skipped",
+       "reason": "source_hash matches existing article",
+       "existing_index_id": "<uuid>"}
+        — caller stops here; nothing was written.
+
+      {"status": "ready",
+       "payload": {<row-to-be-inserted-into-article.db.articles>},
+       "target_store": "article",
+       "target_table": "articles",
+       "caller_agent_id": "<id>",
+       "raw_archive": {"hash": "<sha>", "path": "<abs path>"},
+       "subagent_prompt": "<full prompt text for Task tool>"}
+        — caller dispatches the Librarian subagent (subagent_type=general-purpose,
+          prompt=subagent_prompt), receives the JSON response, passes both
+          to ingest_complete().
+    """
     source_hash = _canonical_hash(body)
     existing = _find_existing_by_hash(source_hash)
     if existing is not None:
@@ -49,8 +101,9 @@ def ingest(
             "existing_index_id": existing["index_id"],
         }
 
-    # Archive raw payload
-    archive_result = archivist.archive(body.encode("utf-8"), filename=f"{_slugify(title)}.md")
+    archive_result = archivist.archive(
+        body.encode("utf-8"), filename=f"{_slugify(title)}.md"
+    )
 
     payload = {
         "title": title,
@@ -61,38 +114,130 @@ def ingest(
         "created_by": caller_agent_id,
     }
 
-    result = librarian.index_write(
+    subagent_prompt = librarian.build_prompt(
         payload=payload,
         target_store="article",
-        target_table="articles",
         caller_agent_id=caller_agent_id,
+    )
+
+    return {
+        "status": "ready",
+        "payload": payload,
+        "target_store": "article",
+        "target_table": "articles",
+        "caller_agent_id": caller_agent_id,
+        "raw_archive": archive_result,
+        "subagent_prompt": subagent_prompt,
+    }
+
+
+def ingest_complete(
+    prepare_result: dict,
+    librarian_output: dict,
+    embedding: bytes | None = None,
+) -> dict:
+    """Phase 2 of brain ingest: persist to Index + article.db.
+
+    Args:
+        prepare_result: the dict returned by ingest_prepare() with status="ready".
+        librarian_output: parsed dict from librarian.parse_response(<subagent response>).
+        embedding: float32 BLOB from embeddings.encode() of librarian_output["searchable"],
+            or None to skip (FTS5 still works; vector cosine will not).
+
+    Returns:
+        {"status": "ingested", "index_id": ..., "key": ..., "domain": ...,
+         "row_id": ..., "relations": [...]}
+
+    Raises:
+        ValueError: prepare_result is not "ready", or librarian_output is malformed.
+    """
+    if prepare_result.get("status") != "ready":
+        raise ValueError(
+            f"ingest_complete called with prepare_result.status="
+            f"{prepare_result.get('status')!r}; expected 'ready'"
+        )
+    result = librarian.write_entry(
+        payload=prepare_result["payload"],
+        librarian_output=librarian_output,
+        target_store=prepare_result["target_store"],
+        target_table=prepare_result["target_table"],
+        caller_agent_id=prepare_result["caller_agent_id"],
+        embedding=embedding,
     )
     return {"status": "ingested", **result}
 
 
-def capture(body: str, caller_agent_id: str, title: str | None = None) -> dict:
-    """Capture a free-form note into article.db.captures.
+# ── capture ────────────────────────────────────────────────────────────────
 
-    Lighter than ingest — no source URL, no hash check, but still routes
-    through the Librarian.
+
+def capture_prepare(
+    body: str,
+    caller_agent_id: str,
+    title: str | None = None,
+) -> dict:
+    """Phase 1 of brain capture. No source-hash check (captures are free-form);
+    no archive (small notes don't go through immutable storage).
+
+    Returns: {"status": "ready", "payload": {...},
+              "target_store": "article", "target_table": "captures",
+              "caller_agent_id": ..., "subagent_prompt": ...}
     """
     payload = {
         "title": title,
         "body": body,
         "created_by": caller_agent_id,
     }
-    result = librarian.index_write(
+    subagent_prompt = librarian.build_prompt(
         payload=payload,
         target_store="article",
-        target_table="captures",
         caller_agent_id=caller_agent_id,
+    )
+    return {
+        "status": "ready",
+        "payload": payload,
+        "target_store": "article",
+        "target_table": "captures",
+        "caller_agent_id": caller_agent_id,
+        "subagent_prompt": subagent_prompt,
+    }
+
+
+def capture_complete(
+    prepare_result: dict,
+    librarian_output: dict,
+    embedding: bytes | None = None,
+) -> dict:
+    """Phase 2 of brain capture. Persists to article.db.captures."""
+    if prepare_result.get("status") != "ready":
+        raise ValueError(
+            f"capture_complete called with prepare_result.status="
+            f"{prepare_result.get('status')!r}; expected 'ready'"
+        )
+    result = librarian.write_entry(
+        payload=prepare_result["payload"],
+        librarian_output=librarian_output,
+        target_store=prepare_result["target_store"],
+        target_table=prepare_result["target_table"],
+        caller_agent_id=prepare_result["caller_agent_id"],
+        embedding=embedding,
     )
     return {"status": "captured", **result}
 
 
+# ── ask (Reference Librarian — Phase 2+ refactor not yet done) ─────────────
+
+
 def ask(query: str) -> list[dict]:
-    """Ask a question. Routes through the Reference Librarian."""
+    """Ask a question. Routes through the Reference Librarian.
+
+    NOTE: This still calls reference_librarian.ask() which has the legacy
+    _invoke_llm stub (NotImplementedError). Will be refactored in Phase 2
+    of the Option-B rollout (same prepare/complete pattern).
+    """
     return reference_librarian.ask(query)
+
+
+# ── lint (no LLM; Data Steward audit) ──────────────────────────────────────
 
 
 def lint() -> str:
@@ -101,19 +246,14 @@ def lint() -> str:
     return data_steward.audit(index_db)
 
 
+# ── synthesize (Synthesizer — Phase 3 refactor not yet done) ───────────────
+
+
 def _invoke_synthesizer(prompt: str) -> str:
-    """LLM invocation for synthesis. Mocked in tests; production wires to subagent."""
-    raise NotImplementedError("Synthesizer LLM invocation TBD")
-
-
-def _fetch_source_bodies(index_ids: list[str]) -> list[dict]:
-    """Fetch the full row for each index_id from its target store."""
-    sources = []
-    for idx in index_ids:
-        rows = stores.query("article", "SELECT * FROM articles WHERE index_id = ?", (idx,))
-        if rows:
-            sources.append({"index_id": idx, "body": rows[0]["body"], "title": rows[0].get("title", "")})
-    return sources
+    """LEGACY stub. Will be removed in Phase 3 of the Option-B rollout (the
+    Synthesizer subagent is dispatched by the skill markdown via Task tool,
+    not invoked from Python)."""
+    raise NotImplementedError("Synthesizer LLM invocation TBD — see Phase 3")
 
 
 def synthesize(
@@ -121,7 +261,10 @@ def synthesize(
     input_index_ids: list[str],
     caller_agent_id: str,
 ) -> dict:
-    """Produce a multi-source synthesis on a topic. Stores in syntheses table."""
+    """LEGACY: pre-Option-B path; still calls _invoke_synthesizer +
+    librarian.index_write (which no longer exists). Will be refactored
+    in Phase 3 of the Option-B rollout into synthesize_prepare /
+    synthesize_complete (and Synthesizer subagent dispatch in the skill)."""
     sources = _fetch_source_bodies(input_index_ids)
     sources_md = "\n\n".join([
         f"### [{s['index_id']}] {s.get('title', '')}\n\n{s['body']}"
@@ -133,16 +276,11 @@ def synthesize(
 
     synthesis_body = _invoke_synthesizer(prompt)
 
-    payload = {
-        "topic": topic,
-        "body": synthesis_body,
-        "inputs_json": json.dumps(input_index_ids),
-        "created_by": caller_agent_id,
-    }
-    result = librarian.index_write(
-        payload=payload,
-        target_store="article",
-        target_table="syntheses",
-        caller_agent_id=caller_agent_id,
+    # The next line will fail (librarian.index_write removed in Phase 1) —
+    # this whole function is slated for Phase 3 refactor. Kept here as a
+    # placeholder so the module imports cleanly; tests that exercise it
+    # must be updated as part of Phase 3.
+    raise NotImplementedError(
+        "synthesize() is pending Phase 3 refactor; use librarian helpers + "
+        "Task tool dispatch from internal/brain/synthesize/SKILL.md instead."
     )
-    return {"status": "synthesized", **result}

@@ -1,40 +1,88 @@
 ---
 name: memex:index:write
-description: Submit a document for centralized indexing by the Memex Librarian, then persist to the target store. This is the MANDATORY write path for all documents — never write directly to a store's document table. Returns the assigned index_id, key, domain, and relations.
+description: Direct write to the federated Index — the lower-level primitive that memex:brain:ingest and memex:brain:capture build on. Use when a consumer (Atelier, custom plugin) needs to add a document to its own store and have it indexed by the Librarian, without going through the Brain layer. Routes through Librarian subagent + Memex Core.
 ---
 
 # memex:index:write
 
 ## When to use
 
-Any document — article, decision, meeting, spec, plan, capture, synthesis — that should be findable later. If the row carries an `index_id` column, it MUST go through this skill.
+A consumer outside Brain needs to add a document to a store of its own (e.g., Atelier adding a decision to its `decisions` table) and wants the document indexed so that `memex:index:search` (and `memex:brain:ask`) can find it across stores.
+
+Brain's `ingest` and `capture` are convenience wrappers around this skill — they share the same write path but bundle Brain-specific concerns (source-hash dedup, raw archive, article.db schema). Use those for personal Brain content; use this skill for everything else.
 
 ## Inputs
 
-- `payload` — dict containing the document fields (title, body, etc.)
-- `target_store` — registered store name (e.g., `article`, `atelier-projectX`)
-- `target_table` — table within the target store
-- `caller_agent_id` — the registered agent making the write (for attribution)
+- `target_store` — registered store name (e.g., `atelier-projectX`)
+- `target_table` — table within that store (must include an `index_id` column)
+- `payload` — dict of column values to insert (do NOT include `index_id` — the Librarian assigns it)
+- `caller_agent_id` — registered agent id of the writer
 
-## What happens
+## Recipe (Option-B Task-tool dispatch)
 
-1. Archivist writes the raw payload to `~/.memex/raw/` (content-addressable, idempotent).
-2. Librarian (LLM subagent) reads payload + existing index snippet, decides `index_id`, `key`, `domain`, `searchable`, `metadata`, `relations`.
-3. Embedding is computed for `searchable` and packed into a BLOB.
-4. Index row + relations rows are written to `~/.memex/index.db` (COMMIT).
-5. Target store row is written via Memex Core with `index_id` populated (separate COMMIT — eventually consistent, see spec §6.1).
-6. Returns: `{index_id, key, domain, relations, row_id}`.
+### Step 1 — Build the Librarian prompt
 
-## Invocation
+```python
+from scripts.agents import librarian
+prompt = librarian.build_prompt(
+    payload=payload,
+    target_store=target_store,
+    caller_agent_id=caller_agent_id,
+)
+```
 
-`scripts/agents/librarian.py:index_write(payload, target_store, target_table, caller_agent_id)`
+`build_prompt` fetches the `librarian-1` profile + recent index snippet and assembles the full subagent prompt via the `prompts/librarian.md` template.
 
-## Errors
+### Step 2 — Dispatch the Librarian subagent
 
-- `ValueError: Unknown store` — `target_store` not registered.
-- `IntegrityError` — duplicate `index_id` (rare; LLM should generate unique).
-- `ValueError: Agent not registered` — `caller_agent_id` not in agents.db.
+Use the **Task tool**:
+
+- `subagent_type`: `general-purpose`
+- `description`: `Librarian: classify document`
+- `prompt`: the value from Step 1
+
+The subagent's final message: JSON with `index_id`, `key`, `domain`, `searchable`, plus optional `metadata`, `relations`.
+
+### Step 3 — Parse and validate
+
+```python
+librarian_output = librarian.parse_response(subagent_response)
+```
+
+Retry Step 2 once on `ValueError`. After two failures, report `BLOCKED` and stop.
+
+### Step 4 — Encode embedding (optional)
+
+```python
+from scripts import embeddings
+try:
+    embedding = embeddings.encode(librarian_output["searchable"])
+except Exception as e:
+    print(f"warn: embedding skipped ({e})")
+    embedding = None
+```
+
+### Step 5 — Persist
+
+```python
+result = librarian.write_entry(
+    payload=payload,
+    librarian_output=librarian_output,
+    target_store=target_store,
+    target_table=target_table,
+    caller_agent_id=caller_agent_id,
+    embedding=embedding,
+)
+```
+
+Returns the dict with `index_id`, `key`, `domain`, `row_id`, `relations`.
 
 ## Atomicity contract
 
-Index write commits BEFORE target store write. If the target store write fails, the Index row exists without a corresponding store row — an orphan. The Data Steward's next audit will detect and report it. See spec §6.1.
+Per spec §6.1, the Index write commits BEFORE the target-store write. If the target write fails, an orphan exists in `index.db.documents` until the Data Steward audit catches it. The skill does NOT retry the target-store write — that's manual recovery via `memex:steward:reconcile-orphan`.
+
+## Notes
+
+- The target table MUST have an `index_id` column (and ideally `UNIQUE` on it). Tables without one should use `memex:core:insert` directly — they're considered structural/lookup data, not documents.
+- If the Librarian subagent picks an `index_id` that already exists in the Index, the INSERT will fail with a UNIQUE constraint error. The subagent's prompt instructs it to generate fresh UUIDs; collisions should be vanishingly rare.
+- Consumers that want structured-row metadata not visible to the Librarian should put it in `payload` (which becomes the target-store row) but not in `searchable` (which becomes the Index's FTS5-indexed text). The Librarian sees `payload` to classify; persistence stores the full row.

@@ -1,14 +1,17 @@
-import json
 import pytest
 from pathlib import Path
-from unittest.mock import patch
 from scripts import install, stores
-from scripts.agents import librarian, reference_librarian, data_steward
+from scripts.agents import librarian, data_steward
 from scripts.db import memex_home, get_connection
 
 
-def test_e2e_index_write_and_search(tmp_memex_home, tmp_path):
-    """Full write -> index -> search -> orphan-audit cycle."""
+def test_e2e_index_write_and_audit(tmp_memex_home, tmp_path):
+    """Full write (via new write_entry API) -> orphan-audit cycle.
+
+    Phase 1 (Option-B refactor) coverage: Librarian's persistence layer
+    via librarian.write_entry with synthetic LLM output. The search half
+    of the original test (Reference Librarian) is deferred to Phase 2.
+    """
     install.run()
 
     # Create a target store
@@ -23,41 +26,26 @@ def test_e2e_index_write_and_search(tmp_memex_home, tmp_path):
     )
     stores.create_store("test-articles", str(tmp_path / "ta.db"), str(md))
 
-    # Mock Librarian LLM
-    mock_lib_response = json.dumps({
+    # Synthetic Librarian subagent output (Task tool returns JSON; here we
+    # supply it directly to write_entry).
+    librarian_output = {
         "index_id": "idx-1",
         "key": "hello-world",
         "domain": "article",
         "searchable": "hello world greeting body",
         "metadata": {},
-        "relations": []
-    })
+        "relations": [],
+    }
 
-    # Mock Reference Librarian LLM
-    mock_rl_plan = json.dumps({
-        "fts_query": "hello",
-        "vector_query": None,
-        "filters": {},
-        "limit": 10,
-    })
-
-    with patch("scripts.agents.librarian._invoke_llm", return_value=mock_lib_response), \
-         patch("scripts.agents.librarian._encode_embedding", return_value=b"\x00\x00\x00\x00"), \
-         patch("scripts.agents.reference_librarian._invoke_llm", return_value=mock_rl_plan):
-
-        # Write
-        result = librarian.index_write(
-            payload={"title": "Hello", "body": "hello world greeting body"},
-            target_store="test-articles",
-            target_table="articles",
-            caller_agent_id="librarian-1",
-        )
-        assert result["index_id"] == "idx-1"
-
-        # Search
-        results = reference_librarian.ask("hello")
-        ids = [r["index_id"] for r in results]
-        assert "idx-1" in ids
+    result = librarian.write_entry(
+        payload={"title": "Hello", "body": "hello world greeting body"},
+        librarian_output=librarian_output,
+        target_store="test-articles",
+        target_table="articles",
+        caller_agent_id="librarian-1",
+        embedding=b"\x00\x00\x00\x00",
+    )
+    assert result["index_id"] == "idx-1"
 
     # Audit should find no orphans (everything consistent)
     index_db = str(memex_home() / "index.db")

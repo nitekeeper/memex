@@ -570,27 +570,85 @@ Section labels below describe the procedure names. Their files all live at
 | `memex:steward:audit-store` | Audit a specific registered store. |
 | `memex:steward:reconcile-orphan` | Authorized action: resolve a flagged orphan. |
 
-### 8.5 Subagent invocation pattern
+### 8.5 Subagent invocation pattern — **Task-tool dispatch + Shape-1 prep/complete**
 
-The five internal agents are invoked as Claude Code subagents. The exact
-invocation mechanism (Task tool vs. inline skill invocation vs. other) is
-deferred to Wave 1 implementation; see §14. Each subagent receives:
+(Originally deferred per spec §14; locked 2026-05-16 after the Option-B
+discussion. The previous "TBD" wording is superseded.)
 
-1. Its system prompt = `agents.profile` from `~/.memex/agents.db`.
-2. The operation-specific context (payload, query, etc.).
-3. Read access to relevant DBs.
-4. Write access scoped to its role (Librarian writes index.db; Archivist
-   writes raw/; Reference Librarian is read-only; DBA executes pragmas/
-   migrations; Steward writes audit reports).
+**The LLM-driven internal agents (Librarian, Reference Librarian,
+Synthesizer) are dispatched as Claude Code subagents via the Task tool,
+not invoked from Python.** Python provides the prep work, prompt
+construction, response parsing, and persistence — the LLM step happens in
+the middle, orchestrated by the skill markdown.
 
-The procedures at `internal/index/*`, `internal/brain/*`, and
-`internal/steward/*` are thin wrappers that invoke the appropriate
-subagent with the right context. Procedures at `internal/core/*` and
-`internal/dba/*` are direct CLI invocations of Python CRUD modules (no
-LLM subagent involved).
+Each LLM-mediated Python flow is structured as a **prepare / complete pair**
+(Shape 1):
 
-None of these procedures are registered in `plugin.json`. They are
-discoverable only via the routing table in `skills/run/SKILL.md`.
+```
+flow_prepare(...) -> {"status": "ready",
+                      "payload": {...},
+                      "target_store": ...,
+                      "target_table": ...,
+                      "caller_agent_id": ...,
+                      "subagent_prompt": "<full Task-tool prompt>"}
+                     OR
+                     {"status": "skipped", "existing_index_id": ...}
+
+[skill markdown:
+   - Branch on status
+   - If "ready": Task tool dispatch with subagent_type=general-purpose
+     and prompt=prep["subagent_prompt"]
+   - librarian.parse_response(subagent_response) → librarian_output
+   - On parse failure: retry Task dispatch ONCE; second failure → BLOCKED
+   - Optional: embeddings.encode(searchable) → embedding | None]
+
+flow_complete(prepare_result, librarian_output, embedding=None) ->
+    {"status": "ingested" | "captured" | ..., "index_id": ...,
+     "key": ..., "domain": ..., "row_id": ..., "relations": [...]}
+```
+
+For multi-subagent flows (Synthesizer → Librarian), the skill orchestrates
+two Task dispatches with an intermediate `librarian.build_prompt()` call
+to build the Librarian's prompt from the Synthesizer's output. See
+`internal/brain/synthesize/SKILL.md` (pending Phase 3 of the rollout).
+
+**Architectural consequences:**
+
+- `librarian._invoke_llm` and `reference_librarian._invoke_llm` are
+  REMOVED. Python no longer "calls out" to an LLM; the calling Claude
+  session dispatches the subagent.
+- Subagent context is isolated from caller context. The Librarian
+  profile is the subagent's operating context, not loaded into the
+  caller's context window. The caller's context carries the payload +
+  the parsed JSON response only.
+- Subagent failure (malformed JSON) is recoverable: skill retries the
+  Task dispatch once. After two failures the skill reports `BLOCKED`
+  and writes nothing.
+- Embeddings are best-effort. If `embeddings.encode()` raises (no
+  `OPENAI_API_KEY`, provider error), the skill catches the exception
+  and persists with `embedding=None`. FTS5 retrieval continues to work;
+  vector cosine is skipped for that document.
+
+**Deterministic agents** (Archivist, Data Steward, Database Administrator)
+are NOT dispatched as subagents — they're plain Python modules under
+`scripts/agents/`. They have entries in `~/.memex/agents.db` for
+attribution (`created_by`, audit-report authorship), but no LLM call.
+
+**Procedures at `internal/<category>/*/SKILL.md` are not registered in
+`plugin.json`.** They're discoverable only via the routing table in
+`skills/run/SKILL.md`.
+
+**Rollout phasing (in progress):**
+
+- **Phase 1** (current): Librarian flow refactored — `ingest_prepare/complete`,
+  `capture_prepare/complete`, and `librarian.write_entry`. The skill
+  markdowns for `brain/ingest`, `brain/capture`, and `index/write` are
+  the new orchestration recipes.
+- **Phase 2**: Reference Librarian — `ask_prepare/execute` and the
+  `brain/ask` + `index/search` skill recipes.
+- **Phase 3**: Synthesizer — `synthesize_prepare/post/complete` and the
+  `brain/synthesize` skill recipe (which dispatches both Synthesizer and
+  Librarian subagents).
 
 ---
 

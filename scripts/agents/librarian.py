@@ -1,17 +1,39 @@
-"""Librarian — LLM-driven indexing harness.
+"""Librarian — Python helpers for the indexing flow.
 
-build_prompt: assemble the prompt text from the template + caller context.
-parse_response: validate and coerce the LLM's JSON output.
-index_write: top-level orchestration — invoke LLM, write to index.db,
-              delegate to Core for target-store insertion.
+The Librarian agent itself is invoked as a Claude Code subagent via the
+Task tool (see spec §8.5). Python here provides the prep work, prompt
+construction, response parsing, and persistence — the LLM step happens
+between `fetch_context()`+`build_prompt()` and `write_entry()`, dispatched
+by the skill markdown.
+
+Public API:
+    fetch_context(target_store) -> dict
+        Returns {profile, snippet} for the Librarian subagent's prompt.
+
+    build_prompt(payload, target_store, caller_agent_id,
+                 existing_index_snippet=None) -> str
+        Assembles the full subagent prompt from the template.
+
+    parse_response(response_text) -> dict
+        Validates and coerces the subagent's JSON response.
+
+    write_entry(payload, librarian_output, target_store, target_table,
+                caller_agent_id, embedding=None) -> dict
+        Persists: index.db.documents + relations + target store row.
+        Returns the resulting dict (with row_id added).
+
+Removed in v2.0 refactor: `_invoke_llm` and `index_write`. The LLM
+invocation no longer happens in Python — the skill markdown dispatches
+the Librarian subagent via Task tool and passes the parsed response to
+`write_entry()`. See internal/brain/ingest/SKILL.md for the recipe.
 """
 from __future__ import annotations
 import json
 import uuid
 from pathlib import Path
-from scripts import registry, stores, agents as agents_mod
+
+from scripts import stores, agents as agents_mod
 from scripts.db import get_connection, memex_home
-from scripts import embeddings
 
 
 _REQUIRED_FIELDS = {"index_id", "key", "domain", "searchable"}
@@ -40,12 +62,32 @@ def _recent_index_snippet(limit: int = 20) -> list[dict]:
     return rows
 
 
+def fetch_context(target_store: str, snippet_limit: int = 20) -> dict:
+    """Gather what the Librarian subagent needs to do classification.
+
+    Returns {"profile": <str>, "snippet": <list[dict]>, "target_store": <str>}.
+    The skill markdown passes this into build_prompt() to assemble the full
+    subagent prompt.
+    """
+    return {
+        "profile": _get_profile("librarian-1"),
+        "snippet": _recent_index_snippet(limit=snippet_limit),
+        "target_store": target_store,
+    }
+
+
 def build_prompt(
     payload,
     target_store: str,
     caller_agent_id: str,
     existing_index_snippet: list[dict] | None = None,
 ) -> str:
+    """Build the Librarian subagent's full prompt by template substitution.
+
+    The skill markdown calls this to construct the Task tool's `prompt`
+    argument. Subagent_type=general-purpose; the system prompt is the
+    Librarian profile embedded in the template.
+    """
     if existing_index_snippet is None:
         existing_index_snippet = _recent_index_snippet()
     template = _load_template()
@@ -60,8 +102,15 @@ def build_prompt(
 
 
 def parse_response(response_text: str) -> dict:
-    """Parse and validate the Librarian's JSON output."""
-    # Strip code fences if present
+    """Parse and validate the Librarian subagent's JSON output.
+
+    Strips markdown code fences if present (subagents often wrap JSON in
+    ```json ... ```). Validates required fields. Defaults metadata/relations
+    to empty if omitted.
+
+    Raises:
+        ValueError: response missing required fields, or unparseable as JSON.
+    """
     s = response_text.strip()
     if s.startswith("```"):
         s = s.split("```", 2)[1]
@@ -77,82 +126,93 @@ def parse_response(response_text: str) -> dict:
     return parsed
 
 
-def _invoke_llm(prompt: str) -> str:
-    """Invoke the Librarian subagent via Claude Code's Task tool.
-
-    Plan 2's implementation wires this to the actual subagent invocation
-    mechanism. For testing, this is mocked. The exact mechanism (Task tool
-    vs inline skill) is deferred per spec §14.
-    """
-    raise NotImplementedError(
-        "Subagent invocation TBD — patch this in tests; wire to Task tool in production."
-    )
-
-
-def _encode_embedding(text: str) -> bytes:
-    """Wrapper for embeddings.encode — patched in tests to skip API calls."""
-    return embeddings.encode(text)
-
-
-def index_write(
+def write_entry(
     payload: dict,
+    librarian_output: dict,
     target_store: str,
     target_table: str,
     caller_agent_id: str,
+    embedding: bytes | None = None,
 ) -> dict:
-    """Top-level write path. Returns the dict Librarian produced (plus
-    the target store row's PK).
+    """Persist a classified document.
+
+    Two-stage write per spec §6.1 (eventually consistent):
+      1. Write index.db.documents + relations rows (commits)
+      2. Write target-store row via stores.insert (commits)
+      3. Update documents.row_id with the target-store PK (commits)
+
+    A crash between steps 1 and 2 leaves an orphan in index.db; the Data
+    Steward audit detects it.
+
+    Args:
+        payload: the row to insert into the target store (must NOT include
+            `index_id` — this function adds it from librarian_output).
+        librarian_output: parsed dict from parse_response(). Must have
+            index_id, key, domain, searchable, plus optional metadata, relations.
+        target_store: registered store name (e.g., "article").
+        target_table: target table inside that store (e.g., "articles", "captures").
+        caller_agent_id: who invoked this; recorded in documents.created_by.
+        embedding: float32 BLOB from embeddings.encode(), or None to skip
+            (vector search will be unavailable for this document; FTS5 still works).
+
+    Returns:
+        librarian_output augmented with "row_id" (the target-store PK).
     """
-    prompt = build_prompt(payload, target_store, caller_agent_id)
-    response = _invoke_llm(prompt)
-    extracted = parse_response(response)
+    missing = _REQUIRED_FIELDS - set(librarian_output.keys())
+    if missing:
+        raise ValueError(f"librarian_output missing fields: {missing}")
 
-    # If LLM didn't supply index_id, generate one
-    if not extracted.get("index_id"):
-        extracted["index_id"] = str(uuid.uuid4())
+    # Default in case the subagent didn't supply an index_id
+    index_id = librarian_output.get("index_id") or str(uuid.uuid4())
+    librarian_output = {**librarian_output, "index_id": index_id}
 
-    # Compute embedding from searchable text
-    embedding_blob = _encode_embedding(extracted["searchable"])
+    metadata = librarian_output.get("metadata") or {}
+    relations = librarian_output.get("relations") or []
 
-    # Write to index.db
     index_db_path = str(memex_home() / "index.db")
-    conn = get_connection(index_db_path)
-    conn.execute(
-        "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
-        "searchable, metadata, embedding, created_by) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            extracted["index_id"],
-            extracted.get("key"),
-            extracted["domain"],
-            target_store,
-            target_table,
-            "",  # row_id filled in after target-store insert
-            extracted["searchable"],
-            json.dumps(extracted["metadata"]),
-            embedding_blob,
-            caller_agent_id,
-        ),
-    )
-    for rel in extracted.get("relations", []):
-        conn.execute(
-            "INSERT INTO relations (from_index_id, to_index_id, rel_type) VALUES (?, ?, ?)",
-            (extracted["index_id"], rel["to_index_id"], rel["rel_type"]),
-        )
-    conn.commit()
-    conn.close()
 
-    # Delegate to Core for target store
-    insert_row = {**payload, "index_id": extracted["index_id"]}
+    # Step 1: Index row + relations
+    conn = get_connection(index_db_path)
+    try:
+        conn.execute(
+            "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
+            "searchable, metadata, embedding, created_by) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                index_id,
+                librarian_output.get("key"),
+                librarian_output["domain"],
+                target_store,
+                target_table,
+                "",  # row_id filled in after target-store insert
+                librarian_output["searchable"],
+                json.dumps(metadata),
+                embedding,
+                caller_agent_id,
+            ),
+        )
+        for rel in relations:
+            conn.execute(
+                "INSERT INTO relations (from_index_id, to_index_id, rel_type) VALUES (?, ?, ?)",
+                (index_id, rel["to_index_id"], rel["rel_type"]),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Step 2: target-store row (via Core)
+    insert_row = {**payload, "index_id": index_id}
     inserted = stores.insert(target_store, target_table, insert_row)
 
-    # Update documents.row_id with the actual PK now that we know it
+    # Step 3: Update documents.row_id with the actual PK
     conn = get_connection(index_db_path)
-    conn.execute(
-        "UPDATE documents SET row_id = ? WHERE index_id = ?",
-        (str(inserted.get("id", "")), extracted["index_id"]),
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            "UPDATE documents SET row_id = ? WHERE index_id = ?",
+            (str(inserted.get("id", "")), index_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
-    return {**extracted, "row_id": inserted.get("id")}
+    return {**librarian_output, "row_id": inserted.get("id")}
