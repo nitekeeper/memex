@@ -8,10 +8,39 @@ Format: [version] — date — summary.
 
 ## Unreleased
 
-**Embeddings: full hybrid-retrieval plumbing (#2 blocker resolution).**
+**Embeddings: full hybrid-retrieval plumbing (#2 blocker resolved).**
 
-- Documentation pass — `USER_GUIDE.md` and INSTALL.md template now have explicit "Embeddings & retrieval" sections covering: provider selection (`openai` / `voyage` / `local`), required env vars per provider, what happens with no provider configured (FTS5-only, graceful fallback), and when to backfill / re-embed.
-- (Coming in subsequent commits) Real Voyage and Local provider implementations (replacing the previous NotImplementedError stubs); `memex:run → "backfill embeddings"` skill (one-shot fill of NULL rows); `memex:run → "re-embed all"` skill (regenerate after provider/model change); model-change detection in `registry.json:__embedding_model__`.
+- **Documentation pass** — `USER_GUIDE.md` and the INSTALL.md template
+  now have explicit "Embeddings & retrieval" sections covering provider
+  selection (`openai` / `voyage` / `local`), required env vars, the
+  no-provider FTS5-only fallback, and when to backfill / re-embed.
+- **Real Voyage + Local providers.** The previous NotImplementedError
+  stubs in `scripts/embeddings.py` are gone. Voyage uses the `voyageai`
+  SDK with `VOYAGE_API_KEY` (default model `voyage-3`, 1024-dim). Local
+  uses `sentence-transformers` with no API key (default
+  `all-MiniLM-L6-v2`, 384-dim; first call downloads ~80MB model
+  weights). Both SDKs are lazy-imported — installing memex doesn't
+  require either.
+- **Per-provider model overrides** — `MEMEX_OPENAI_MODEL`,
+  `MEMEX_VOYAGE_MODEL`, `MEMEX_LOCAL_MODEL` env vars let you switch
+  models within a provider without code changes.
+- **`memex:embed:backfill`** — fills `embedding=NULL` rows with the
+  current provider. Idempotent — non-NULL rows untouched. Use after
+  configuring a key for the first time, or after FTS5-only ingest.
+- **`memex:embed:reembed`** — regenerates ALL embeddings after a
+  deliberate provider/model change. Gated by confirmation (destructive
+  — overwrites existing embeddings). Reports `previous_recorded`
+  alongside the new model so the user can verify what they're replacing.
+- **Model-change detection** — `embeddings.detect_model_change()`
+  compares the active provider/model against what `registry.json:__embedding_model__`
+  recorded the last time `encode()` ran. The reembed skill warns when
+  drift is detected (or asks for confirmation when there is none).
+- New helpers: `embeddings.active_model_info()` (no API call required)
+  and `embeddings.recorded_model_info()` (reads from registry.json).
+
+Test count: 238 passed, 0 skipped (was 211 pre-#2 work; +27 new
+embedding tests covering all three providers, backfill, reembed, and
+drift detection).
 
 ---
 

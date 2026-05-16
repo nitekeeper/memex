@@ -233,6 +233,168 @@ def encode(text: str) -> bytes:
     return _pack(vec)
 
 
+# ── Backfill / reembed ────────────────────────────────────────────────────
+
+
+def backfill_null(batch_size: int = 100, dry_run: bool = False) -> dict:
+    """Re-encode every documents row with `embedding IS NULL` using the
+    currently-active provider. Idempotent — non-NULL rows are left alone.
+
+    Use after configuring an embedding provider for the first time, or
+    after ingesting documents with no provider configured (FTS5-only mode).
+
+    Args:
+        batch_size: how many rows to encode before committing. Higher = fewer
+            commits but more loss on crash. Default 100.
+        dry_run: if True, count the NULL rows and report what WOULD happen
+            without making any API calls or DB writes.
+
+    Returns:
+        {"considered": N, "encoded": M, "errors": E,
+         "provider": ..., "model": ..., "dim": ...,
+         "dry_run": bool}.
+
+    The skill markdown (`internal/embed/backfill/SKILL.md`) wraps this
+    helper. Callers do NOT need to be in a Claude Code session — this is
+    pure Python with no Task-tool dispatch.
+    """
+    from scripts.db import get_connection, memex_home
+
+    index_db = str(memex_home() / "index.db")
+    info = active_model_info()
+
+    conn = get_connection(index_db)
+    null_rows = conn.execute(
+        "SELECT index_id, searchable FROM documents WHERE embedding IS NULL"
+    ).fetchall()
+    conn.close()
+
+    summary = {
+        "considered": len(null_rows),
+        "encoded": 0,
+        "errors": 0,
+        "provider": info["provider"],
+        "model": info["model"],
+        "dim": info["dim"],
+        "dry_run": dry_run,
+    }
+    if dry_run or not null_rows:
+        return summary
+
+    conn = get_connection(index_db)
+    try:
+        for i, row in enumerate(null_rows):
+            try:
+                blob = encode(row["searchable"] or "")
+            except Exception:
+                summary["errors"] += 1
+                continue
+            conn.execute(
+                "UPDATE documents SET embedding = ? WHERE index_id = ?",
+                (blob, row["index_id"]),
+            )
+            summary["encoded"] += 1
+            if (i + 1) % batch_size == 0:
+                conn.commit()
+        conn.commit()
+    finally:
+        conn.close()
+    return summary
+
+
+def reembed_all(batch_size: int = 100, dry_run: bool = False) -> dict:
+    """Re-encode EVERY documents row (NULL and non-NULL) using the active
+    provider. Use after a deliberate provider/model change — existing
+    embeddings from the old model are dimensionally or semantically
+    incomparable.
+
+    Heavier than backfill_null — touches every row. Run when needed, not
+    on a schedule.
+
+    Args:
+        batch_size, dry_run: same as backfill_null.
+
+    Returns: same shape as backfill_null, plus
+        "previous_recorded": {provider, model, dim} | None  — what
+            registry.json's __embedding_model__ said BEFORE this call.
+
+    The skill markdown (`internal/embed/reembed/SKILL.md`) wraps this
+    helper and adds a confirmation prompt because this is destructive
+    (existing embeddings are overwritten).
+    """
+    from scripts.db import get_connection, memex_home
+
+    index_db = str(memex_home() / "index.db")
+    info = active_model_info()
+    previous = recorded_model_info()
+
+    conn = get_connection(index_db)
+    all_rows = conn.execute(
+        "SELECT index_id, searchable FROM documents"
+    ).fetchall()
+    conn.close()
+
+    summary = {
+        "considered": len(all_rows),
+        "encoded": 0,
+        "errors": 0,
+        "provider": info["provider"],
+        "model": info["model"],
+        "dim": info["dim"],
+        "previous_recorded": previous,
+        "dry_run": dry_run,
+    }
+    if dry_run or not all_rows:
+        return summary
+
+    conn = get_connection(index_db)
+    try:
+        for i, row in enumerate(all_rows):
+            try:
+                blob = encode(row["searchable"] or "")
+            except Exception:
+                summary["errors"] += 1
+                continue
+            conn.execute(
+                "UPDATE documents SET embedding = ? WHERE index_id = ?",
+                (blob, row["index_id"]),
+            )
+            summary["encoded"] += 1
+            if (i + 1) % batch_size == 0:
+                conn.commit()
+        conn.commit()
+    finally:
+        conn.close()
+    return summary
+
+
+def detect_model_change() -> dict | None:
+    """Compare the currently-active provider/model against what's recorded
+    in registry.json. Returns None if they match (or nothing was ever
+    recorded), otherwise a dict describing the drift:
+
+        {"active": {provider, model, dim},
+         "recorded": {provider, model, dim},
+         "changed": ["provider" | "model" | "dim", ...]}
+
+    Used by the reembed skill to warn the user before re-encoding.
+    """
+    active = active_model_info()
+    recorded = recorded_model_info()
+    if recorded is None:
+        return None
+    changed: list[str] = []
+    for key in ("provider", "model", "dim"):
+        if active.get(key) != recorded.get(key):
+            changed.append(key)
+    if not changed:
+        return None
+    return {"active": active, "recorded": recorded, "changed": changed}
+
+
+# ── Cosine ────────────────────────────────────────────────────────────────
+
+
 def cosine(blob_a: bytes, blob_b: bytes) -> float:
     """Cosine similarity between two packed embedding BLOBs."""
     a = _unpack(blob_a)

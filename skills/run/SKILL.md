@@ -54,6 +54,8 @@ Memex maintains a federated Index (`~/.memex/index.db`) plus five internal agent
 | Run a WAL checkpoint on a registered store | `internal/dba/checkpoint/SKILL.md` |
 | Run `PRAGMA integrity_check` on a registered store | `internal/dba/integrity-check/SKILL.md` |
 | Run `VACUUM` on a registered store (maintenance) | `internal/dba/vacuum/SKILL.md` |
+| Backfill embeddings (encode rows where `embedding IS NULL`) | `internal/embed/backfill/SKILL.md` |
+| Re-embed all rows after a provider/model change | `internal/embed/reembed/SKILL.md` |
 
 The Librarian and Reference Librarian are themselves invoked as LLM subagents inside `index:write` and `index:search` respectively; they read their system prompts from `agents.db.agents.profile`. Archivist, DBA, and Data Steward are deterministic Python modules.
 

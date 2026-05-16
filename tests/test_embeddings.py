@@ -223,3 +223,168 @@ def test_local_provider_raises_runtime_error_if_sdk_missing(monkeypatch):
     monkeypatch.setitem(sys.modules, "sentence_transformers", None)
     with pytest.raises(RuntimeError, match="sentence-transformers is not installed"):
         embeddings._call_provider("x")
+
+
+# ── Backfill / reembed / model-change detection ───────────────────────────
+
+
+def _seed_documents(rows: list[dict]):
+    """Helper: insert documents rows directly into ~/.memex/index.db."""
+    from scripts.db import get_connection, memex_home
+    conn = get_connection(str(memex_home() / "index.db"))
+    for r in rows:
+        conn.execute(
+            "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
+            "searchable, embedding, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (r["index_id"], r.get("key", r["index_id"]),
+             r.get("domain", "article"), r.get("store", "no-store"),
+             r.get("table_name", "t"), r.get("row_id", "1"),
+             r["searchable"], r.get("embedding"), r.get("created_by", "librarian-1")),
+        )
+    conn.commit()
+    conn.close()
+
+
+def test_backfill_null_counts_correctly_dry_run(tmp_memex_home):
+    from scripts import install
+    install.run()
+    _seed_documents([
+        {"index_id": "a", "searchable": "alpha"},
+        {"index_id": "b", "searchable": "beta", "embedding": b"\x00\x00\x00\x00"},
+        {"index_id": "c", "searchable": "gamma"},
+    ])
+    result = embeddings.backfill_null(dry_run=True)
+    assert result["considered"] == 2  # a, c — b already has embedding
+    assert result["encoded"] == 0
+    assert result["errors"] == 0
+    assert result["dry_run"] is True
+
+
+def test_backfill_null_encodes_only_null_rows(tmp_memex_home):
+    from scripts import install
+    install.run()
+    _seed_documents([
+        {"index_id": "a", "searchable": "alpha"},
+        {"index_id": "b", "searchable": "beta", "embedding": b"\xFF" * 8},
+        {"index_id": "c", "searchable": "gamma"},
+    ])
+    with patch("scripts.embeddings._call_provider", return_value=[0.1] * 4):
+        result = embeddings.backfill_null()
+    assert result["considered"] == 2
+    assert result["encoded"] == 2
+    assert result["errors"] == 0
+    # b's existing embedding untouched
+    from scripts.db import get_connection, memex_home
+    conn = get_connection(str(memex_home() / "index.db"))
+    rows = {r["index_id"]: r["embedding"] for r in
+            conn.execute("SELECT index_id, embedding FROM documents")}
+    conn.close()
+    assert rows["b"] == b"\xFF" * 8
+    assert rows["a"] is not None
+    assert rows["c"] is not None
+
+
+def test_backfill_null_tolerates_per_row_errors(tmp_memex_home):
+    from scripts import install
+    install.run()
+    _seed_documents([
+        {"index_id": "good", "searchable": "ok"},
+        {"index_id": "bad", "searchable": "fail"},
+    ])
+    call_count = {"n": 0}
+
+    def flaky_provider(text):
+        call_count["n"] += 1
+        if "fail" in text:
+            raise RuntimeError("provider hiccup")
+        return [0.0] * 4
+
+    with patch("scripts.embeddings._call_provider", side_effect=flaky_provider):
+        result = embeddings.backfill_null()
+    assert result["considered"] == 2
+    assert result["encoded"] == 1
+    assert result["errors"] == 1
+
+
+def test_reembed_all_overwrites_existing(tmp_memex_home):
+    from scripts import install
+    install.run()
+    _seed_documents([
+        {"index_id": "a", "searchable": "alpha", "embedding": b"\x01" * 8},
+        {"index_id": "b", "searchable": "beta", "embedding": b"\x02" * 8},
+    ])
+    with patch("scripts.embeddings._call_provider", return_value=[0.5] * 4):
+        result = embeddings.reembed_all()
+    assert result["considered"] == 2
+    assert result["encoded"] == 2
+
+    from scripts.db import get_connection, memex_home
+    conn = get_connection(str(memex_home() / "index.db"))
+    rows = list(conn.execute("SELECT embedding FROM documents"))
+    conn.close()
+    # All rows now have the new 16-byte float32 BLOB (4 floats × 4 bytes), not
+    # the 8-byte placeholders we seeded.
+    for r in rows:
+        assert len(r["embedding"]) == 16
+
+
+def test_reembed_all_dry_run_changes_nothing(tmp_memex_home):
+    from scripts import install
+    install.run()
+    _seed_documents([
+        {"index_id": "a", "searchable": "alpha", "embedding": b"\x01" * 8},
+    ])
+    result = embeddings.reembed_all(dry_run=True)
+    assert result["considered"] == 1
+    assert result["encoded"] == 0
+
+    from scripts.db import get_connection, memex_home
+    conn = get_connection(str(memex_home() / "index.db"))
+    embedding = conn.execute("SELECT embedding FROM documents WHERE index_id = 'a'").fetchone()["embedding"]
+    conn.close()
+    assert embedding == b"\x01" * 8  # unchanged
+
+
+def test_detect_model_change_returns_none_when_unrecorded(tmp_memex_home):
+    """No __embedding_model__ in registry yet → no drift to report."""
+    from scripts import install
+    install.run()
+    assert embeddings.detect_model_change() is None
+
+
+def test_detect_model_change_returns_none_when_aligned(tmp_memex_home, monkeypatch):
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "openai")
+    with patch("scripts.embeddings._call_provider", return_value=[0.0] * 1536):
+        embeddings.encode("hello")  # records {provider:openai, model:..., dim:1536}
+    # No provider change yet
+    assert embeddings.detect_model_change() is None
+
+
+def test_detect_model_change_flags_provider_switch(tmp_memex_home, monkeypatch):
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "openai")
+    with patch("scripts.embeddings._call_provider", return_value=[0.0] * 1536):
+        embeddings.encode("hello")
+    # Now switch to voyage
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "voyage")
+    drift = embeddings.detect_model_change()
+    assert drift is not None
+    assert "provider" in drift["changed"]
+    assert drift["active"]["provider"] == "voyage"
+    assert drift["recorded"]["provider"] == "openai"
+
+
+def test_reembed_all_records_previous_in_result(tmp_memex_home, monkeypatch):
+    from scripts import install
+    install.run()  # need index.db for _seed_documents
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "openai")
+    with patch("scripts.embeddings._call_provider", return_value=[0.0] * 1536):
+        embeddings.encode("seed")  # records previous
+
+    # Switch + reembed
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "voyage")
+    monkeypatch.setenv("VOYAGE_API_KEY", "test-key")
+    _seed_documents([{"index_id": "x", "searchable": "x"}])
+    with patch("scripts.embeddings._call_provider", return_value=[0.1] * 1024):
+        result = embeddings.reembed_all()
+    assert result["previous_recorded"]["provider"] == "openai"
+    assert result["provider"] == "voyage"

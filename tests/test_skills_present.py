@@ -102,6 +102,29 @@ def test_brain_skills_frontmatter():
         assert f"name: memex:brain:{s}" in content
 
 
+EMBED_SKILLS = ["backfill", "reembed"]
+
+
+def test_embed_skills_present():
+    for s in EMBED_SKILLS:
+        p = Path(f"internal/embed/{s}/SKILL.md")
+        assert p.exists(), f"Missing: embed/{s}"
+
+
+def test_embed_skills_frontmatter():
+    for s in EMBED_SKILLS:
+        content = Path(f"internal/embed/{s}/SKILL.md").read_text(encoding="utf-8")
+        assert f"name: memex:embed:{s}" in content
+
+
+def test_run_skill_routes_to_embed_skills():
+    run_content = Path("skills/run/SKILL.md").read_text(encoding="utf-8")
+    for s in EMBED_SKILLS:
+        assert f"internal/embed/{s}/SKILL.md" in run_content, (
+            f"memex:run missing routing entry for internal/embed/{s}"
+        )
+
+
 def test_run_skill_routes_to_brain_skills():
     run_content = Path("skills/run/SKILL.md").read_text(encoding="utf-8")
     for s in BRAIN_SKILLS:
