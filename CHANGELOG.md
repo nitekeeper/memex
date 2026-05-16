@@ -12,6 +12,61 @@ Format: [version] — date — summary.
 
 ---
 
+## v2.2.0 — 2026-05-16
+
+**Caller-built classification for consumer writes (Atelier-style fast path).**
+
+- **`memex:index:write` accepts an optional `librarian_output`.** When a
+  consumer (Atelier `tasks` / `decisions` / `meetings`, or any future
+  structured-row writer) already knows the document's `domain`, can build
+  `searchable` deterministically from the row, and has explicit relations
+  in its data model, it passes a Python-built `librarian_output` dict and
+  the Librarian subagent dispatch is skipped. Steps 1–3 of the recipe
+  (build prompt, dispatch, parse) collapse to a single
+  `librarian.validate_output()` call. Persistence still flows through
+  `librarian.write_entry()`, so the Index↔target-store coupling and Data
+  Steward orphan-detection contracts are unchanged. See
+  [memex#1](https://github.com/nitekeeper/memex/pull/1).
+- **New helper `librarian.validate_output(obj)`.** Single source of truth
+  for the `librarian_output` schema (`index_id`, `key`, `domain`,
+  `searchable` required; `metadata` / `relations` optional with defaults).
+  Both `parse_response()` (subagent path) and `write_entry()`
+  (persistence) now route through it.
+- **Spec amended.** New §6.3 *Caller-built classification (consumer fast
+  path)* documents the dual-mode contract alongside the original
+  LLM-mediated flow. Architectural invariant unchanged: every write is
+  mediated by the Librarian write surface; what varies is whether the
+  classification step is LLM-mediated or caller-supplied.
+- **Reserve the subagent path for prose ingest** (Brain `ingest`,
+  transcripts, free-form notes) where `domain` and `relations` need to be
+  extracted from text.
+- 244 tests passing (was 238 in v2.1.0; 6 new tests cover the
+  caller-built path).
+
+**Release-process cleanup (ships with v2.2.0, not user-facing behavior):**
+
+- **Version drift surface reduced from 7 files to 2.** Only
+  `.claude-plugin/plugin.json` and `pyproject.toml` now hold the version.
+  `tests/test_version.py` was rewritten as a true drift test (asserts the
+  two manifests agree; no constant to update). `README.md` and
+  `USER_GUIDE.md` now link to the latest dist directory and GitHub
+  Releases instead of hard-coding the version.
+- **New `scripts/bump.py`.** One command — `python -m scripts.bump
+  X.Y.Z` — updates `plugin.json` (version field + the inline `v<X.Y.Z>`
+  token in the description), `pyproject.toml`, removes the previous
+  `dist/v*/manifest.json`, and rebuilds the new one via
+  `scripts.release.build()`. Refuses downgrades and same-version no-ops.
+- **New `.github/workflows/release.yml`.** Tag-triggered: push
+  `v<X.Y.Z>` and the workflow runs tests, sanity-checks that the
+  manifests agree with the tag, builds the dist bundle, extracts the
+  matching CHANGELOG section, and creates a GitHub Release with the
+  zipped bundle attached. Releases stay deliberate (no merge-to-release
+  automation); the tag push is the "I really mean it" signal.
+- 253 tests passing after the cleanup (9 new tests cover
+  `scripts.bump`).
+
+---
+
 ## v2.1.0 — 2026-05-16
 
 **Embeddings: full hybrid-retrieval plumbing (#2 blocker resolved).**

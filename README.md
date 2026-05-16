@@ -24,7 +24,7 @@ Three layers:
 
 ## Installation
 
-See `dist/v2.1.0/INSTALL.md` (after running `python -m scripts.release`).
+See the `INSTALL.md` inside the latest `dist/v*/` directory (built via `python -m scripts.release`). The release workflow attaches the same bundle to each [GitHub Release](https://github.com/nitekeeper/memex/releases).
 
 For development:
 
@@ -64,7 +64,7 @@ See `docs/specs/2026-05-16-memex-v2-redesign-design.md` for the full design.
 
 ## Status
 
-v2.1.0 — released 2026-05-16 (or build date).
+See `CHANGELOG.md` for the latest release and version history.
 
 ## Layer awareness
 
