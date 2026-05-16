@@ -4,6 +4,10 @@ __pycache__/
 .pytest_cache/
 .worktrees/
 
+# Superpowers brainstorm visual-companion session artifacts (local-only).
+# Recreated on demand by the brainstorming skill; never tracked.
+.superpowers/
+
 # Memex dist bundles — manifest tracked separately
 dist/v*/**
 !dist/v*/manifest.json
