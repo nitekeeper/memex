@@ -464,6 +464,71 @@ Reference Librarian returns a JSON list:
 
 ## 8. Skill surface
 
+### 8.0 Visibility model — only `memex:run` is registered
+
+Claude Code loads every registered skill's `description:` frontmatter into
+the agent's available-skills system reminder. Per Anthropic's guidance the
+combined size of all skill descriptions should stay under roughly 1% of the
+context window. With ~24 skills planned across Plans 1–3, naive top-level
+registration would consume significant budget AND get truncated.
+
+**Memex registers ONE skill — `memex:run` — at the top level.** All other
+Memex operations live at `internal/<category>/<name>/SKILL.md` and are NOT
+auto-loaded by Claude Code. Agents reach them via the routing table inside
+`skills/run/SKILL.md`, which is read on demand.
+
+Layout:
+
+```
+memex/
+├── plugin.json                            # registers only memex:run
+├── skills/
+│   └── run/
+│       └── SKILL.md                        # the routing interface
+└── internal/
+    ├── core/                               # Plan 1 (10 procedures, agent-only)
+    │   ├── create-store/SKILL.md
+    │   ├── migrate/SKILL.md
+    │   ├── query/SKILL.md
+    │   ├── insert/SKILL.md
+    │   ├── update/SKILL.md
+    │   ├── delete/SKILL.md
+    │   ├── list-stores/SKILL.md
+    │   ├── register-role/SKILL.md
+    │   ├── register-agent/SKILL.md
+    │   └── get-agent/SKILL.md
+    ├── index/                              # Plan 2 (3 procedures)
+    │   ├── write/SKILL.md
+    │   ├── search/SKILL.md
+    │   └── archive/SKILL.md
+    ├── brain/                              # Plan 3 (5 procedures)
+    │   ├── ingest/SKILL.md
+    │   ├── ask/SKILL.md
+    │   ├── capture/SKILL.md
+    │   ├── lint/SKILL.md
+    │   └── synthesize/SKILL.md
+    ├── steward/                            # Plan 2 (3 procedures)
+    │   ├── audit/SKILL.md
+    │   ├── audit-store/SKILL.md
+    │   └── reconcile-orphan/SKILL.md
+    └── dba/                                # Plan 2 (3 procedures)
+        ├── checkpoint/SKILL.md
+        ├── integrity-check/SKILL.md
+        └── vacuum/SKILL.md
+```
+
+`memex:run`'s body has two kinds of routing sections:
+
+1. **User-facing intent routing** — natural-language intents the human user
+   expresses ("ingest this article", "ask about X", "capture a thought").
+   Routes to Brain procedures.
+2. **Agent-facing operation routing** — CRUD primitives consumer agents
+   invoke (`create-store`, `register-agent`, `migrate`, etc.). Routes to
+   Core / Index / Steward / DBA procedures.
+
+Section labels below describe the procedure names. Their files all live at
+`internal/<category>/<name>/SKILL.md`, not at top level.
+
 ### 8.1 `memex:core:*` (CRUD substrate)
 
 | Skill | Purpose |
@@ -518,10 +583,14 @@ deferred to Wave 1 implementation; see §14. Each subagent receives:
    writes raw/; Reference Librarian is read-only; DBA executes pragmas/
    migrations; Steward writes audit reports).
 
-The skills under `memex:index:*`, `memex:brain:*`, and `memex:steward:*`
-are thin wrappers that invoke the appropriate subagent with the right
-context. `memex:core:*` skills are direct CLI invocations of Python CRUD
-modules (no LLM subagent involved).
+The procedures at `internal/index/*`, `internal/brain/*`, and
+`internal/steward/*` are thin wrappers that invoke the appropriate
+subagent with the right context. Procedures at `internal/core/*` and
+`internal/dba/*` are direct CLI invocations of Python CRUD modules (no
+LLM subagent involved).
+
+None of these procedures are registered in `plugin.json`. They are
+discoverable only via the routing table in `skills/run/SKILL.md`.
 
 ---
 
@@ -531,6 +600,11 @@ modules (no LLM subagent involved).
 
 Memex v2 ships as the Claude Code custom plugin update for the existing
 Memex plugin installation.
+
+`plugin.json` registers exactly one top-level skill — `memex:run` —
+pointing to `skills/run/SKILL.md`. No other skills are registered. The
+24 procedures across Plans 1-3 live under `internal/<category>/<name>/`
+and are reached via `memex:run`'s routing table (see §8.0).
 
 Plugin install side-effects:
 
@@ -545,7 +619,9 @@ Plugin install side-effects:
 
 ### 9.2 Onboarding
 
-On the first invocation of any `memex:brain:*` skill after install:
+On the first invocation of any Brain intent through `memex:run` (e.g.,
+"ingest this article", "ask about X") after install, the `internal/brain/*`
+procedure performs:
 
 1. Plugin checks for a human-role agent in `agents.db.agents`.
 2. If none exists, prompts the user:
