@@ -43,6 +43,28 @@ Format: [version] — date — summary.
 - 244 tests passing (was 238 in v2.1.0; 6 new tests cover the
   caller-built path).
 
+**Release-process cleanup (ships with v2.2.0, not user-facing behavior):**
+
+- **Version drift surface reduced from 7 files to 2.** Only
+  `.claude-plugin/plugin.json` and `pyproject.toml` now hold the version.
+  `tests/test_version.py` was rewritten as a true drift test (asserts the
+  two manifests agree; no constant to update). `README.md` and
+  `USER_GUIDE.md` now link to the latest dist directory and GitHub
+  Releases instead of hard-coding the version.
+- **New `scripts/bump.py`.** One command — `python -m scripts.bump
+  X.Y.Z` — updates `plugin.json` (version field + the inline `v<X.Y.Z>`
+  token in the description), `pyproject.toml`, removes the previous
+  `dist/v*/manifest.json`, and rebuilds the new one via
+  `scripts.release.build()`. Refuses downgrades and same-version no-ops.
+- **New `.github/workflows/release.yml`.** Tag-triggered: push
+  `v<X.Y.Z>` and the workflow runs tests, sanity-checks that the
+  manifests agree with the tag, builds the dist bundle, extracts the
+  matching CHANGELOG section, and creates a GitHub Release with the
+  zipped bundle attached. Releases stay deliberate (no merge-to-release
+  automation); the tag push is the "I really mean it" signal.
+- 253 tests passing after the cleanup (9 new tests cover
+  `scripts.bump`).
+
 ---
 
 ## v2.1.0 — 2026-05-16

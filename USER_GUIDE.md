@@ -2,7 +2,7 @@
 
 ## First-time setup
 
-1. Install the plugin (see `dist/v2.2.0/INSTALL.md`).
+1. Install the plugin (see the `INSTALL.md` inside the latest `dist/v*/` directory, or grab it from the latest [GitHub Release](https://github.com/nitekeeper/memex/releases)).
 2. Restart Claude Code.
 3. Run `python -m scripts.install` (one-time bootstrap).
 4. (Optional) Configure embeddings — see "Embeddings & retrieval" below.
