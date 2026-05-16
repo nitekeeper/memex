@@ -1,8 +1,13 @@
 {
   "version": "2.0.0",
-  "built_at": "2026-05-16T15:50:41.641864+00:00",
+  "built_at": "2026-05-16T17:03:48.453306+00:00",
   "file_count": 58,
   "files": [
+    {
+      "path": ".claude-plugin\\plugin.json",
+      "sha256": "ce5e25e65415eee4eafb521ef3a917fca8325d182421290c8e7a02e803a26401",
+      "bytes": 689
+    },
     {
       "path": "CHANGELOG.md",
       "sha256": "933886e63966cb8cb6ee497e8c92247352a4430a71f9ebd85ebbecbdb8f06a99",
@@ -174,11 +179,6 @@
       "bytes": 806
     },
     {
-      "path": "plugin.json",
-      "sha256": "5704c1e536383526ea356c78b0c689301a0b0c8f84fc6e053aa37aa88db53163",
-      "bytes": 550
-    },
-    {
       "path": "prompts\\librarian.md",
       "sha256": "7d5efe503da539c83aa5870dc4480ea9693ab215705f7f44063f0b366c63fb65",
       "bytes": 1935
@@ -265,8 +265,8 @@
     },
     {
       "path": "scripts\\release.py",
-      "sha256": "cc2817575e31d6ab20fe60c5d13b6225a54f404eb4ddebedae1e3ab5e08d31ca",
-      "bytes": 4602
+      "sha256": "9d6775df18d95cdc768de14c06d78f26f3a6c4d47b9a2018a8db1a3708ada441",
+      "bytes": 4788
     },
     {
       "path": "scripts\\roles.py",

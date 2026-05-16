@@ -1,7 +1,8 @@
 """Build a dist/v<version>/ bundle for Claude Code plugin distribution.
 
-The bundle includes: plugin.json, scripts/, skills/, internal/, db/, prompts/,
-a manifest.json with file inventory, and INSTALL.md instructions.
+The bundle includes: .claude-plugin/ (the canonical manifest), scripts/,
+skills/, internal/, db/, prompts/, a manifest.json with file inventory, and
+INSTALL.md instructions.
 
 dist/ body is gitignored; only manifest tracking is committed.
 """
@@ -13,8 +14,10 @@ from pathlib import Path
 import hashlib
 
 
-_INCLUDE_DIRS = ["scripts", "skills", "internal", "db", "prompts"]
-_INCLUDE_FILES = ["plugin.json", "pyproject.toml", "README.md", "USER_GUIDE.md", "CHANGELOG.md"]
+# Claude Code reads .claude-plugin/plugin.json (the canonical manifest); the
+# dist bundle MUST include that directory for `claude --plugin-dir` to work.
+_INCLUDE_DIRS = [".claude-plugin", "scripts", "skills", "internal", "db", "prompts"]
+_INCLUDE_FILES = ["pyproject.toml", "README.md", "USER_GUIDE.md", "CHANGELOG.md"]
 
 
 def _hash_file(path: Path) -> str:

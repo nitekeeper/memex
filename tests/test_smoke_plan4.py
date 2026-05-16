@@ -43,7 +43,7 @@ def test_release_bundle_builds(tmp_path):
     """Build a dist bundle in a temp dir and verify structure."""
     out = release.build(version="2.0.0", target_root=tmp_path / "dist")
     assert (out / "manifest.json").exists()
-    assert (out / "plugin.json").exists()
+    assert (out / ".claude-plugin" / "plugin.json").exists()
     assert (out / "INSTALL.md").exists()
     # Top-level skills/ holds the memex:run registration entry.
     assert (out / "skills" / "run" / "SKILL.md").exists()

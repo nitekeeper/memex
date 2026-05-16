@@ -4,5 +4,15 @@
   "description": "Memex v2.0.0 — personal knowledge runtime and shared memory plane for the agent fleet. The only Claude-Code-visible skill is memex:run, which routes natural-language intent to internal procedures. This keeps the plugin under Claude Code's 1% skill-description budget while exposing the full Memex surface to agents on demand.",
   "author": {
     "name": "nitekeeper"
-  }
+  },
+  "homepage": "https://github.com/nitekeeper/memex",
+  "repository": "https://github.com/nitekeeper/memex.git",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "memory",
+    "knowledge-management",
+    "second-brain",
+    "agent-memory"
+  ]
 }

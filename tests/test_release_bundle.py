@@ -37,10 +37,15 @@ def test_dist_includes_all_skills(tmp_path):
     assert (internal_dir / "dba").is_dir()
 
 
-def test_dist_includes_plugin_json(tmp_path):
+def test_dist_includes_canonical_plugin_manifest(tmp_path):
+    """Per Claude Code docs (plugins-reference), the canonical manifest is
+    .claude-plugin/plugin.json (NOT a root-level plugin.json). The bundle
+    must include this directory so `claude --plugin-dir <bundle>` works."""
     target = tmp_path / "dist"
     release.build(version="2.0.0", target_root=target)
-    assert (target / "v2.0.0" / "plugin.json").exists()
+    assert (target / "v2.0.0" / ".claude-plugin" / "plugin.json").exists()
+    # And confirm we did NOT regress by re-introducing a root plugin.json:
+    assert not (target / "v2.0.0" / "plugin.json").exists()
 
 
 def test_dist_includes_install_md(tmp_path):
