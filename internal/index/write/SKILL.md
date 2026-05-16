@@ -13,12 +13,31 @@ Brain's `ingest` and `capture` are convenience wrappers around this skill — th
 
 ## Inputs
 
-- `target_store` — registered store name (e.g., `atelier-projectX`)
+- `target_store` — registered store name (e.g., `atelier`)
 - `target_table` — table within that store (must include an `index_id` column)
-- `payload` — dict of column values to insert (do NOT include `index_id` — the Librarian assigns it)
+- `payload` — dict of column values to insert (do NOT include `index_id` — the write path assigns it)
 - `caller_agent_id` — registered agent id of the writer
+- `librarian_output` — **optional** dict. If the caller already knows the classification (typical for consumers writing structured rows like Atelier's `tasks` / `decisions` / `meetings`), supply it directly and the Librarian subagent dispatch is skipped. Schema:
+
+  ```jsonc
+  {
+    "index_id":  "<uuid>",            // required — unique across the Index
+    "key":       "<slug>",            // required — stable human-readable identifier
+    "domain":    "<vocabulary term>", // required — e.g. "article" | "task" | "decision"
+    "searchable":"<FTS5 text>",       // required — what Index FTS5 indexes
+    "metadata":  { ... },             // optional — defaults to {}
+    "relations": [{ "to_index_id": "...", "rel_type": "..." }]  // optional — defaults to []
+  }
+  ```
+
+  When omitted (`None`), the Librarian subagent produces this dict via LLM dispatch. Use the dispatch path for prose ingest where domain and relations need extraction from text; use the caller-built path when those facts are already known.
 
 ## Recipe (Option-B Task-tool dispatch)
+
+### Step 0 — Branch on `librarian_output`
+
+- If the caller supplied `librarian_output`, **skip Steps 1–3.** Validate the dict via `scripts.agents.librarian.validate_output(librarian_output)` and proceed to Step 4. On `ValueError`, report `BLOCKED` with the validation error; do not retry.
+- If `librarian_output` is `None`, run the full dispatch (Steps 1–3 below).
 
 ### Step 1 — Build the Librarian prompt
 
@@ -84,5 +103,17 @@ Per spec §6.1, the Index write commits BEFORE the target-store write. If the ta
 ## Notes
 
 - The target table MUST have an `index_id` column (and ideally `UNIQUE` on it). Tables without one should use `memex:core:insert` directly — they're considered structural/lookup data, not documents.
-- If the Librarian subagent picks an `index_id` that already exists in the Index, the INSERT will fail with a UNIQUE constraint error. The subagent's prompt instructs it to generate fresh UUIDs; collisions should be vanishingly rare.
-- Consumers that want structured-row metadata not visible to the Librarian should put it in `payload` (which becomes the target-store row) but not in `searchable` (which becomes the Index's FTS5-indexed text). The Librarian sees `payload` to classify; persistence stores the full row.
+- If the assigned `index_id` already exists in the Index, the INSERT will fail with a UNIQUE constraint error. The subagent's prompt instructs it to generate fresh UUIDs; caller-built dicts should do the same (e.g. `uuid.uuid4()` or `uuid7()`). Collisions should be vanishingly rare.
+- Consumers that want structured-row metadata not visible to FTS5 should put it in `payload` (which becomes the target-store row) but keep it out of `searchable` (which becomes the Index's FTS5-indexed text). The Librarian sees `payload` to classify on the dispatch path; persistence stores the full row either way.
+
+## When to use the caller-built `librarian_output` path
+
+Skip the subagent when **all** of the following hold:
+
+- The caller knows the document's `domain` from context (e.g., Atelier writing to its `tasks` table knows the domain is `task`).
+- `searchable` can be built deterministically from the structured row (typically `title + body[:N]`).
+- Relations are either empty or explicit in the caller's data model (e.g., `task part_of project`). The Librarian's value-add for prose ingest is discovering cross-doc relations from text; for structured-row writers with an explicit graph, caller-built relations are strictly more accurate.
+
+For everything else — articles, transcripts, free-form notes, anything where domain or relations need to be extracted from prose — dispatch the subagent.
+
+Whichever path produced the dict, `librarian.write_entry` is the single write surface. The architectural invariant (no bypass of the Index↔store coupling, Data Steward catches orphans) is preserved either way.
