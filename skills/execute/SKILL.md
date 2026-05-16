@@ -6,7 +6,7 @@ Memex is a project-wiki and knowledge-management plugin. This skill is the publi
 
 ## Internal procedures
 
-Memex's domain operations live as plain markdown procedure files at `internal/<name>/SKILL.md`. These are NOT Claude Code slash commands — they are reachable only via the Read tool. Whenever this skill references `internal/<name>/SKILL.md` below, the agent should: (1) Read that file, (2) follow the procedure inline. The 8 internal procedures are `ask`, `capture`, `capture-lesson`, `propose-wiki-entry`, `review-lessons`, `review-wiki`, `sync`, `upgrade`.
+Memex's domain operations live as plain markdown procedure files at `internal/<name>/SKILL.md`. These are NOT Claude Code slash commands — they are reachable only via the Read tool. Whenever this skill references `internal/<name>/SKILL.md` below, the agent should: (1) Read that file, (2) follow the procedure inline. The 9 internal procedures are `ask`, `capture`, `capture-lesson`, `propose-wiki-entry`, `review-lessons`, `review-wiki`, `self-improve`, `sync`, `upgrade`.
 
 ## Session-start ritual
 
@@ -60,8 +60,9 @@ After the session-start ritual, when the user expresses one of these intents, re
 | Review wiki entries for curation | `internal/review-wiki/SKILL.md` |
 | Check wiki staleness against source files | `internal/sync/SKILL.md` |
 | Upgrade memex itself | `internal/upgrade/SKILL.md` |
+| Run the end-of-session self-improvement loop | `internal/self-improve/SKILL.md` |
 
-The public `self-improve` skill (in `skills/self-improve/`) bundles `capture-lesson` + `review-lessons` + `propose-wiki-entry` for end-of-session use.
+The `internal/self-improve/SKILL.md` procedure bundles `capture-lesson` + `review-lessons` + `propose-wiki-entry` for end-of-session use.
 
 ## Authority and override
 
