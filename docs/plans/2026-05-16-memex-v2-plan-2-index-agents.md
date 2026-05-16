@@ -4,7 +4,7 @@
 
 **Goal:** Ship the mandatory write-path gateway (Index + Librarian), the read-path retrieval layer (Reference Librarian), the immutable raw archive (Archivist), the storage-substrate ops layer (DBA), and the integrity auditor (Data Steward). End state: every document flows through the Librarian to receive an `index_id` before landing in a target store; queries route through the Reference Librarian via the federated Index; raw archive and audit machinery run.
 
-**Architecture:** `index.db` is a new SQLite store (created via Plan 1's `create-store`) holding `documents`, `relations`, FTS5, and embedding columns. Five internal agents are seeded into `agents.db` and implemented as a mix of (a) deterministic Python modules under `scripts/agents/` for Archivist/DBA/Data Steward and (b) LLM-driven subagent harnesses for Librarian and Reference Librarian. Skills under `skills/index/`, `skills/steward/`, and `skills/dba/` are thin wrappers.
+**Architecture:** `index.db` is a new SQLite store (created via Plan 1's `create-store`) holding `documents`, `relations`, FTS5, and embedding columns. Five internal agents are seeded into `agents.db` and implemented as a mix of (a) deterministic Python modules under `scripts/agents/` for Archivist/DBA/Data Steward and (b) LLM-driven subagent harnesses for Librarian and Reference Librarian. Procedures under `internal/index/`, `internal/steward/`, and `internal/dba/` are thin wrappers reached on demand via the routing table inside `skills/run/SKILL.md` (Plan 1's single-skill registration model — see spec §8.0). Only `memex:run` is registered in `plugin.json`; Plan 2 extends `memex:run`'s routing table to cover the 9 new procedures.
 
 **Tech Stack:** Python 3.10+, `sqlite3` stdlib (with FTS5 virtual table), `hashlib` for content hashing, OpenAI `text-embedding-3-small` as the v0.2 embedding model (1536-dim, packed as little-endian float32 BLOB); abstraction in `scripts/embeddings.py` enables swapping for Voyage/Anthropic/local without touching call sites. LLM subagent invocation via Claude Code's Task tool.
 
@@ -31,7 +31,7 @@ memex/
 │   │   ├── librarian.py                           # NEW: LLM harness for indexing
 │   │   └── reference_librarian.py                 # NEW: LLM harness for retrieval
 │   └── install.py                                 # MODIFY: extend Plan 1 install
-├── skills/
+├── internal/
 │   ├── index/
 │   │   ├── write/SKILL.md                         # NEW
 │   │   ├── search/SKILL.md                        # NEW
@@ -44,6 +44,8 @@ memex/
 │       ├── checkpoint/SKILL.md                    # NEW
 │       ├── integrity-check/SKILL.md               # NEW
 │       └── vacuum/SKILL.md                        # NEW
+├── skills/
+│   └── run/SKILL.md                               # MODIFY: extend routing table
 ├── prompts/
 │   ├── librarian.md                               # NEW: system prompt body
 │   └── reference_librarian.md                     # NEW: system prompt body
@@ -58,8 +60,9 @@ memex/
 │   ├── test_reference_librarian_harness.py        # NEW
 │   ├── test_index_skills.py                       # NEW: SKILL.md presence
 │   └── test_smoke_plan2.py                        # NEW: end-to-end with mocked LLM
-└── plugin.json                                    # MODIFY: register new skills
 ```
+
+> `plugin.json` is NOT modified by Plan 2. Per spec §8.0, the manifest registers only `memex:run`. Plan 2's nine procedures are reached via the routing table inside `skills/run/SKILL.md`, which Task 12 extends.
 
 **Module boundaries:**
 - `embeddings.py` — encode/decode/cosine only. Pluggable provider.
@@ -1943,9 +1946,9 @@ git commit -m "feat(index): Reference Librarian harness — query plan + hybrid 
 ## Task 10: Skills — `memex:index:*` SKILL.md files
 
 **Files:**
-- Create: `skills/index/write/SKILL.md`
-- Create: `skills/index/search/SKILL.md`
-- Create: `skills/index/archive/SKILL.md`
+- Create: `internal/index/write/SKILL.md`
+- Create: `internal/index/search/SKILL.md`
+- Create: `internal/index/archive/SKILL.md`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1957,13 +1960,13 @@ INDEX_SKILLS = ["write", "search", "archive"]
 
 def test_index_skills_present():
     for s in INDEX_SKILLS:
-        p = Path(f"skills/index/{s}/SKILL.md")
+        p = Path(f"internal/index/{s}/SKILL.md")
         assert p.exists(), f"Missing skill: index/{s}"
 
 
 def test_index_skills_have_frontmatter_name():
     for s in INDEX_SKILLS:
-        content = Path(f"skills/index/{s}/SKILL.md").read_text()
+        content = Path(f"internal/index/{s}/SKILL.md").read_text()
         assert f"name: memex:index:{s}" in content
 ```
 
@@ -1974,7 +1977,7 @@ Expected: FAIL.
 
 - [ ] **Step 3: Write minimal implementation**
 
-`skills/index/write/SKILL.md`:
+`internal/index/write/SKILL.md`:
 
 ```markdown
 ---
@@ -2019,7 +2022,7 @@ Any document — article, decision, meeting, spec, plan, capture, synthesis — 
 Index write commits BEFORE target store write. If the target store write fails, the Index row exists without a corresponding store row — an orphan. The Data Steward's next audit will detect and report it. See spec §6.1.
 ```
 
-`skills/index/search/SKILL.md`:
+`internal/index/search/SKILL.md`:
 
 ```markdown
 ---
@@ -2057,7 +2060,7 @@ Any read where the answer might span multiple stores, or where the caller doesn'
 - Hybrid retrieval (FTS5 + vector cosine) is used when embeddings are present. In v0.2, embeddings are computed on write; backfill is not yet implemented (see Plan 4 for re-embed tooling).
 ```
 
-`skills/index/archive/SKILL.md`:
+`internal/index/archive/SKILL.md`:
 
 ```markdown
 ---
@@ -2095,7 +2098,7 @@ Expected: All PASSED.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add skills/index/
+git add internal/index/
 git commit -m "docs(index): SKILL.md for memex:index:write, search, archive"
 ```
 
@@ -2104,12 +2107,12 @@ git commit -m "docs(index): SKILL.md for memex:index:write, search, archive"
 ## Task 11: Skills — `memex:steward:*` and `memex:dba:*`
 
 **Files:**
-- Create: `skills/steward/audit/SKILL.md`
-- Create: `skills/steward/audit-store/SKILL.md`
-- Create: `skills/steward/reconcile-orphan/SKILL.md`
-- Create: `skills/dba/checkpoint/SKILL.md`
-- Create: `skills/dba/integrity-check/SKILL.md`
-- Create: `skills/dba/vacuum/SKILL.md`
+- Create: `internal/steward/audit/SKILL.md`
+- Create: `internal/steward/audit-store/SKILL.md`
+- Create: `internal/steward/reconcile-orphan/SKILL.md`
+- Create: `internal/dba/checkpoint/SKILL.md`
+- Create: `internal/dba/integrity-check/SKILL.md`
+- Create: `internal/dba/vacuum/SKILL.md`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2122,13 +2125,13 @@ DBA_SKILLS = ["checkpoint", "integrity-check", "vacuum"]
 
 def test_steward_skills_present():
     for s in STEWARD_SKILLS:
-        p = Path(f"skills/steward/{s}/SKILL.md")
+        p = Path(f"internal/steward/{s}/SKILL.md")
         assert p.exists()
 
 
 def test_dba_skills_present():
     for s in DBA_SKILLS:
-        p = Path(f"skills/dba/{s}/SKILL.md")
+        p = Path(f"internal/dba/{s}/SKILL.md")
         assert p.exists()
 ```
 
@@ -2138,7 +2141,7 @@ Expected: FAIL.
 
 - [ ] **Step 3: Write minimal implementation**
 
-`skills/steward/audit/SKILL.md`:
+`internal/steward/audit/SKILL.md`:
 
 ```markdown
 ---
@@ -2169,7 +2172,7 @@ Invokes the Data Steward's audit primitives in sequence: find_orphans, find_brok
 Returns: absolute path to the generated report.
 ```
 
-`skills/steward/audit-store/SKILL.md`:
+`internal/steward/audit-store/SKILL.md`:
 
 ```markdown
 ---
@@ -2189,7 +2192,7 @@ description: Run an integrity audit scoped to a single registered store (reverse
 `scripts/agents/data_steward.py:find_reverse_orphans(index_db_path, store_name, table)`
 ```
 
-`skills/steward/reconcile-orphan/SKILL.md`:
+`internal/steward/reconcile-orphan/SKILL.md`:
 
 ```markdown
 ---
@@ -2216,7 +2219,7 @@ After reviewing an audit report and deciding how to resolve a specific finding.
 Implementation deferred to Plan 3 acceptance; v0.2 Plan 2 ships only the SKILL.md describing the contract.
 ```
 
-`skills/dba/checkpoint/SKILL.md`:
+`internal/dba/checkpoint/SKILL.md`:
 
 ```markdown
 ---
@@ -2236,7 +2239,7 @@ description: Run a WAL checkpoint on a registered store. Mode defaults to PASSIV
 `scripts/agents/dba.py:checkpoint(db_path, mode)`
 ```
 
-`skills/dba/integrity-check/SKILL.md`:
+`internal/dba/integrity-check/SKILL.md`:
 
 ```markdown
 ---
@@ -2255,7 +2258,7 @@ description: Run PRAGMA integrity_check on a registered store. Returns 'ok' if c
 `scripts/agents/dba.py:integrity_check(db_path)`
 ```
 
-`skills/dba/vacuum/SKILL.md`:
+`internal/dba/vacuum/SKILL.md`:
 
 ```markdown
 ---
@@ -2282,71 +2285,97 @@ Expected: All PASSED.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add skills/steward/ skills/dba/
+git add internal/steward/ internal/dba/
 git commit -m "docs(index): SKILL.md for memex:steward:* and memex:dba:*"
 ```
 
 ---
 
-## Task 12: Plugin manifest update
+## Task 12: Update `memex:run` routing for Plan 2 procedures
 
 **Files:**
-- Modify: `plugin.json`
-- Modify: `tests/test_plugin_manifest.py`
+- Modify: `skills/run/SKILL.md`
+- Modify: `tests/test_skills_present.py`
+
+> Per spec §8.0 the plugin manifest registers ONLY `memex:run`. `plugin.json` is NOT touched in Plan 2. Plan 2's nine new procedures live at `internal/<category>/<name>/SKILL.md` and become reachable by appending routing rows to the body of `skills/run/SKILL.md`. Agents read `memex:run` on demand and follow the routing entries via the Read tool.
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/test_plugin_manifest.py`:
+Append to `tests/test_skills_present.py`:
 
 ```python
-def test_plugin_manifest_lists_plan2_skills():
-    data = json.loads(Path("plugin.json").read_text())
-    skill_names = {s.get("name") for s in data.get("skills", [])}
-    for required in [
-        "memex:index:write",
-        "memex:index:search",
-        "memex:index:archive",
-        "memex:steward:audit",
-        "memex:steward:audit-store",
-        "memex:steward:reconcile-orphan",
-        "memex:dba:checkpoint",
-        "memex:dba:integrity-check",
-        "memex:dba:vacuum",
-    ]:
-        assert required in skill_names
+PLAN2_PROCEDURES = [
+    ("index", "write"),
+    ("index", "search"),
+    ("index", "archive"),
+    ("steward", "audit"),
+    ("steward", "audit-store"),
+    ("steward", "reconcile-orphan"),
+    ("dba", "checkpoint"),
+    ("dba", "integrity-check"),
+    ("dba", "vacuum"),
+]
+
+
+def test_run_skill_routes_to_plan2_procedures():
+    """memex:run must contain routing entries for every Plan 2 procedure,
+    so agents can discover them without Claude Code auto-loading their
+    descriptions."""
+    run_content = Path("skills/run/SKILL.md").read_text(encoding="utf-8")
+    for category, name in PLAN2_PROCEDURES:
+        expected = f"internal/{category}/{name}/SKILL.md"
+        assert expected in run_content, (
+            f"memex:run missing routing entry for {expected}"
+        )
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `pytest tests/test_plugin_manifest.py -v`
+Run: `pytest tests/test_skills_present.py::test_run_skill_routes_to_plan2_procedures -v`
 Expected: FAIL.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Update `plugin.json` to add the 9 new skill entries to the `skills` array:
+Append a new section to `skills/run/SKILL.md` (after the existing "v2 Core CRUD routing (agent-facing — not for end users)" section):
 
-```json
-{ "name": "memex:index:write",             "path": "skills/index/write/SKILL.md" },
-{ "name": "memex:index:search",            "path": "skills/index/search/SKILL.md" },
-{ "name": "memex:index:archive",           "path": "skills/index/archive/SKILL.md" },
-{ "name": "memex:steward:audit",           "path": "skills/steward/audit/SKILL.md" },
-{ "name": "memex:steward:audit-store",     "path": "skills/steward/audit-store/SKILL.md" },
-{ "name": "memex:steward:reconcile-orphan","path": "skills/steward/reconcile-orphan/SKILL.md" },
-{ "name": "memex:dba:checkpoint",          "path": "skills/dba/checkpoint/SKILL.md" },
-{ "name": "memex:dba:integrity-check",     "path": "skills/dba/integrity-check/SKILL.md" },
-{ "name": "memex:dba:vacuum",              "path": "skills/dba/vacuum/SKILL.md" }
+```markdown
+## v2 Index, Steward, and DBA routing
+
+Plan 2 adds the mandatory write-path gateway (Index + Librarian), the
+read-path retrieval layer (Reference Librarian), and storage-substrate
+ops (DBA + Data Steward). These 9 procedures live at
+`internal/<category>/<name>/SKILL.md` and are reachable only via this
+routing table. They are agent-facing — not directly invoked by the
+human user.
+
+| Agent intent | Internal procedure |
+|---|---|
+| Submit a document for indexing by the Librarian, then persist to a target store (MANDATORY write path for any row carrying an `index_id`) | `internal/index/write/SKILL.md` |
+| Ask the Reference Librarian a natural-language question; returns ranked results across every registered store | `internal/index/search/SKILL.md` |
+| Explicitly archive a raw payload via the Archivist without indexing it | `internal/index/archive/SKILL.md` |
+| Run a full integrity audit across the Index and every registered store | `internal/steward/audit/SKILL.md` |
+| Run an integrity audit scoped to a single registered store | `internal/steward/audit-store/SKILL.md` |
+| Authorized fix-up of a flagged orphan (delete-index / reindex / note) | `internal/steward/reconcile-orphan/SKILL.md` |
+| Run a WAL checkpoint on a registered store | `internal/dba/checkpoint/SKILL.md` |
+| Run `PRAGMA integrity_check` on a registered store | `internal/dba/integrity-check/SKILL.md` |
+| Run `VACUUM` on a registered store to reclaim space and defragment | `internal/dba/vacuum/SKILL.md` |
+
+The Python implementations live under `scripts/agents/`
+(`librarian.py`, `reference_librarian.py`, `archivist.py`, `dba.py`,
+`data_steward.py`). Each SKILL.md is a short documentation wrapper; the
+agent reads it for the API contract, then calls the implementation.
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pytest tests/test_plugin_manifest.py -v`
+Run: `pytest tests/test_skills_present.py -v`
 Expected: PASSED.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add plugin.json tests/test_plugin_manifest.py
-git commit -m "feat(index): register 9 new skills in plugin manifest"
+git add skills/run/SKILL.md tests/test_skills_present.py
+git commit -m "feat(index): extend memex:run routing for Index/Steward/DBA procedures"
 ```
 
 ---
@@ -2544,17 +2573,21 @@ read-path retrieval layer — plus the five internal agents.
 
 ### Skills
 
-| Skill | Purpose |
-|---|---|
-| memex:index:write | Mandatory write path: archive → Librarian → Core |
-| memex:index:search | Read path: Reference Librarian → ranked results |
-| memex:index:archive | Explicit raw archive (rare) |
-| memex:steward:audit | Full integrity audit |
-| memex:steward:audit-store | Per-store audit |
-| memex:steward:reconcile-orphan | Authorized orphan fix (Plan 3 fully implements) |
-| memex:dba:checkpoint | WAL checkpoint |
-| memex:dba:integrity-check | PRAGMA integrity_check |
-| memex:dba:vacuum | VACUUM |
+Per spec §8.0, the plugin registers only `memex:run`. The 9 procedures
+below live at `internal/<category>/<name>/SKILL.md` and are reached on
+demand through the routing table inside `skills/run/SKILL.md`.
+
+| Procedure | Path | Purpose |
+|---|---|---|
+| memex:index:write | internal/index/write/SKILL.md | Mandatory write path: archive → Librarian → Core |
+| memex:index:search | internal/index/search/SKILL.md | Read path: Reference Librarian → ranked results |
+| memex:index:archive | internal/index/archive/SKILL.md | Explicit raw archive (rare) |
+| memex:steward:audit | internal/steward/audit/SKILL.md | Full integrity audit |
+| memex:steward:audit-store | internal/steward/audit-store/SKILL.md | Per-store audit |
+| memex:steward:reconcile-orphan | internal/steward/reconcile-orphan/SKILL.md | Authorized orphan fix (Plan 3 fully implements) |
+| memex:dba:checkpoint | internal/dba/checkpoint/SKILL.md | WAL checkpoint |
+| memex:dba:integrity-check | internal/dba/integrity-check/SKILL.md | PRAGMA integrity_check |
+| memex:dba:vacuum | internal/dba/vacuum/SKILL.md | VACUUM |
 
 ### Data
 
@@ -2582,9 +2615,11 @@ memex:steward:reconcile-orphan.
 
 1. `pytest tests/` passes 100% across all test files (Plan 1 + Plan 2).
 2. `install.run()` is idempotent and creates index.db + seeds 5 internal agents.
-3. The 9 new SKILL.md files exist with correct frontmatter.
-4. The end-to-end smoke test in tests/test_smoke_plan2.py passes with mocked LLM.
-5. Manual sanity check: invoke Librarian against real Claude API, confirm
+3. The 9 new SKILL.md files exist at `internal/<category>/<name>/SKILL.md` with correct frontmatter.
+4. `skills/run/SKILL.md` contains routing entries for all 9 new procedures.
+5. `plugin.json` still registers only `memex:run` (no new top-level skills).
+6. The end-to-end smoke test in tests/test_smoke_plan2.py passes with mocked LLM.
+7. Manual sanity check: invoke Librarian against real Claude API, confirm
    reasonable index_id/domain/relations output on a sample article.
 ```
 
@@ -2607,8 +2642,9 @@ git commit -m "docs(index): Plan 2 acceptance criteria and architecture overview
 - [ ] `pytest tests/` reports 100% green
 - [ ] `install.run()` idempotent; seeds 5 internal agents; creates index.db
 - [ ] `~/.memex/index.db` schema matches spec §5.2
-- [ ] 9 new SKILL.md files present with correct frontmatter
-- [ ] `plugin.json` lists all skills (10 from Plan 1 + 9 from Plan 2 = 19)
+- [ ] 9 new SKILL.md files present at `internal/<category>/<name>/SKILL.md` with correct frontmatter
+- [ ] `skills/run/SKILL.md` contains routing entries for all 9 Plan 2 procedures
+- [ ] `plugin.json` still registers only `memex:run` (per spec §8.0)
 - [ ] Plan 2 smoke test passes (mocked LLM)
 - [ ] Manual eval: real LLM invocation on a sample article produces reasonable Librarian output
 - [ ] Final commit clean
