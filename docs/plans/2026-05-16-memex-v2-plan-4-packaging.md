@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship Memex v2 as a Claude Code custom plugin update. Includes install/upgrade flow from v1, packaging the `dist/` artifact, README + user-guide, CHANGELOG entry, and a clean version bump. End state: a user with v1 installed can upgrade to v2 and have `~/.memex/` set up correctly, with all 24 skills available.
+**Goal:** Ship Memex v2 as a Claude Code custom plugin update. Includes install/upgrade flow from v1, packaging the `dist/` artifact, README + user-guide, CHANGELOG entry, and a clean version bump. End state: a user with v1 installed can upgrade to v2 and have `~/.memex/` set up correctly, with the single `memex:run` skill registered and all 24 internal procedures routable through it (per spec §8.0).
 
 **Architecture:** Plan 4 is mostly plumbing and documentation. The novel piece is the v1 → v2 upgrade path: detect prior install, archive v1 artifacts (do not migrate content per design decision §5), seed v2 from scratch.
 
@@ -24,9 +24,10 @@ memex/
 ├── dist/                                          # NEW: build output (gitignored body, manifest checked in)
 │   └── v0.2.0/                                    # populated by release.py
 │       ├── manifest.json
-│       ├── plugin.json
+│       ├── plugin.json                            # registers only memex:run (spec §8.0)
 │       ├── scripts/
-│       ├── skills/
+│       ├── skills/                                # top-level: only run/SKILL.md
+│       ├── internal/                              # 24 procedures, NOT auto-loaded
 │       ├── db/
 │       ├── prompts/
 │       └── INSTALL.md
@@ -359,14 +360,21 @@ def test_dist_has_manifest_json(tmp_path):
 
 
 def test_dist_includes_all_skills(tmp_path):
+    """Per spec §8.0, only memex:run is registered at top level; the 24
+    internal procedures live under internal/<category>/<name>/SKILL.md
+    and must all be included in the bundle."""
     target = tmp_path / "dist"
     release.build(version="0.2.0", target_root=target)
-    skills_dir = target / "v0.2.0" / "skills"
-    assert (skills_dir / "core").is_dir()
-    assert (skills_dir / "index").is_dir()
-    assert (skills_dir / "brain").is_dir()
-    assert (skills_dir / "steward").is_dir()
-    assert (skills_dir / "dba").is_dir()
+    bundle = target / "v0.2.0"
+    # Top-level skills/ holds only the memex:run registration entry.
+    assert (bundle / "skills" / "run" / "SKILL.md").exists()
+    # The 24 procedures live under internal/<category>/.
+    internal_dir = bundle / "internal"
+    assert (internal_dir / "core").is_dir()
+    assert (internal_dir / "index").is_dir()
+    assert (internal_dir / "brain").is_dir()
+    assert (internal_dir / "steward").is_dir()
+    assert (internal_dir / "dba").is_dir()
 
 
 def test_dist_includes_plugin_json(tmp_path):
@@ -407,7 +415,7 @@ from pathlib import Path
 import hashlib
 
 
-_INCLUDE_DIRS = ["scripts", "skills", "db", "prompts"]
+_INCLUDE_DIRS = ["scripts", "skills", "internal", "db", "prompts"]
 _INCLUDE_FILES = ["plugin.json", "pyproject.toml", "README.md", "USER_GUIDE.md", "CHANGELOG.md"]
 
 
@@ -461,7 +469,7 @@ def build(version: str, target_root: Path | str = "dist") -> Path:
 
 1. Place this bundle in `~/.claude-code/plugins/memex/` (or your plugin directory).
 2. Restart Claude Code or invoke `/plugin reload memex`.
-3. On first use of any `memex:brain:*` skill, you will be prompted to register a human agent.
+3. Invoke `memex:run` and express your first intent (e.g. "ingest this article"). On first invocation of any Brain operation you will be prompted to register a human agent.
 
 ## Upgrading from v0.1
 
@@ -484,11 +492,19 @@ Run `python -m scripts.install` to bootstrap `~/.memex/`. Then check:
 v0.2 uses OpenAI text-embedding-3-small by default. Set `OPENAI_API_KEY`
 or switch providers via `MEMEX_EMBEDDING_PROVIDER` (`voyage`, `local`).
 
-## Skills shipped (24 total)
+## Skills shipped
 
-- 10 memex:core:* skills (CRUD substrate)
-- 9 memex:index:*, memex:steward:*, memex:dba:* skills
-- 5 memex:brain:* skills (ingest, ask, capture, lint, synthesize)
+**Memex v0.2 registers a single skill (`memex:run`)** with Claude Code,
+then routes 24 internal procedures on demand via its body. This stays
+well under Claude Code's 1% skill-description budget — the per-skill
+descriptions for 24 entries would otherwise consume significant
+context-window budget and risk truncation.
+
+All 24 procedures live at `internal/<category>/<name>/SKILL.md` and are
+reached via the routing tables inside `skills/run/SKILL.md`. The user
+expresses intent (e.g. "ingest this article"); agents call CRUD
+primitives by name. `memex:run` reads the matching procedure file on
+demand and follows it.
 """
     (version_dir / "INSTALL.md").write_text(install_md)
     files_manifest.append({
@@ -601,7 +617,7 @@ Three layers:
 3. **Memex Core** — CRUD substrate. Provisions and hosts arbitrary SQLite
    stores from consumer-supplied SQL migration files. Schema-agnostic.
 
-24 skills total, distributed via the Claude Code plugin.
+24 internal procedures routed via the single `memex:run` skill, distributed via the Claude Code plugin. Per spec §8.0 only `memex:run` is registered with Claude Code — it routes natural-language user intents and agent-facing CRUD operations to the matching procedure on demand, keeping the plugin's skill-description footprint well under Claude Code's 1% budget.
 
 ## Installation
 
@@ -713,10 +729,29 @@ Expected: FAIL.
 4. Set `OPENAI_API_KEY` if using the default embedding provider, or
    `MEMEX_EMBEDDING_PROVIDER=voyage|local` to switch.
 
+## How to invoke Memex
+
+Per spec §8.0, Memex registers a single Claude Code skill: `memex:run`.
+You don't invoke `memex:brain:ingest` or `memex:brain:ask` as
+top-level skills — those names are not in `plugin.json`. Instead you
+invoke `memex:run` and express your intent in natural language. The
+plugin routes the intent to the matching internal procedure under
+`internal/brain/<name>/SKILL.md`, reads it, and follows it. Examples:
+
+- "ingest this article: <url or body>" → `internal/brain/ingest/SKILL.md`
+- "ask my brain: what did I read about transformers?" → `internal/brain/ask/SKILL.md`
+- "capture this thought: ..." → `internal/brain/capture/SKILL.md`
+- "lint my brain" or "audit my brain" → `internal/brain/lint/SKILL.md`
+- "synthesize across these sources: ..." → `internal/brain/synthesize/SKILL.md`
+
+The procedure descriptions below name each operation by its logical
+identifier (`memex:brain:ingest`, etc.) for clarity — the underlying
+implementation lives at `internal/brain/<name>/SKILL.md`.
+
 ## Onboarding
 
-The first time you invoke a Brain skill (`memex:brain:ingest`, etc.),
-Memex will prompt you to register a human agent:
+The first time you invoke a Brain operation (ingest, capture, etc.) via
+`memex:run`, Memex will prompt you to register a human agent:
 
 > "What's your agent id? (lowercase, dashes; example: `human-user`)"
 > "Display name?"
@@ -773,17 +808,16 @@ returns ranked results from both.
 
 ### Periodic audit
 
-```
-memex:brain:lint  # or memex:steward:audit for the full Index
-```
+Invoke `memex:run` and say "lint my brain" (Brain-scoped) or "audit
+the full Memex Index" (full sweep). The plugin routes to
+`internal/brain/lint/SKILL.md` or `internal/steward/audit/SKILL.md`.
 
 Recommended monthly or after bulk ingest activity.
 
 ### Vacuum
 
-```
-memex:dba:vacuum article    # or any store name
-```
+Invoke `memex:run` and say "vacuum the `article` store" (or any
+registered store name). Routes to `internal/dba/vacuum/SKILL.md`.
 
 Reclaims space. Run during quiet periods.
 
@@ -810,8 +844,10 @@ python -m scripts.registry list
 
 ### Audit reports orphans
 
-Open the latest report in `~/.memex/audits/`. For each finding, use
-`memex:steward:reconcile-orphan` with the recommended action.
+Open the latest report in `~/.memex/audits/`. For each finding, invoke
+`memex:run` and say e.g. "reconcile orphan idx-XYZ with action
+delete-index"; it routes to
+`internal/steward/reconcile-orphan/SKILL.md`.
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -893,8 +929,15 @@ personal knowledge runtime and shared memory plane for the agent fleet.
 - **Multi-store substrate.** Core hosts arbitrary SQLite stores from
   consumer-supplied SQL migrations. Atelier and any future consumer share
   the substrate.
-- **24 skills** total across `memex:core:*`, `memex:index:*`,
-  `memex:brain:*`, `memex:steward:*`, `memex:dba:*`.
+- **24 internal procedures** spanning `memex:core:*`, `memex:index:*`,
+  `memex:brain:*`, `memex:steward:*`, `memex:dba:*` — all reached via
+  `memex:run`'s routing table (see "Single-skill registration model"
+  below).
+- **Single-skill registration model.** Only `memex:run` is registered
+  in `plugin.json`. All 24 operations live as internal procedures
+  (`internal/<category>/<name>/SKILL.md`) discovered through
+  `memex:run`'s routing table. This avoids Claude Code's 1%
+  skill-description budget truncation.
 - **Eventually consistent** atomicity contract between Index and target
   stores; Data Steward reconciles orphans via audit.
 
@@ -990,9 +1033,12 @@ def test_release_bundle_builds(tmp_path):
     assert (out / "manifest.json").exists()
     assert (out / "plugin.json").exists()
     assert (out / "INSTALL.md").exists()
-    assert (out / "skills" / "core").is_dir()
-    assert (out / "skills" / "index").is_dir()
-    assert (out / "skills" / "brain").is_dir()
+    # Top-level skills/ holds the memex:run registration entry.
+    assert (out / "skills" / "run" / "SKILL.md").exists()
+    # The 24 procedures live under internal/<category>/ (spec §8.0).
+    assert (out / "internal" / "core").is_dir()
+    assert (out / "internal" / "index").is_dir()
+    assert (out / "internal" / "brain").is_dir()
 ```
 
 - [ ] **Step 2-4: Run the test**
@@ -1092,9 +1138,10 @@ Plan 4 is the final wave of v0.2: packaging, install/upgrade, docs.
 ## What ships in the bundle
 
 `dist/v0.2.0/` contains:
-- `plugin.json` — Claude Code plugin manifest with all 24 skills
+- `plugin.json` — Claude Code plugin manifest. **Per spec §8.0 this registers exactly one skill: `memex:run`.** The 1% skill-description budget makes per-procedure top-level registration infeasible.
 - `scripts/` — Python CRUD + agent harness modules
-- `skills/` — all SKILL.md files (core, index, brain, steward, dba)
+- `skills/run/SKILL.md` — the single registered skill; its body holds the routing tables for the 24 internal procedures
+- `internal/` — the 24 internal procedures, organized as `internal/<category>/<name>/SKILL.md` (core, index, brain, steward, dba). NOT auto-loaded by Claude Code; reached on demand via `memex:run`'s routing tables.
 - `db/` — SQL migration files (agents.sql, index.sql, brain.sql, migrations_table.sql)
 - `prompts/` — Librarian, Reference Librarian, Synthesizer prompt templates
 - `manifest.json` — file inventory with SHA-256 hashes
@@ -1114,7 +1161,7 @@ Produces `dist/v0.2.0/`. The `dist/v*/` body is gitignored; only
 
 1. Bundle placed in `~/.claude-code/plugins/memex/`
 2. Claude Code reloads plugin
-3. First use of `memex:brain:*` skill triggers `install.run()` which:
+3. First Brain intent expressed via `memex:run` (e.g. "ingest this article") triggers `install.run()` which:
    - Archives v1 if `MEMEX_V1_PATH` is set
    - Creates `~/.memex/agents.db` + seeds 5 internal agents
    - Creates `~/.memex/index.db`
@@ -1142,7 +1189,11 @@ v1 wiki content is NOT migrated. The user re-ingests via
 3. `dist/v0.2.0/manifest.json` lists all files with SHA-256
 4. `dist/v0.2.0/INSTALL.md` has correct instructions
 5. README + CHANGELOG reflect v0.2.0
-6. Git tag `v0.2.0` created (push deferred to user)
+6. Bundle structure matches the §8.0 single-skill registration model:
+   - `dist/v0.2.0/plugin.json` registers exactly one skill (`memex:run`)
+   - `dist/v0.2.0/skills/run/SKILL.md` is present and contains routing tables for all 24 procedures
+   - `dist/v0.2.0/internal/{core,index,brain,steward,dba}/` are all present
+7. Git tag `v0.2.0` created (push deferred to user)
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -1181,12 +1232,17 @@ git commit -m "docs: PACKAGING.md for v0.2 release artifact"
 
 ## Cross-plan summary — total v0.2 surface
 
-| Layer | Plan | Skills | Tests |
+Per spec §8.0, `plugin.json` registers exactly one Claude Code skill:
+`memex:run`. All counts below refer to internal procedures at
+`internal/<category>/<name>/SKILL.md`, reached on demand via
+`memex:run`'s routing tables.
+
+| Layer | Plan | Internal procedures | Tests |
 |---|---|---|---|
-| Memex Core | 1 | 10 (`memex:core:*`) | ~50 |
-| Memex Index | 2 | 3 (`memex:index:*`) + 3 (`memex:steward:*`) + 3 (`memex:dba:*`) | ~60 |
-| Memex Brain | 3 | 5 (`memex:brain:*`) | ~40 |
-| Packaging | 4 | (no new skills; ships the bundle) | ~25 |
-| **Total** | | **24 skills** | **~175 tests** |
+| Memex Core | 1 | 10 (`memex:core:*` at `internal/core/`) | ~50 |
+| Memex Index | 2 | 3 (`memex:index:*`) + 3 (`memex:steward:*`) + 3 (`memex:dba:*`) under `internal/{index,steward,dba}/` | ~60 |
+| Memex Brain | 3 | 5 (`memex:brain:*` at `internal/brain/`) | ~40 |
+| Packaging | 4 | (no new procedures; ships the bundle) | ~25 |
+| **Total** | | **24 procedures, 1 registered skill (`memex:run`)** | **~175 tests** |
 
 This concludes the v0.2 implementation plan series.
