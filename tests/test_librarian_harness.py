@@ -83,6 +83,111 @@ def test_parse_response_raises_on_missing_required_field():
         librarian.parse_response(bad_response)
 
 
+def test_validate_output_accepts_caller_built_dict():
+    """Consumers (e.g. Atelier) that build librarian_output deterministically
+    must be able to validate it against the same schema parse_response uses."""
+    out = librarian.validate_output({
+        "index_id": "idx-1",
+        "key": "k",
+        "domain": "task",
+        "searchable": "title. body excerpt.",
+    })
+    # Defaults are filled in
+    assert out["metadata"] == {}
+    assert out["relations"] == []
+    # Required fields preserved
+    assert out["index_id"] == "idx-1"
+    assert out["domain"] == "task"
+
+
+def test_validate_output_preserves_caller_metadata_and_relations():
+    out = librarian.validate_output({
+        "index_id": "idx-2",
+        "key": "k2",
+        "domain": "task",
+        "searchable": "s",
+        "metadata": {"project_id": "atl-7"},
+        "relations": [{"to_index_id": "idx-proj", "rel_type": "part_of"}],
+    })
+    assert out["metadata"] == {"project_id": "atl-7"}
+    assert out["relations"][0]["rel_type"] == "part_of"
+
+
+def test_validate_output_raises_on_missing_fields():
+    with pytest.raises(ValueError, match="missing fields"):
+        librarian.validate_output({"index_id": "x", "key": "k"})  # missing domain, searchable
+
+
+def test_validate_output_raises_on_non_dict():
+    with pytest.raises(ValueError, match="must be a dict"):
+        librarian.validate_output("not a dict")  # type: ignore[arg-type]
+
+
+def test_validate_output_does_not_mutate_input():
+    src = {"index_id": "x", "key": "k", "domain": "task", "searchable": "s"}
+    librarian.validate_output(src)
+    assert "metadata" not in src
+    assert "relations" not in src
+
+
+def test_write_entry_accepts_caller_built_librarian_output(tmp_memex_home, tmp_path):
+    """The caller-built path (Atelier-style consumers): skip the subagent,
+    pass a Python-constructed librarian_output to write_entry directly.
+
+    Same persistence behavior as the subagent path — both go through
+    librarian.write_entry, which is the single write surface."""
+    from scripts import install, stores
+    install.run()
+
+    md = tmp_path / "m"; md.mkdir()
+    (md / "001.sql").write_text(
+        "CREATE TABLE tasks ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "index_id TEXT NOT NULL UNIQUE, "
+        "title TEXT NOT NULL, "
+        "status TEXT NOT NULL"
+        ");"
+    )
+    stores.create_store("atelier", str(tmp_path / "atelier.db"), str(md))
+
+    # No subagent dispatch — caller builds the classification.
+    caller_built = {
+        "index_id": "task-001",
+        "key": "ship-memex-v2",
+        "domain": "task",
+        "searchable": "Ship Memex v2. status=in_progress",
+        "metadata": {"project_id": "memex"},
+        "relations": [],
+    }
+
+    result = librarian.write_entry(
+        payload={"title": "Ship Memex v2", "status": "in_progress"},
+        librarian_output=caller_built,
+        target_store="atelier",
+        target_table="tasks",
+        caller_agent_id="librarian-1",
+    )
+
+    assert result["index_id"] == "task-001"
+    assert result["row_id"] is not None
+
+    # Index row landed with the caller-supplied domain
+    from scripts.db import get_connection, memex_home
+    conn = get_connection(str(memex_home() / "index.db"))
+    row = conn.execute(
+        "SELECT domain, store, table_name FROM documents WHERE index_id = ?",
+        ("task-001",),
+    ).fetchone()
+    conn.close()
+    assert row["domain"] == "task"
+    assert row["store"] == "atelier"
+    assert row["table_name"] == "tasks"
+
+    # Target store row landed
+    rows = stores.query("atelier", "SELECT * FROM tasks WHERE index_id = ?", ("task-001",))
+    assert rows[0]["status"] == "in_progress"
+
+
 def test_write_entry_persists_to_index_and_target_store(tmp_memex_home, tmp_path):
     """Feed a synthetic Librarian output into write_entry and verify both
     index.db.documents and the target-store row land correctly."""

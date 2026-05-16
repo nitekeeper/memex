@@ -405,6 +405,28 @@ that "multiple agents call Memex constantly," this would turn `index.db` into
 a global write serialization point. The contention cost exceeds the cost of
 periodic audit-based reconciliation.
 
+### 6.3 Caller-built classification (consumer fast path)
+
+Consumers that produce structured rows (Atelier `tasks`, `decisions`,
+`meetings`, etc.) know their `domain`, can build `searchable`
+deterministically from the row, and have explicit cross-doc relations in
+their data model. For these writers, the Librarian subagent dispatch is
+overhead — the LLM is being asked to "classify" data whose classification
+the caller already knows.
+
+`memex:index:write` accepts an optional `librarian_output` input. When
+supplied, Steps 1–3 of the recipe (build prompt, dispatch subagent, parse
+response) are skipped and `librarian.validate_output()` enforces the same
+schema the subagent would. Persistence still flows through
+`librarian.write_entry()`, so the Index↔target-store coupling and Data
+Steward orphan-detection contracts are preserved unchanged.
+
+Reserve the subagent path for prose ingest (Brain `ingest`, transcripts,
+free-form notes) where `domain` and `relations` must be extracted from
+text. The architectural invariant — every document write is mediated by
+the Librarian write surface — is unaffected; what varies is whether the
+classification step is LLM-mediated or caller-supplied.
+
 ---
 
 ## 7. Read flow

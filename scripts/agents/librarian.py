@@ -17,6 +17,12 @@ Public API:
     parse_response(response_text) -> dict
         Validates and coerces the subagent's JSON response.
 
+    validate_output(obj) -> dict
+        Validates a caller-built librarian_output dict against the same
+        schema parse_response enforces. For consumers (e.g. Atelier) that
+        know their domain and produce a librarian_output deterministically
+        instead of dispatching the Librarian subagent. See spec §6.2.
+
     write_entry(payload, librarian_output, target_store, target_table,
                 caller_agent_id, embedding=None) -> dict
         Persists: index.db.documents + relations + target store row.
@@ -101,12 +107,38 @@ def build_prompt(
     )
 
 
+def validate_output(obj: dict) -> dict:
+    """Validate a librarian_output dict against the schema parse_response enforces.
+
+    Used by both the subagent path (via parse_response) and the
+    caller-built path (consumers that produce librarian_output
+    deterministically). Same schema, one source of truth.
+
+    Required: index_id, key, domain, searchable.
+    Optional (defaults applied): metadata={}, relations=[].
+
+    Raises:
+        ValueError: if any required field is missing, or `obj` is not a dict.
+
+    Returns:
+        A new dict with defaults filled in. The input is not mutated.
+    """
+    if not isinstance(obj, dict):
+        raise ValueError(f"librarian_output must be a dict, got {type(obj).__name__}")
+    missing = _REQUIRED_FIELDS - set(obj.keys())
+    if missing:
+        raise ValueError(f"librarian_output missing fields: {missing}")
+    out = dict(obj)
+    out.setdefault("metadata", {})
+    out.setdefault("relations", [])
+    return out
+
+
 def parse_response(response_text: str) -> dict:
     """Parse and validate the Librarian subagent's JSON output.
 
     Strips markdown code fences if present (subagents often wrap JSON in
-    ```json ... ```). Validates required fields. Defaults metadata/relations
-    to empty if omitted.
+    ```json ... ```). Validates via validate_output().
 
     Raises:
         ValueError: response missing required fields, or unparseable as JSON.
@@ -118,12 +150,7 @@ def parse_response(response_text: str) -> dict:
             s = s[4:]
         s = s.rsplit("```", 1)[0] if s.endswith("```") else s
     parsed = json.loads(s.strip())
-    missing = _REQUIRED_FIELDS - set(parsed.keys())
-    if missing:
-        raise ValueError(f"Librarian response missing fields: {missing}")
-    parsed.setdefault("metadata", {})
-    parsed.setdefault("relations", [])
-    return parsed
+    return validate_output(parsed)
 
 
 def write_entry(
@@ -158,11 +185,9 @@ def write_entry(
     Returns:
         librarian_output augmented with "row_id" (the target-store PK).
     """
-    missing = _REQUIRED_FIELDS - set(librarian_output.keys())
-    if missing:
-        raise ValueError(f"librarian_output missing fields: {missing}")
+    librarian_output = validate_output(librarian_output)
 
-    # Default in case the subagent didn't supply an index_id
+    # Default in case the subagent supplied an empty/falsy index_id
     index_id = librarian_output.get("index_id") or str(uuid.uuid4())
     librarian_output = {**librarian_output, "index_id": index_id}
 
