@@ -6,11 +6,13 @@ from scripts.db import get_connection, memex_home
 
 
 def _seed_orphan(index_id: str, store: str = "no-store", table: str = "t", row_id: str = "1"):
+    # Per-call distinct key: documents.key is UNIQUE (spec §6.4); seeding
+    # multiple orphans in one test would otherwise collide on a shared key.
     conn = get_connection(str(memex_home() / "index.db"))
     conn.execute(
         "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, searchable, created_by) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (index_id, "k", "article", store, table, row_id, "txt", "librarian-1"),
+        (index_id, f"key-{index_id}", "article", store, table, row_id, "txt", "librarian-1"),
     )
     conn.commit()
     conn.close()

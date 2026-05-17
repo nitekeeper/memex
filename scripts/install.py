@@ -50,6 +50,8 @@ def run() -> None:
         )
         conn.commit()
         conn.close()
+    else:
+        _migrate_index_db_to_unique_key(str(index_db_path))
     if registry.get_store("index") is None:
         registry.register_store("index", str(index_db_path), schema_version="v1")
 
@@ -67,6 +69,42 @@ def run() -> None:
         conn.close()
     if registry.get_store("article") is None:
         registry.register_store("article", str(article_db_path), schema_version="v1")
+
+
+def _migrate_index_db_to_unique_key(index_db_path: str) -> None:
+    """In-place migration: replace non-unique documents_key_idx with the
+    UNIQUE invariant introduced in spec §6.4.
+
+    Idempotent. On pre-existing duplicate keys, raises ValueError listing
+    the offending keys — the install does not silently merge or delete.
+    Operators resolve by hand (e.g. via memex:steward:reconcile), then re-run.
+    """
+    conn = get_connection(index_db_path)
+    try:
+        has_unique = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name='documents_key_unique_idx'"
+        ).fetchone()
+        if has_unique:
+            return  # already migrated
+        dupes = [
+            (r["key"], r["n"])
+            for r in conn.execute(
+                "SELECT key, COUNT(*) AS n FROM documents "
+                "WHERE key IS NOT NULL GROUP BY key HAVING n > 1"
+            )
+        ]
+        if dupes:
+            preview = ", ".join(f"{k!r} x{n}" for k, n in dupes[:5])
+            more = f" (+{len(dupes) - 5} more)" if len(dupes) > 5 else ""
+            raise ValueError(
+                f"Cannot apply UNIQUE(documents.key): {len(dupes)} duplicate key(s) "
+                f"already present: {preview}{more}. Resolve via memex:steward, then re-run install."
+            )
+        conn.execute("DROP INDEX IF EXISTS documents_key_idx")
+        conn.execute("CREATE UNIQUE INDEX documents_key_unique_idx ON documents(key)")
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _seed_internal(agents_db_path: str) -> None:

@@ -377,3 +377,128 @@ def test_write_entry_raises_on_malformed_librarian_output():
             target_table="articles",
             caller_agent_id="librarian-1",
         )
+
+
+# ── Duplicate-key precheck (spec §6.4) ─────────────────────────────────────
+
+
+def _make_atelier_store(tmp_path):
+    from scripts import stores
+
+    md = tmp_path / "m"
+    md.mkdir()
+    (md / "001.sql").write_text(
+        "CREATE TABLE tasks ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "index_id TEXT NOT NULL UNIQUE, "
+        "title TEXT NOT NULL"
+        ");"
+    )
+    stores.create_store("dup-atelier", str(tmp_path / "dup.db"), str(md))
+
+
+def test_write_entry_raises_duplicate_key_error_on_collision(tmp_memex_home, tmp_path):
+    """Spec §6.4: a second write with an existing key must raise
+    DuplicateKeyError (typed), not sqlite3.IntegrityError."""
+    from scripts import install
+
+    install.run()
+    _make_atelier_store(tmp_path)
+
+    first = {
+        "index_id": "task-a",
+        "key": "workspace/proj/task/2026-05-16-ship-v3-1",
+        "domain": "task",
+        "searchable": "first",
+        "metadata": {},
+        "relations": [],
+    }
+    librarian.write_entry(
+        payload={"title": "first"},
+        librarian_output=first,
+        target_store="dup-atelier",
+        target_table="tasks",
+        caller_agent_id="librarian-1",
+    )
+
+    second = {**first, "index_id": "task-b", "searchable": "second"}
+    with pytest.raises(librarian.DuplicateKeyError) as exc:
+        librarian.write_entry(
+            payload={"title": "second"},
+            librarian_output=second,
+            target_store="dup-atelier",
+            target_table="tasks",
+            caller_agent_id="librarian-1",
+        )
+    assert exc.value.key == first["key"]
+    assert exc.value.existing_index_id == "task-a"
+
+
+def test_write_entry_duplicate_key_does_not_insert_index_row(tmp_memex_home, tmp_path):
+    """Precheck runs before INSERT — on collision, no orphan index row is left."""
+    from scripts import install
+    from scripts.db import get_connection, memex_home
+
+    install.run()
+    _make_atelier_store(tmp_path)
+
+    first = {
+        "index_id": "task-a",
+        "key": "dup-key",
+        "domain": "task",
+        "searchable": "s",
+        "metadata": {},
+        "relations": [],
+    }
+    librarian.write_entry(
+        payload={"title": "a"},
+        librarian_output=first,
+        target_store="dup-atelier",
+        target_table="tasks",
+        caller_agent_id="librarian-1",
+    )
+    with pytest.raises(librarian.DuplicateKeyError):
+        librarian.write_entry(
+            payload={"title": "b"},
+            librarian_output={**first, "index_id": "task-b"},
+            target_store="dup-atelier",
+            target_table="tasks",
+            caller_agent_id="librarian-1",
+        )
+
+    conn = get_connection(str(memex_home() / "index.db"))
+    rows = conn.execute("SELECT index_id FROM documents WHERE key = ?", ("dup-key",)).fetchall()
+    conn.close()
+    assert [r["index_id"] for r in rows] == ["task-a"]  # second was rejected
+
+
+def test_write_entry_allows_null_keys_in_separate_writes(tmp_memex_home, tmp_path):
+    """Spec §6.4: NULL keys are not constrained — multiple unkeyed writes succeed."""
+    from scripts import install
+
+    install.run()
+    _make_atelier_store(tmp_path)
+
+    for idx in ("u1", "u2"):
+        librarian.write_entry(
+            payload={"title": f"t-{idx}"},
+            librarian_output={
+                "index_id": idx,
+                "key": None,
+                "domain": "task",
+                "searchable": idx,
+                "metadata": {},
+                "relations": [],
+            },
+            target_store="dup-atelier",
+            target_table="tasks",
+            caller_agent_id="librarian-1",
+        )  # must not raise
+
+
+def test_duplicate_key_error_exposes_attributes():
+    err = librarian.DuplicateKeyError(key="k", existing_index_id="idx-1")
+    assert err.key == "k"
+    assert err.existing_index_id == "idx-1"
+    assert "k" in str(err)
+    assert "idx-1" in str(err)

@@ -228,7 +228,7 @@ append their own.
 ```sql
 CREATE TABLE documents (
     index_id     TEXT PRIMARY KEY,         -- universal handle, librarian-assigned
-    key          TEXT,                     -- human-readable slug
+    key          TEXT,                     -- human-readable slug; UNIQUE (NULLs allowed, distinct per SQLite semantics)
     domain       TEXT NOT NULL,            -- 'article' | 'decision' | 'meeting' | etc.
     store        TEXT NOT NULL,            -- registry name of the target store
     table_name   TEXT NOT NULL,            -- table within the target store
@@ -240,9 +240,9 @@ CREATE TABLE documents (
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX documents_domain_idx ON documents(domain);
-CREATE INDEX documents_store_idx  ON documents(store);
-CREATE INDEX documents_key_idx    ON documents(key);
+CREATE INDEX        documents_domain_idx     ON documents(domain);
+CREATE INDEX        documents_store_idx      ON documents(store);
+CREATE UNIQUE INDEX documents_key_unique_idx ON documents(key);
 
 CREATE VIRTUAL TABLE documents_fts USING fts5(
     searchable, content='documents', content_rowid='rowid'
@@ -266,6 +266,13 @@ Notes:
 - `embedding` is BLOB. Model and serialization are specified in §10.
 - `documents_fts` is automatically maintained via triggers (omitted here;
   to be defined in migration file).
+- `documents_key_unique_idx` enforces an **exact-match** uniqueness invariant
+  on `key`. SQLite treats NULLs as distinct in UNIQUE indexes, so rows without
+  a key (legitimate for unkeyed captures) remain unconstrained. The Librarian
+  performs a precheck before INSERT and raises a typed `DuplicateKeyError`
+  rather than letting raw `sqlite3.IntegrityError` surface to consumers; see
+  §6.4. This invariant is independent of the Librarian's near-duplicate
+  content-similarity policy — see §6.4 for the distinction.
 
 ### 5.3 `~/.memex/article.db` (default Brain store)
 
@@ -426,6 +433,45 @@ free-form notes) where `domain` and `relations` must be extracted from
 text. The architectural invariant — every document write is mediated by
 the Librarian write surface — is unaffected; what varies is whether the
 classification step is LLM-mediated or caller-supplied.
+
+### 6.4 Duplicate-key handling
+
+Two independent mechanisms protect against key collisions; they are
+**complementary, not overlapping.**
+
+**(a) Exact-match invariant — schema-enforced.** `documents.key` carries a
+`UNIQUE` index (`documents_key_unique_idx`). This is a defense-in-depth catch
+against accidental collisions from any consumer. Consumers that allocate keys
+deterministically (e.g., Atelier's `key_sequences` allocator) are not expected
+to trip this; the invariant exists for the rare bug where an allocator is
+bypassed or a hand-built `librarian_output` reuses an existing key. SQLite
+NULL-distinct semantics mean rows with `key IS NULL` are not constrained —
+unkeyed captures continue to work unchanged.
+
+**(b) Near-duplicate flagging — agent-side policy.** The Librarian's profile
+mandates content-similarity detection (canonical-form hashing, near-duplicate
+clustering). This catches conceptually-redundant submissions whose `key` slugs
+happen to differ. It is a policy applied during classification, surfaced as
+metadata on the librarian_output, and remains the Librarian's responsibility
+regardless of the schema invariant.
+
+The two mechanisms work at different layers: (a) is exact and schema-level;
+(b) is fuzzy and agent-level. A submission that passes (a) may still be
+flagged by (b); a submission flagged by (b) but with a distinct key still
+satisfies (a).
+
+**Error surface.** Before INSERT, `librarian.write_entry()` runs a
+`SELECT index_id FROM documents WHERE key = ?` precheck. On hit, it raises
+`scripts.agents.librarian.DuplicateKeyError` carrying the colliding key and
+the existing `index_id`. Consumers (Atelier, custom plugins) catch this
+typed exception by class rather than parsing raw `sqlite3.IntegrityError`
+text. The schema's `UNIQUE` constraint remains as a last-line defense in
+case a future code path bypasses the precheck — but the user-visible
+failure mode is the typed `DuplicateKeyError`, not an `IntegrityError`.
+
+The precheck is a single indexed lookup (the `UNIQUE` index doubles as the
+query index) and runs in the same connection as the INSERT; the precheck
+is not a serialization point.
 
 ---
 
@@ -919,7 +965,7 @@ PhD in Information Science, University of Sheffield iSchool. MLIS from UC Berkel
 
 Expertise: faceted classification, controlled vocabularies, ontology design, FRBR/LRM conceptual models, RDA cataloging rules, Dewey Decimal, UDC, MARC standards. SQLite full-text search (FTS5), trigram indexing, embedding-based semantic retrieval, knowledge graph construction, entity resolution and disambiguation. Cross-collection relationship modeling (cites, derives, supersedes, refutes, depends-on, informs). Domain classification across technical, scientific, legal, and humanities corpora. Duplicate detection via canonical-form hashing and near-duplicate clustering.
 
-Responsibilities: owns the Memex Index DB end-to-end. For every document submitted by a writing agent, produces (1) a stable, unique `index_id`; (2) a human-readable `key` slug; (3) the `domain` classification (article, decision, meeting, spec, plan, ADR, capture, etc.); (4) a curated `searchable` text optimized for FTS5; (5) structured `metadata` (author, date, topics, tags); (6) a complete set of `relations` linking this document to existing index entries. Queries the existing index before classifying — every new document is contextualized against what is already cataloged. Maintains relationship consistency: when a document is superseded, updates the citation graph; when a source is removed, prunes orphaned relations. Reads the `created_by` agent's role and profile to inform classification. Flags duplicates and near-duplicates; never silently overwrites.
+Responsibilities: owns the Memex Index DB end-to-end. For every document submitted by a writing agent, produces (1) a stable, unique `index_id`; (2) a human-readable `key` slug — **must be globally unique across the Index** (enforced by `documents_key_unique_idx`; see §5.2 and §6.4); (3) the `domain` classification (article, decision, meeting, spec, plan, ADR, capture, etc.); (4) a curated `searchable` text optimized for FTS5; (5) structured `metadata` (author, date, topics, tags); (6) a complete set of `relations` linking this document to existing index entries. Queries the existing index before classifying — every new document is contextualized against what is already cataloged. Maintains relationship consistency: when a document is superseded, updates the citation graph; when a source is removed, prunes orphaned relations. Reads the `created_by` agent's role and profile to inform classification. Enforces two distinct duplicate-protection layers (§6.4): (i) exact-match `key` uniqueness — schema-enforced and prechecked, raising typed `DuplicateKeyError` on collision; (ii) near-duplicate content-similarity flagging — agent-side policy, surfaced as metadata. Never silently overwrites.
 
 Works with: every writing agent across every consumer (Brain ingestion, Atelier decisions, Atelier meeting minutes, project documents from any registered consumer). PM dispatches ingest requests; Software Architect consults on schema implications when novel domains emerge. Delegates persistence to Memex Core after the Index row is written; never writes target-store rows directly.
 

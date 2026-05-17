@@ -16,9 +16,14 @@ CREATE TABLE IF NOT EXISTS documents (
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS documents_domain_idx ON documents(domain);
-CREATE INDEX IF NOT EXISTS documents_store_idx  ON documents(store);
-CREATE INDEX IF NOT EXISTS documents_key_idx    ON documents(key);
+CREATE INDEX        IF NOT EXISTS documents_domain_idx     ON documents(domain);
+CREATE INDEX        IF NOT EXISTS documents_store_idx       ON documents(store);
+-- Exact-match uniqueness invariant on `key`. SQLite treats NULLs as distinct,
+-- so unkeyed rows remain unconstrained. The Librarian prechecks this index
+-- before INSERT and raises a typed DuplicateKeyError on collision; the
+-- UNIQUE index is the last-line defense for any code path that bypasses
+-- the precheck. See spec §6.4.
+CREATE UNIQUE INDEX IF NOT EXISTS documents_key_unique_idx  ON documents(key);
 
 CREATE TABLE IF NOT EXISTS relations (
     from_index_id  TEXT NOT NULL REFERENCES documents(index_id),

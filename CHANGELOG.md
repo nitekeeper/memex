@@ -8,7 +8,39 @@ Format: [version] — date — summary.
 
 ## Unreleased
 
-(no in-progress work)
+### Index — duplicate-key invariant (spec §6.4)
+
+**What.** `documents.key` now carries a UNIQUE index
+(`documents_key_unique_idx`), and `librarian.write_entry()` prechecks for
+collisions and raises a typed `librarian.DuplicateKeyError` (carrying the
+colliding key and existing `index_id`) before INSERT. The schema UNIQUE
+constraint remains as last-line defense.
+
+**Why.** Promotes the Librarian's existing "never silently overwrites"
+policy from agent-side discipline to a schema-level invariant. Negotiated
+with Atelier as defense-in-depth: Atelier's own `key_sequences` allocator
+is the primary uniqueness mechanism; UNIQUE(`key`) catches accidental
+collisions from any consumer (including future ones).
+
+**Distinction from near-duplicate flagging.** UNIQUE(`key`) is an
+exact-match invariant. The Librarian's near-duplicate content-similarity
+policy (canonical-form hashing, clustering) remains separate and
+complementary — see spec §6.4.
+
+**Migration.** `scripts/install.py` upgrades pre-existing `index.db`
+files in place: drops the old non-unique `documents_key_idx`, creates
+`documents_key_unique_idx`. If duplicate keys are already present in the
+DB, the migration refuses with a `ValueError` listing the offending keys
+— operators resolve manually (`memex:steward:reconcile-orphan` or direct
+SQL) and re-run install.
+
+**Semantics.** SQLite treats NULLs as distinct in UNIQUE indexes, so
+unkeyed captures (key IS NULL) remain unconstrained.
+
+Files: `docs/specs/2026-05-16-memex-v2-redesign-design.md` (§5.2, new §6.4,
+§A.1 Librarian role-card), `db/index.sql`, `scripts/install.py`,
+`scripts/agents/librarian.py`. Tests: 6 new (`test_index_schema.py`,
+`test_librarian_harness.py`, `test_install.py`).
 
 ---
 

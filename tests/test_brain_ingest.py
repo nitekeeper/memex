@@ -126,10 +126,15 @@ def test_ingest_prepare_returns_skipped_on_duplicate_content(installed_with_huma
 
 
 def test_ingest_different_content_creates_new_row(installed_with_human):
-    """Different canonical body → fresh prepare + new row, no skip."""
+    """Different canonical body → fresh prepare + new row, no skip.
+
+    Each ingest receives a distinct librarian-assigned key — the real
+    Librarian subagent generates fresh slugs per call; reusing the same
+    key here would (correctly) collide on the documents_key_unique_idx
+    invariant (spec §6.4)."""
     output_a = {
         "index_id": "idx-a",
-        "key": "k",
+        "key": "version-1-slug",
         "domain": "article",
         "searchable": "s",
         "metadata": {},
@@ -137,7 +142,7 @@ def test_ingest_different_content_creates_new_row(installed_with_human):
     }
     output_b = {
         "index_id": "idx-b",
-        "key": "k",
+        "key": "version-2-slug",
         "domain": "article",
         "searchable": "s",
         "metadata": {},

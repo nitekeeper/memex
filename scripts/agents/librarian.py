@@ -47,6 +47,28 @@ from scripts.db import get_connection, memex_home
 _REQUIRED_FIELDS = {"index_id", "key", "domain", "searchable"}
 
 
+class DuplicateKeyError(Exception):
+    """Raised by write_entry() when an incoming `key` collides with an
+    existing row in index.db.documents.
+
+    Surfaced before INSERT so consumers (Atelier, custom plugins) can catch
+    by class rather than parsing raw sqlite3.IntegrityError text. See spec
+    §6.4 for the two-layer duplicate-protection model.
+
+    Attributes:
+        key:                the colliding `documents.key` value
+        existing_index_id:  index_id of the row already holding that key
+    """
+
+    def __init__(self, key: str, existing_index_id: str):
+        self.key = key
+        self.existing_index_id = existing_index_id
+        super().__init__(
+            f"Duplicate documents.key={key!r} already present "
+            f"(existing index_id={existing_index_id!r})"
+        )
+
+
 def _load_template() -> str:
     return Path("prompts/librarian.md").read_text(encoding="utf-8")
 
@@ -207,13 +229,25 @@ def write_entry(
     # Step 1: Index row + relations
     conn = get_connection(index_db_path)
     try:
+        # Precheck: duplicate-key invariant (spec §6.4). The UNIQUE index
+        # is the last-line defense; this precheck surfaces a typed error
+        # so consumers don't parse raw IntegrityError text. NULL keys are
+        # exempt (SQLite NULL-distinct semantics; unkeyed captures permitted).
+        key = librarian_output.get("key")
+        if key is not None:
+            existing = conn.execute(
+                "SELECT index_id FROM documents WHERE key = ?",
+                (key,),
+            ).fetchone()
+            if existing is not None:
+                raise DuplicateKeyError(key=key, existing_index_id=existing["index_id"])
         conn.execute(
             "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
             "searchable, metadata, embedding, created_by) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 index_id,
-                librarian_output.get("key"),
+                key,
                 librarian_output["domain"],
                 target_store,
                 target_table,

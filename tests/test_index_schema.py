@@ -41,6 +41,72 @@ def test_index_documents_has_embedding_blob(tmp_path):
     assert cols.get("index_id") == "TEXT"
 
 
+def test_documents_key_has_unique_index(tmp_path):
+    """Spec §5.2 / §6.4: documents_key_unique_idx is UNIQUE."""
+    sql = Path("db/index.sql").read_text(encoding="utf-8")
+    db = tmp_path / "index.db"
+    conn = get_connection(str(db))
+    conn.executescript(sql)
+    row = conn.execute(
+        "SELECT \"unique\" FROM pragma_index_list('documents') "
+        "WHERE name = 'documents_key_unique_idx'"
+    ).fetchone()
+    conn.close()
+    assert row is not None, "documents_key_unique_idx not found"
+    assert row["unique"] == 1, "documents_key_unique_idx must be UNIQUE"
+
+
+def test_documents_key_unique_rejects_duplicates(tmp_path):
+    """Spec §6.4(a): two non-NULL rows sharing a key must fail."""
+    import sqlite3
+
+    import pytest
+
+    sql = Path("db/index.sql").read_text(encoding="utf-8")
+    db = tmp_path / "index.db"
+    conn = get_connection(str(db))
+    conn.executescript(sql)
+    conn.commit()
+    conn.execute(
+        "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
+        "searchable, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("a", "shared-key", "article", "brain", "articles", "1", "x", "system"),
+    )
+    conn.commit()
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
+            "searchable, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("b", "shared-key", "article", "brain", "articles", "2", "y", "system"),
+        )
+        conn.commit()
+    conn.close()
+
+
+def test_documents_key_unique_allows_multiple_nulls(tmp_path):
+    """Spec §6.4(a): NULL keys are distinct under SQLite UNIQUE semantics;
+    unkeyed captures continue to work."""
+    sql = Path("db/index.sql").read_text(encoding="utf-8")
+    db = tmp_path / "index.db"
+    conn = get_connection(str(db))
+    conn.executescript(sql)
+    conn.commit()
+    conn.execute(
+        "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
+        "searchable, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("a", None, "capture", "brain", "captures", "1", "x", "system"),
+    )
+    conn.execute(
+        "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
+        "searchable, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("b", None, "capture", "brain", "captures", "2", "y", "system"),
+    )
+    conn.commit()
+    count = conn.execute("SELECT COUNT(*) AS n FROM documents").fetchone()["n"]
+    conn.close()
+    assert count == 2
+
+
 def test_relations_pk_composite(tmp_path):
     sql = Path("db/index.sql").read_text(encoding="utf-8")
     db = tmp_path / "index.db"
