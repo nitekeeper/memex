@@ -22,12 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: '3.11'
 
@@ -44,10 +44,18 @@ jobs:
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Verify manifest versions match the tag
+        env:
+          # Route step outputs and event fields through env vars rather than
+          # inline-interpolating ${{ ... }} into the run script. Inline
+          # interpolation happens before bash sees the script, which would
+          # let a malicious tag name break out of the surrounding quotes.
+          # While tag-pushing requires repo write (already a high bar),
+          # env-var passing is defense-in-depth.
+          TAG: ${{ steps.ver.outputs.version }}
         run: |
           python - <<'PY'
-          import json, re, sys
-          tag = "${{ steps.ver.outputs.version }}"
+          import json, os, re, sys
+          tag = os.environ["TAG"]
           pj = json.load(open(".claude-plugin/plugin.json"))["version"]
           py = re.search(r'^version\s*=\s*"([^"]+)"', open("pyproject.toml").read(), re.M).group(1)
           mismatches = []
@@ -60,19 +68,25 @@ jobs:
           PY
 
       - name: Build dist bundle
-        run: python -m scripts.release ${{ steps.ver.outputs.version }}
+        env:
+          TAG: ${{ steps.ver.outputs.version }}
+        run: python -m scripts.release "$TAG"
 
       - name: Zip the dist bundle for release attachment
+        env:
+          TAG: ${{ steps.ver.outputs.version }}
         run: |
           cd dist
-          zip -r "memex-v${{ steps.ver.outputs.version }}.zip" "v${{ steps.ver.outputs.version }}"
+          zip -r "memex-v${TAG}.zip" "v${TAG}"
 
       - name: Extract CHANGELOG section for this version
         id: changelog
+        env:
+          TAG: ${{ steps.ver.outputs.version }}
         run: |
           python - <<'PY' > /tmp/release-body.md
-          import re, sys
-          version = "${{ steps.ver.outputs.version }}"
+          import os, re, sys
+          version = os.environ["TAG"]
           content = open("CHANGELOG.md", encoding="utf-8").read()
           # Match `## v<version> — date` block up to the next `## v` or `---` divider
           pattern = rf"^## v{re.escape(version)}\b.*?(?=^## v|\Z)"
@@ -91,11 +105,13 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.version }}
+          BODY_PATH: ${{ steps.changelog.outputs.body_path }}
         run: |
-          gh release create "v${{ steps.ver.outputs.version }}" \
-            "dist/memex-v${{ steps.ver.outputs.version }}.zip" \
-            --title "v${{ steps.ver.outputs.version }}" \
-            --notes-file "${{ steps.changelog.outputs.body_path }}"
+          gh release create "v${TAG}" \
+            "dist/memex-v${TAG}.zip" \
+            --title "v${TAG}" \
+            --notes-file "${BODY_PATH}"
 
       - name: Notify agora marketplace
         # Folded in from the old notify-agora.yml. We do it here instead of in
@@ -107,9 +123,11 @@ jobs:
         # PAT (AGORA_DISPATCH_TOKEN), which agora's plugin-update.yml receives.
         env:
           GH_TOKEN: ${{ secrets.AGORA_DISPATCH_TOKEN }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          TAG: ${{ steps.ver.outputs.version }}
         run: |
-          plugin=$(echo "${{ github.event.repository.name }}" | tr 'A-Z' 'a-z')
-          tag="v${{ steps.ver.outputs.version }}"
+          plugin=$(echo "$REPO_NAME" | tr 'A-Z' 'a-z')
+          tag="v${TAG}"
           echo "Dispatching plugin-released to nitekeeper/agora (plugin=$plugin, tag=$tag)"
           gh api repos/nitekeeper/agora/dispatches \
             -f event_type=plugin-released \
