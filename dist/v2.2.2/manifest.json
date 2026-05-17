@@ -1,21 +1,21 @@
 {
-  "version": "2.2.1",
-  "built_at": "2026-05-17T00:11:33.770972+00:00",
+  "version": "2.2.2",
+  "built_at": "2026-05-17T00:18:36.016777+00:00",
   "file_count": 61,
   "files": [
     {
       "path": ".claude-plugin\\plugin.json",
-      "sha256": "1444af09481acb8a4f99c56cccb9fdd0486e7a79f7279ddc1dac119e3c44fb35",
+      "sha256": "7e5dd8c3d7e1b52972952542850c31aa1740d3ca3a5051faf34931a61612c817",
       "bytes": 707
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "1cd16d8cab78e1b2561fca410521162f8be2ca50c2cadd7d03e7400224b11812",
-      "bytes": 11349
+      "sha256": "c762a31b83084a7aa9aaa3b71171aac795323fde10b5700847d052e3755880d8",
+      "bytes": 12021
     },
     {
       "path": "INSTALL.md",
-      "sha256": "68e64f8af9ad4d78cb978fa17686dbacf41307a9cfa7e6540eb86aaf5a25004a",
+      "sha256": "b9d7515c19d5f005c59b14d429a27a5feac71321cbe3cf898b5b30e78cdb18b3",
       "bytes": 2816
     },
     {
@@ -205,7 +205,7 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "f9d4fbdc9f974019b3bd5086163455b61c20619ff8a7e10fe7bf7230b1d61c95",
+      "sha256": "908647ab07d58d9e95ce70959e99fecf8eb7eaca449d47cead96439c89182432",
       "bytes": 2687
     },
     {

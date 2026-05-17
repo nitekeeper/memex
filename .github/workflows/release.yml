@@ -96,3 +96,22 @@ jobs:
             "dist/memex-v${{ steps.ver.outputs.version }}.zip" \
             --title "v${{ steps.ver.outputs.version }}" \
             --notes-file "${{ steps.changelog.outputs.body_path }}"
+
+      - name: Notify agora marketplace
+        # Folded in from the old notify-agora.yml. We do it here instead of in
+        # a separate workflow because workflow chaining is blocked when the
+        # triggering event was caused by the default GITHUB_TOKEN: a release
+        # created by `gh release create` above does NOT fire `release:
+        # published` for downstream workflows. By dispatching inline, we don't
+        # depend on that chaining — we just send the event ourselves with a
+        # PAT (AGORA_DISPATCH_TOKEN), which agora's plugin-update.yml receives.
+        env:
+          GH_TOKEN: ${{ secrets.AGORA_DISPATCH_TOKEN }}
+        run: |
+          plugin=$(echo "${{ github.event.repository.name }}" | tr 'A-Z' 'a-z')
+          tag="v${{ steps.ver.outputs.version }}"
+          echo "Dispatching plugin-released to nitekeeper/agora (plugin=$plugin, tag=$tag)"
+          gh api repos/nitekeeper/agora/dispatches \
+            -f event_type=plugin-released \
+            -f client_payload[plugin]="$plugin" \
+            -f client_payload[tag]="$tag"

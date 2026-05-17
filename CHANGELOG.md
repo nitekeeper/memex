@@ -12,6 +12,25 @@ Format: [version] — date — summary.
 
 ---
 
+## v2.2.2 — 2026-05-17
+
+**Release-pipeline fix. No code or behavior changes.**
+
+v2.2.1 surfaced a GitHub Actions chaining gap: workflows triggered by
+`GITHUB_TOKEN` cannot trigger other workflows (anti-loop guard). The old
+`notify-agora.yml` listened for `release: published`, but `release.yml`
+creates that release using `GITHUB_TOKEN`, so the event never reached
+`notify-agora.yml` and agora was never notified.
+
+Fix: folded the dispatch step into `release.yml` directly. The same
+workflow that publishes the GitHub Release now also fires
+`repository_dispatch` at agora, using `AGORA_DISPATCH_TOKEN`. No
+cross-workflow chaining needed. Deleted `notify-agora.yml`.
+
+End-to-end push-loop is now exercised by this release.
+
+---
+
 ## v2.2.1 — 2026-05-16
 
 **Release-tooling validation. No code or behavior changes.**
