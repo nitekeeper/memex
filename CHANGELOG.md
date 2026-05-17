@@ -12,6 +12,48 @@ Format: [version] — date — summary.
 
 ---
 
+## v2.4.0 — 2026-05-17
+
+### Steward — `repair` action + typed `OrphanNotFoundError`
+
+**What.** `memex:steward:reconcile-orphan` gains a fourth action, `repair`,
+which backfills `documents.row_id` from a known target PK and writes an
+audit row. Targets the forward-orphan class where the Index row exists,
+the target row exists, but the `row_id` link was never written. Requires
+a new `repair_row_id` kwarg; validates the target store is registered and
+that the supplied row exists before updating.
+
+A new typed exception `scripts.agents.data_steward.OrphanNotFoundError`
+is raised when `reconcile_orphan()` is called with an unknown `index_id`
+(all actions), or when `repair` is called against a row whose `row_id`
+is already populated (i.e., not the orphan class `repair` handles). The
+exception carries `index_id` and `reason` attributes for catch-by-class
+consumers.
+
+`delete-index` now also writes an audit row (previously silent).
+
+**Why.** Negotiated with Atelier as the primitive their v1.1.0 orphan
+sweep needs. Without it, consumers would either skip the dangling-link
+class entirely or fall back to raw `UPDATE documents SET row_id=?` SQL,
+which bypasses the audit trail and the contract that all reconciliation
+flows through `memex:steward`. See the Atelier 1.C correspondence
+(forwarded 2026-05-17).
+
+**Migration.** Additive. The signature change is a new optional kwarg;
+no existing callers break. Existing `delete-index` and `note` callers
+should expect `OrphanNotFoundError` instead of silent no-op when the
+`index_id` is unknown — this is a behavior tightening, not a regression
+(the prior silent no-op masked typo bugs).
+
+### Spec orientation — closed (c) on Atelier 1.C
+
+Atelier proposed adopting cross-store ATTACH-and-atomic transactions in
+`librarian.write_entry`. Confirmed not viable under SQLite's WAL +
+ATTACH semantics (each attached DB has its own WAL; master-journal
+atomicity is rollback-mode only). Decision Log #25 and §6.2 stand.
+
+---
+
 ## v2.3.0 — 2026-05-17
 
 ### Index — duplicate-key invariant (spec §6.4)

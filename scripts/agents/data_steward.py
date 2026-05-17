@@ -168,25 +168,63 @@ def audit(index_db: str) -> str:
     return str(report_path)
 
 
-def reconcile_orphan(index_id: str, action: str, note_text: str | None = None) -> dict:
+class OrphanNotFoundError(Exception):
+    """Raised when reconcile_orphan() is called for an index_id that either
+    doesn't exist in documents or — for `repair` — is already linked
+    (row_id is non-empty, so it's not the orphan class repair handles)."""
+
+    def __init__(self, index_id: str, reason: str = "no documents row"):
+        self.index_id = index_id
+        self.reason = reason
+        super().__init__(f"orphan not found for index_id={index_id!r} ({reason})")
+
+
+def _append_audit(entry: str) -> None:
+    audits_dir = memex_home() / "audits"
+    audits_dir.mkdir(parents=True, exist_ok=True)
+    log_path = audits_dir / "reconciliation-log.md"
+    with open(log_path, "a") as f:
+        f.write(entry)
+
+
+def reconcile_orphan(
+    index_id: str,
+    action: str,
+    note_text: str | None = None,
+    repair_row_id: str | None = None,
+) -> dict:
     """Resolve a flagged orphan.
 
     Actions:
       - delete-index: remove the documents row AND its relations (target row already gone)
+      - repair: backfill documents.row_id from a known target PK (forward-orphan
+        where the target row exists but the link was never written). Requires
+        repair_row_id; validates the target row exists in the registered store.
       - reindex: re-run Librarian on the orphaned target row (Plan 3+; raises
         NotImplementedError for now if the target row also missing)
       - note: leave as-is but record acknowledgment in audits/
 
+    Raises OrphanNotFoundError when index_id is not present in documents (all
+    actions), or for `repair` when the row's row_id is already non-empty.
+
     Returns dict describing the action taken.
     """
-    valid_actions = {"delete-index", "reindex", "note"}
+    valid_actions = {"delete-index", "repair", "reindex", "note"}
     if action not in valid_actions:
         raise ValueError(f"Unknown action: {action}. Valid: {valid_actions}")
 
     index_db = str(memex_home() / "index.db")
+    conn = get_connection(index_db)
+    row = conn.execute(
+        "SELECT store, table_name, row_id FROM documents WHERE index_id = ?",
+        (index_id,),
+    ).fetchone()
+    conn.close()
+    if row is None:
+        raise OrphanNotFoundError(index_id)
+
     if action == "delete-index":
         conn = get_connection(index_db)
-        # Delete relations first (FK)
         conn.execute(
             "DELETE FROM relations WHERE from_index_id = ? OR to_index_id = ?",
             (index_id, index_id),
@@ -194,18 +232,62 @@ def reconcile_orphan(index_id: str, action: str, note_text: str | None = None) -
         conn.execute("DELETE FROM documents WHERE index_id = ?", (index_id,))
         conn.commit()
         conn.close()
+        _append_audit(
+            f"\n- {datetime.now(timezone.utc).isoformat()} | index_id={index_id} | "
+            f"action=delete-index | result=removed\n"
+        )
         return {"action": "delete-index", "index_id": index_id, "result": "removed"}
 
+    elif action == "repair":
+        if not repair_row_id:
+            raise ValueError("repair action requires repair_row_id")
+        if row["row_id"]:
+            raise OrphanNotFoundError(
+                index_id,
+                reason=f"row_id already populated ({row['row_id']!r}); not a link-missing orphan",
+            )
+        store_name = row["store"]
+        table_name = row["table_name"]
+        rec = registry.get_store(store_name)
+        if rec is None:
+            raise ValueError(f"store '{store_name}' not registered")
+        safe_table = safe_identifier(table_name)
+        target_conn = get_connection(rec["path"])
+        try:
+            target = target_conn.execute(
+                f"SELECT 1 FROM {safe_table} WHERE id = ?",  # nosec B608 - identifier validated
+                (repair_row_id,),
+            ).fetchone()
+        finally:
+            target_conn.close()
+        if target is None:
+            raise ValueError(
+                f"target row not found: store={store_name} table={table_name} id={repair_row_id}"
+            )
+        conn = get_connection(index_db)
+        conn.execute(
+            "UPDATE documents SET row_id = ? WHERE index_id = ?",
+            (repair_row_id, index_id),
+        )
+        conn.commit()
+        conn.close()
+        _append_audit(
+            f"\n- {datetime.now(timezone.utc).isoformat()} | index_id={index_id} | "
+            f"action=repair | store={store_name} | table={table_name} | "
+            f"row_id={repair_row_id}\n"
+        )
+        return {
+            "action": "repair",
+            "index_id": index_id,
+            "row_id": repair_row_id,
+            "result": "linked",
+        }
+
     elif action == "note":
-        audits_dir = memex_home() / "audits"
-        audits_dir.mkdir(parents=True, exist_ok=True)
-        log_path = audits_dir / "reconciliation-log.md"
-        entry = (
+        _append_audit(
             f"\n- {datetime.now(timezone.utc).isoformat()} | index_id={index_id} | "
             f"action=note | text={note_text or ''}\n"
         )
-        with open(log_path, "a") as f:
-            f.write(entry)
         return {"action": "note", "index_id": index_id, "result": "logged"}
 
     elif action == "reindex":

@@ -50,7 +50,7 @@ Memex maintains a federated Index (`~/.memex/index.db`) plus five internal agent
 | Archive a raw payload to `~/.memex/raw/` without indexing (rare; usually called internally by index:write) | `internal/index/archive/SKILL.md` |
 | Run a full integrity audit across every store + the Index; write a structured report | `internal/steward/audit/SKILL.md` |
 | Audit a single registered store (reverse orphans, schema drift) | `internal/steward/audit-store/SKILL.md` |
-| Authorized resolution of a flagged orphan (delete-index / reindex / note) | `internal/steward/reconcile-orphan/SKILL.md` |
+| Authorized resolution of a flagged orphan (delete-index / repair / reindex / note) | `internal/steward/reconcile-orphan/SKILL.md` |
 | Run a WAL checkpoint on a registered store | `internal/dba/checkpoint/SKILL.md` |
 | Run `PRAGMA integrity_check` on a registered store | `internal/dba/integrity-check/SKILL.md` |
 | Run `VACUUM` on a registered store (maintenance) | `internal/dba/vacuum/SKILL.md` |

@@ -55,5 +55,8 @@ human user as an agent. Subsequent invocations skip onboarding.
 ## What Plan 3 ships beyond what brainstorming committed to
 
 Adds `data_steward.reconcile_orphan` (was deferred from Plan 2). The
-`reconcile_orphan` action supports `delete-index` and `note` resolutions
-and is now landed as part of Plan 3.
+`reconcile_orphan` action supports `delete-index`, `repair`, and `note`
+resolutions today; `reindex` is reserved for reverse-orphan handling and
+raises `NotImplementedError` until Plan 4 re-embedding tooling lands.
+`repair` was added in v2.4.0 to backfill link-missing orphans surfaced by
+consumer-side sweeps (see Atelier 1.C correspondence).
