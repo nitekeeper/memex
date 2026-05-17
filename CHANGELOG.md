@@ -12,6 +12,33 @@ Format: [version] — date — summary.
 
 ---
 
+## v2.4.1 — <RELEASE-DATE>
+
+### Changed
+- Embedding failures now raise a typed `embeddings.EmbeddingUnavailable`
+  exception with `reason` / `provider` / `detail` fields, replacing the
+  silent broad-`Exception` swallow across every `encode()` call site
+  (audit: 6 skill markdown + 2 Python). New helper `embeddings.log_skip()`
+  writes structured entries to `~/.memex/audits/embedding-skip-log.md`
+  for operator visibility. Reason taxonomy (frozen contract):
+  `not_configured` | `oversize_input` | `provider_error` | `unknown`.
+- Consumers (Atelier) should narrow their existing `except Exception`
+  catches to `except embeddings.EmbeddingUnavailable`. Behavior is
+  backwards-compatible — `EmbeddingUnavailable` extends `Exception`.
+
+### Migration
+- No action required for upgrade. Existing broad-`Exception` callers
+  continue to work. Operators may want to `tail -f
+  ~/.memex/audits/embedding-skip-log.md` to surface previously-silent
+  embedding failures.
+
+### Spec
+- New §6.5 "Embedding failures are typed and audited" in the v2 redesign
+  spec; full design at `docs/specs/2026-05-17-embedding-unavailable-design.md`;
+  DL-#26 in the Decision Log.
+
+---
+
 ## v2.4.0 — 2026-05-17
 
 ### Steward — `repair` action + typed `OrphanNotFoundError`

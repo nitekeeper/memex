@@ -129,6 +129,55 @@ Invoke `memex:run` and say *"vacuum the `article` store"* (or any registered sto
 
 Copy `~/.memex/` and any `<repo>/.memex/` directories. SQLite files are self-contained — straightforward filesystem copy, no special tooling.
 
+## Audit logs
+
+Memex writes two audit-log files under `~/.memex/audits/`:
+
+### `reconciliation-log.md`
+
+Rare, operator-triggered events from `memex:steward:reconcile-orphan`
+(delete-index / repair / note). Each row is one action taken to resolve
+a flagged orphan. Grows slowly.
+
+### `embedding-skip-log.md`
+
+Per-failed-encode events. Each row records that an embedding could not
+be produced for some text. The document is still indexed via FTS5 — only
+the vector slot is empty. Grows quickly during bulk ingest if your
+embedding provider is misconfigured.
+
+Row fields: `timestamp`, `provider`, `reason`
+(`not_configured` | `oversize_input` | `provider_error` | `unknown`),
+optionally `caller`, `index_id`, `input_chars`, `detail` (truncated to
+200 chars).
+
+**To watch live:** `tail -f ~/.memex/audits/embedding-skip-log.md`
+
+**Common causes by reason:**
+- `not_configured` → set your provider's env var (`OPENAI_API_KEY` /
+  `VOYAGE_API_KEY`) or `pip install` the SDK; then run
+  `memex:embed:backfill` to fill in the missing vectors.
+- `oversize_input` → expected during heavy ingest of long documents
+  until v2.5's multi-vector chunker ships. Documents are still indexed
+  via FTS5.
+- `provider_error` → transient network or rate-limit issue; retry the
+  ingest or backfill later.
+- `unknown` → unexpected leak; the row's `detail` field (and the
+  exception's `__cause__`) carry the original error.
+
+**Log rotation:** v2.4.x has no automatic rotation. Rename the file
+periodically if it grows large:
+
+POSIX:
+```bash
+mv ~/.memex/audits/embedding-skip-log.md ~/.memex/audits/embedding-skip-log-$(date +%Y-%m).md
+```
+
+PowerShell:
+```powershell
+Move-Item "$env:USERPROFILE\.memex\audits\embedding-skip-log.md" "$env:USERPROFILE\.memex\audits\embedding-skip-log-$(Get-Date -Format 'yyyy-MM').md"
+```
+
 ## Troubleshooting
 
 ### "Agent not registered"

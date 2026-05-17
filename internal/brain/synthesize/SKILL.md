@@ -93,7 +93,13 @@ Retry Step 4 once on `ValueError`. After two failures, report BLOCKED. Note: the
 from scripts import embeddings
 try:
     embedding = embeddings.encode(librarian_output["searchable"])
-except Exception:
+except embeddings.EmbeddingUnavailable as e:
+    embeddings.log_skip(
+        e,
+        caller_agent_id="synthesizer-1",
+        index_id=librarian_output["index_id"],
+        input_chars=len(librarian_output["searchable"]),
+    )
     embedding = None
 ```
 

@@ -74,10 +74,13 @@ Call Python:
 from scripts import embeddings
 try:
     embedding = embeddings.encode(librarian_output["searchable"])
-except Exception as e:
-    # No OPENAI_API_KEY, provider unreachable, or other failure.
-    # Log and continue without embedding — FTS5 still works.
-    print(f"warn: embedding skipped ({e})")
+except embeddings.EmbeddingUnavailable as e:
+    embeddings.log_skip(
+        e,
+        caller_agent_id="brain-ingest",
+        index_id=librarian_output["index_id"],
+        input_chars=len(librarian_output["searchable"]),
+    )
     embedding = None
 ```
 

@@ -473,6 +473,44 @@ The precheck is a single indexed lookup (the `UNIQUE` index doubles as the
 query index) and runs in the same connection as the INSERT; the precheck
 is not a serialization point.
 
+### 6.5 Embedding failures are typed and audited (v2.4.1)
+
+`embeddings.encode()` raises `EmbeddingUnavailable` on any failure to
+produce an embedding. The exception carries three fields — `reason`,
+`provider`, `detail` — chained via `from` to the original exception.
+
+The `reason` taxonomy is a **frozen contract** (four values):
+
+| `reason` | When raised |
+|---|---|
+| `not_configured` | API key missing OR provider SDK not installed |
+| `oversize_input` | Provider rejected the text for exceeding its token cap |
+| `provider_error` | Anything else from the provider (network, rate limit, 5xx) |
+| `unknown` | Defensive catch-all in central `encode()` |
+
+Consumers (Atelier, custom plugins) **MUST** catch
+`EmbeddingUnavailable` specifically — not broad `Exception` — so real
+bugs surface. Consumers **SHOULD** call
+`embeddings.log_skip(exc, caller_agent_id=..., index_id=...,
+input_chars=...)` for symmetric audit-log emission.
+
+Skip events are recorded in `~/.memex/audits/embedding-skip-log.md`
+(distinct from `reconciliation-log.md` which remains scoped to Data
+Steward integrity actions). Row format: single-line markdown bullet,
+ISO-8601 UTC timestamp, pipe-separated `key=value` fields, mirroring
+`data_steward._append_audit`. Omitted optional fields are absent from
+the row entirely; `\r`/`\n` in `detail` collapse to space; literal `|`
+in `detail` becomes `/`; `detail` truncated to 200 chars.
+
+**Forward-compat with v2.5 `encode_chunks`:** when v2.5 ships
+multi-vector, `encode_chunks()` follows the same raise-on-system-fault
+contract — system faults raise `EmbeddingUnavailable`; the empty-list
+return is reserved for the natural "no chunks producible" case (binary
+input, post-strip-empty). Single catch shape across both APIs.
+
+See `docs/specs/2026-05-17-embedding-unavailable-design.md` for the full
+design + decision log.
+
 ---
 
 ## 7. Read flow
@@ -1100,6 +1138,7 @@ Locked decisions from the 2026-05-16 brainstorming session:
 | 23 | Skip v1 wiki migration | Fresh brain.db |
 | 24 | Atelier retrofit out of scope for v2.0 | Tighter v2.0 scope |
 | 25 | Eventually consistent (Index, target store); Data Steward reconciles | Avoids global serialization on Index writes |
+| 26 | Typed embedding failures + audit log (v2.4.1); supersedes broad-Exception swallow | Consumers catch `EmbeddingUnavailable` specifically; skips logged to `embedding-skip-log.md`; see §6.5 and `docs/specs/2026-05-17-embedding-unavailable-design.md` |
 
 ---
 

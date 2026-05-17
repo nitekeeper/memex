@@ -60,20 +60,26 @@ If `parse_query_plan` raises (subagent returned invalid JSON), retry Step 2 once
 
 ### Step 4 — Execute the plan
 
-```python
-with_vec = True
-results = brain.ask_execute(prep, query_plan, with_embedding=with_vec)
-```
-
-Wrap in try/except if `query_plan["vector_query"]` is set — `embeddings.encode()` for the query vector will raise if no API key:
+Attempt hybrid retrieval (FTS5 + vector cosine). If the embedding
+provider is unavailable, log the skip and fall back to FTS5-only.
+`ask_execute` internally guards against a null `vector_query` field, so
+no sentinel check is needed here.
 
 ```python
+from scripts import embeddings
 try:
-    results = brain.ask_execute(prep, query_plan, with_embedding=True)
-except (RuntimeError, Exception):
-    # Fall back to FTS5 only
+    results = brain.ask_execute(prep, query_plan, with_embedding=bool(query_plan.get("vector_query")))
+except embeddings.EmbeddingUnavailable as e:
+    embeddings.log_skip(
+        e,
+        caller_agent_id="reference-librarian-1",
+        input_chars=len(query_plan.get("vector_query") or ""),
+    )
     results = brain.ask_execute(prep, query_plan, with_embedding=False)
 ```
+
+Catching only `EmbeddingUnavailable` lets unrelated failures (parse
+errors, missing fields) propagate as real bugs.
 
 ### Step 5 — Fetch full rows + report
 

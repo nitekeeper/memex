@@ -124,9 +124,10 @@ def execute_query_plan(plan: dict, with_embedding: bool = True) -> list[dict]:
 
     If with_embedding=True and the plan has a vector_query, hybrid
     retrieval merges FTS5 hits with vector cosine hits (dedup by
-    index_id; FTS5 results take precedence). If no API key for
-    embeddings, the call to embeddings.encode raises; caller can wrap
-    with try/except and fall back to with_embedding=False.
+    index_id; FTS5 results take precedence). If embeddings are unavailable
+    (no API key, SDK missing, provider error), embeddings.encode raises
+    EmbeddingUnavailable; caller can wrap with try/except EmbeddingUnavailable
+    and fall back to with_embedding=False.
     """
     index_db = str(memex_home() / "index.db")
     conn = get_connection(index_db)
@@ -208,7 +209,7 @@ def ask_execute(
             without an embedding the plan is FTS5-only; flip to True when
             embeddings are populated and an API key is available for the
             query vector. Skills typically wrap in try/except and fall
-            back to False on RuntimeError.
+            back to False on EmbeddingUnavailable.
 
     Returns ranked list of result dicts.
 

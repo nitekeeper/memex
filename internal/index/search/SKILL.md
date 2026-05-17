@@ -46,11 +46,22 @@ Retry once on parse failure. After two failures, return BLOCKED.
 ### Step 4 — Execute
 
 ```python
+from scripts import embeddings
 try:
     results = reference_librarian.ask_execute(prep, query_plan, with_embedding=True)
-except Exception:
+except embeddings.EmbeddingUnavailable as e:
+    embeddings.log_skip(
+        e,
+        caller_agent_id=caller_agent_id,
+        input_chars=len(query_plan["vector_query"] or ""),
+    )
     results = reference_librarian.ask_execute(prep, query_plan, with_embedding=False)
 ```
+
+Catching only `EmbeddingUnavailable` narrows the fallback to genuine
+embedding unavailability. Other exceptions (DB error, JSON parse fail in
+`ask_execute`) propagate as real bugs rather than silently becoming an
+FTS5-only search.
 
 Returns a list of dicts: `[{index_id, key, domain, store, table_name, row_id, searchable, embedding}, ...]`. Ordered by relevance.
 

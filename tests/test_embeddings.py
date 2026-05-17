@@ -124,6 +124,7 @@ def test_openai_provider_calls_sdk(monkeypatch):
     fake_client = MagicMock()
     fake_client.embeddings.create.return_value = MagicMock(data=[MagicMock(embedding=[0.1] * 1536)])
     fake_module.OpenAI = MagicMock(return_value=fake_client)
+    fake_module.BadRequestError = Exception  # required by hoisted import
     monkeypatch.setitem(sys.modules, "openai", fake_module)
 
     vec = embeddings._call_provider("test text")
@@ -132,16 +133,6 @@ def test_openai_provider_calls_sdk(monkeypatch):
     call_kwargs = fake_client.embeddings.create.call_args.kwargs
     assert call_kwargs["model"] == "text-embedding-3-small"
     assert call_kwargs["input"] == "test text"
-
-
-def test_openai_provider_raises_runtime_error_if_sdk_missing(monkeypatch):
-    """When openai SDK is not installed, the error message points at the
-    user-facing fix (install or switch provider) rather than a bare ImportError."""
-    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "openai")
-    # Make `from openai import OpenAI` fail at import time
-    monkeypatch.setitem(sys.modules, "openai", None)  # raises ModuleNotFoundError
-    with pytest.raises(RuntimeError, match="openai SDK is not installed"):
-        embeddings._call_provider("x")
 
 
 def test_voyage_provider_calls_sdk(monkeypatch):
@@ -167,8 +158,10 @@ def test_voyage_provider_calls_sdk(monkeypatch):
 def test_voyage_provider_raises_runtime_error_if_sdk_missing(monkeypatch):
     monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "voyage")
     monkeypatch.setitem(sys.modules, "voyageai", None)
-    with pytest.raises(RuntimeError, match="voyageai SDK is not installed"):
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
         embeddings._call_provider("x")
+    assert exc_info.value.reason == "not_configured"
+    assert exc_info.value.provider == "voyage"
 
 
 def test_voyage_provider_raises_if_no_api_key(monkeypatch):
@@ -178,8 +171,10 @@ def test_voyage_provider_raises_if_no_api_key(monkeypatch):
     fake_module = types.ModuleType("voyageai")
     fake_module.Client = MagicMock()
     monkeypatch.setitem(sys.modules, "voyageai", fake_module)
-    with pytest.raises(RuntimeError, match="VOYAGE_API_KEY"):
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
         embeddings._call_provider("x")
+    assert exc_info.value.reason == "not_configured"
+    assert "VOYAGE_API_KEY" in exc_info.value.detail
 
 
 def test_local_provider_calls_sentence_transformers(monkeypatch):
@@ -217,11 +212,14 @@ def test_local_provider_caches_model_instance(monkeypatch):
     assert fake_model.encode.call_count == 2
 
 
-def test_local_provider_raises_runtime_error_if_sdk_missing(monkeypatch):
+def test_local_provider_raises_embedding_unavailable_if_sdk_missing(monkeypatch):
     monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "local")
     monkeypatch.setitem(sys.modules, "sentence_transformers", None)
-    with pytest.raises(RuntimeError, match="sentence-transformers is not installed"):
+    embeddings._LOCAL_MODEL_CACHE.clear()
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
         embeddings._call_provider("x")
+    assert exc_info.value.reason == "not_configured"
+    assert exc_info.value.provider == "local"
 
 
 # ── Backfill / reembed / model-change detection ───────────────────────────
@@ -419,3 +417,448 @@ def test_reembed_all_records_previous_in_result(tmp_memex_home, monkeypatch):
         result = embeddings.reembed_all()
     assert result["previous_recorded"]["provider"] == "openai"
     assert result["provider"] == "voyage"
+
+
+# ── EmbeddingUnavailable class ────────────────────────────────────────────
+
+
+def test_embedding_unavailable_stores_reason():
+    exc = embeddings.EmbeddingUnavailable(
+        reason="not_configured", provider="openai", detail="no api key"
+    )
+    assert exc.reason == "not_configured"
+
+
+def test_embedding_unavailable_stores_provider():
+    exc = embeddings.EmbeddingUnavailable(
+        reason="not_configured", provider="openai", detail="no api key"
+    )
+    assert exc.provider == "openai"
+
+
+def test_embedding_unavailable_stores_detail():
+    exc = embeddings.EmbeddingUnavailable(
+        reason="not_configured", provider="openai", detail="no api key"
+    )
+    assert exc.detail == "no api key"
+
+
+def test_embedding_unavailable_message_with_detail():
+    exc = embeddings.EmbeddingUnavailable(
+        reason="oversize_input", provider="openai", detail="max 8192, got 12041"
+    )
+    msg = str(exc)
+    assert "provider='openai'" in msg
+    assert "reason='oversize_input'" in msg
+    assert "max 8192, got 12041" in msg
+
+
+def test_embedding_unavailable_message_without_detail():
+    exc = embeddings.EmbeddingUnavailable(reason="unknown", provider="local")
+    msg = str(exc)
+    assert "provider='local'" in msg
+    assert "reason='unknown'" in msg
+    # No trailing colon when detail is empty
+    assert not msg.rstrip().endswith(":")
+
+
+def test_embedding_unavailable_chains_cause():
+    original = RuntimeError("network down")
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        try:
+            raise original
+        except RuntimeError as e:
+            raise embeddings.EmbeddingUnavailable(
+                reason="provider_error", provider="openai", detail=str(e)
+            ) from e
+    assert exc_info.value.__cause__ is original
+
+
+# ── Per-provider classification — OpenAI ──────────────────────────────────
+
+
+def test_openai_not_configured_on_import_error(monkeypatch):
+    """ImportError on `from openai import OpenAI` → reason='not_configured'."""
+    monkeypatch.setitem(sys.modules, "openai", None)
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "openai")
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings._openai_encode("hello")
+    assert exc_info.value.reason == "not_configured"
+    assert exc_info.value.provider == "openai"
+    assert "openai" in exc_info.value.detail.lower()
+
+
+def test_openai_oversize_input_on_context_length(monkeypatch):
+    """openai.BadRequestError with 'context_length_exceeded' → 'oversize_input'."""
+    fake_openai = types.ModuleType("openai")
+
+    class FakeBadRequestError(Exception):
+        pass
+
+    fake_openai.BadRequestError = FakeBadRequestError
+
+    def fake_client_factory(*a, **kw):
+        client = MagicMock()
+        client.embeddings.create.side_effect = FakeBadRequestError(
+            "context_length_exceeded: max 8192, got 12041"
+        )
+        return client
+
+    fake_openai.OpenAI = fake_client_factory
+    monkeypatch.setitem(sys.modules, "openai", fake_openai)
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "openai")
+
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings._openai_encode("a" * 50000)
+    assert exc_info.value.reason == "oversize_input"
+    assert exc_info.value.provider == "openai"
+    assert "context_length_exceeded" in exc_info.value.detail
+
+
+def test_openai_provider_error_fallback(monkeypatch):
+    """Generic exception from provider call → reason='provider_error'."""
+    fake_openai = types.ModuleType("openai")
+
+    class FakeBadRequestError(Exception):
+        pass
+
+    fake_openai.BadRequestError = FakeBadRequestError
+
+    def fake_client_factory(*a, **kw):
+        client = MagicMock()
+        client.embeddings.create.side_effect = RuntimeError("connection reset")
+        return client
+
+    fake_openai.OpenAI = fake_client_factory
+    monkeypatch.setitem(sys.modules, "openai", fake_openai)
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "openai")
+
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings._openai_encode("hello")
+    assert exc_info.value.reason == "provider_error"
+
+
+# ── Per-provider classification — Voyage ──────────────────────────────────
+
+
+def test_voyage_not_configured_on_import_error(monkeypatch):
+    monkeypatch.setitem(sys.modules, "voyageai", None)
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "voyage")
+    monkeypatch.setenv("VOYAGE_API_KEY", "fake")
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings._voyage_encode("hello")
+    assert exc_info.value.reason == "not_configured"
+    assert exc_info.value.provider == "voyage"
+
+
+def test_voyage_not_configured_when_api_key_missing(monkeypatch):
+    fake_voyageai = types.ModuleType("voyageai")
+    fake_voyageai.Client = MagicMock()
+    monkeypatch.setitem(sys.modules, "voyageai", fake_voyageai)
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "voyage")
+    monkeypatch.delenv("VOYAGE_API_KEY", raising=False)
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings._voyage_encode("hello")
+    assert exc_info.value.reason == "not_configured"
+    assert "VOYAGE_API_KEY" in exc_info.value.detail
+
+
+def test_voyage_oversize_input_on_token_limit(monkeypatch):
+    fake_voyageai = types.ModuleType("voyageai")
+    fake_client = MagicMock()
+    fake_client.embed.side_effect = RuntimeError("token count 50000 exceeds limit 32000")
+    fake_voyageai.Client = MagicMock(return_value=fake_client)
+    monkeypatch.setitem(sys.modules, "voyageai", fake_voyageai)
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "voyage")
+    monkeypatch.setenv("VOYAGE_API_KEY", "fake")
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings._voyage_encode("a" * 100000)
+    assert exc_info.value.reason == "oversize_input"
+    assert "token count 50000 exceeds limit" in exc_info.value.detail
+
+
+def test_voyage_provider_error_fallback(monkeypatch):
+    fake_voyageai = types.ModuleType("voyageai")
+    fake_client = MagicMock()
+    fake_client.embed.side_effect = RuntimeError("connection refused")
+    fake_voyageai.Client = MagicMock(return_value=fake_client)
+    monkeypatch.setitem(sys.modules, "voyageai", fake_voyageai)
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "voyage")
+    monkeypatch.setenv("VOYAGE_API_KEY", "fake")
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings._voyage_encode("hello")
+    assert exc_info.value.reason == "provider_error"
+
+
+# ── Per-provider classification — Local ───────────────────────────────────
+
+
+def test_local_not_configured_on_import_error(monkeypatch):
+    monkeypatch.setitem(sys.modules, "sentence_transformers", None)
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "local")
+    embeddings._LOCAL_MODEL_CACHE.clear()
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings._local_encode("hello")
+    assert exc_info.value.reason == "not_configured"
+    assert exc_info.value.provider == "local"
+
+
+def test_local_oversize_input_on_max_seq_length(monkeypatch):
+    fake_st = types.ModuleType("sentence_transformers")
+    fake_model = MagicMock()
+    fake_model.encode.side_effect = RuntimeError("Input length 800 exceeds max_seq_length 512")
+    fake_st.SentenceTransformer = MagicMock(return_value=fake_model)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_st)
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "local")
+    embeddings._LOCAL_MODEL_CACHE.clear()
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings._local_encode("a" * 5000)
+    assert exc_info.value.reason == "oversize_input"
+    assert "max_seq_length" in exc_info.value.detail
+
+
+def test_local_provider_error_fallback(monkeypatch):
+    fake_st = types.ModuleType("sentence_transformers")
+    fake_model = MagicMock()
+    fake_model.encode.side_effect = RuntimeError("model file corrupt")
+    fake_st.SentenceTransformer = MagicMock(return_value=fake_model)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_st)
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "local")
+    embeddings._LOCAL_MODEL_CACHE.clear()
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings._local_encode("hello")
+    assert exc_info.value.reason == "provider_error"
+
+
+# ── Central encode() defensive wrap ────────────────────────────────────────
+
+
+def test_encode_wraps_unknown_leak(monkeypatch):
+    """If _call_provider somehow leaks a non-EmbeddingUnavailable exception,
+    encode() must re-raise as EmbeddingUnavailable(reason='unknown').
+    """
+    monkeypatch.setattr(
+        "scripts.embeddings._call_provider",
+        MagicMock(side_effect=RuntimeError("totally unexpected")),
+    )
+    monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "openai")
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings.encode("hello")
+    assert exc_info.value.reason == "unknown"
+    assert exc_info.value.provider == "openai"
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
+
+
+def test_encode_passes_through_embedding_unavailable(monkeypatch):
+    """If _call_provider raises EmbeddingUnavailable, encode() must re-raise
+    it as-is — NOT re-wrap it as reason='unknown'.
+    """
+    original = embeddings.EmbeddingUnavailable(
+        reason="not_configured", provider="openai", detail="no key"
+    )
+    monkeypatch.setattr(
+        "scripts.embeddings._call_provider",
+        MagicMock(side_effect=original),
+    )
+    with pytest.raises(embeddings.EmbeddingUnavailable) as exc_info:
+        embeddings.encode("hello")
+    assert exc_info.value is original
+    assert exc_info.value.reason == "not_configured"
+
+
+# ── Skip log helper ───────────────────────────────────────────────────────
+
+
+def test_append_skip_log_creates_audits_dir(tmp_memex_home):
+    """_append_skip_log() creates the audits/ directory if it doesn't exist
+    and appends the entry to embedding-skip-log.md.
+    """
+    from scripts.db import memex_home
+
+    audits_dir = memex_home() / "audits"
+    log_path = audits_dir / "embedding-skip-log.md"
+    assert not audits_dir.exists()
+
+    embeddings._append_skip_log("\n- test entry\n")
+
+    assert audits_dir.is_dir()
+    assert log_path.is_file()
+    assert log_path.read_text(encoding="utf-8") == "\n- test entry\n"
+
+
+def test_log_skip_writes_required_fields(tmp_memex_home):
+    """log_skip() always writes timestamp, provider, reason."""
+    exc = embeddings.EmbeddingUnavailable(
+        reason="not_configured", provider="openai", detail="no api key"
+    )
+    embeddings.log_skip(exc)
+
+    from scripts.db import memex_home
+
+    log = (memex_home() / "audits" / "embedding-skip-log.md").read_text(encoding="utf-8")
+    assert "provider=openai" in log
+    assert "reason=not_configured" in log
+    assert "timestamp=" in log
+    assert "detail=no api key" in log
+
+
+def test_log_skip_omits_empty_optional_fields(tmp_memex_home):
+    """Omitted optional fields are absent from the row entirely — never
+    written as 'field=' with empty value."""
+    exc = embeddings.EmbeddingUnavailable(reason="unknown", provider="local")
+    embeddings.log_skip(exc)  # no caller_agent_id, index_id, input_chars
+
+    from scripts.db import memex_home
+
+    log = (memex_home() / "audits" / "embedding-skip-log.md").read_text(encoding="utf-8")
+    assert "caller=" not in log
+    assert "index_id=" not in log
+    assert "input_chars=" not in log
+    assert "detail=" not in log  # detail also empty
+
+
+def test_log_skip_includes_optional_fields_when_provided(tmp_memex_home):
+    exc = embeddings.EmbeddingUnavailable(
+        reason="oversize_input", provider="voyage", detail="token cap exceeded"
+    )
+    embeddings.log_skip(exc, caller_agent_id="librarian-1", index_id="abc-123", input_chars=42189)
+
+    from scripts.db import memex_home
+
+    log = (memex_home() / "audits" / "embedding-skip-log.md").read_text(encoding="utf-8")
+    assert "caller=librarian-1" in log
+    assert "index_id=abc-123" in log
+    assert "input_chars=42189" in log
+
+
+def test_log_skip_truncates_long_detail(tmp_memex_home):
+    """detail is truncated to 200 chars in the audit row."""
+    long_detail = "x" * 500
+    exc = embeddings.EmbeddingUnavailable(
+        reason="provider_error", provider="openai", detail=long_detail
+    )
+    embeddings.log_skip(exc)
+
+    from scripts.db import memex_home
+
+    log = (memex_home() / "audits" / "embedding-skip-log.md").read_text(encoding="utf-8")
+    assert "x" * 200 in log
+    assert "x" * 201 not in log
+
+
+def test_log_skip_escapes_pipe_in_detail(tmp_memex_home):
+    """Literal | in detail is replaced with / to keep rows parseable."""
+    exc = embeddings.EmbeddingUnavailable(
+        reason="provider_error", provider="openai", detail="error | with | pipes"
+    )
+    embeddings.log_skip(exc)
+
+    from scripts.db import memex_home
+
+    log = (memex_home() / "audits" / "embedding-skip-log.md").read_text(encoding="utf-8")
+    assert "error / with / pipes" in log
+    assert "error | with" not in log
+
+
+def test_log_skip_collapses_newlines_in_detail(tmp_memex_home):
+    """Literal \\r and \\n in detail collapsed to single space — keeps the
+    single-line markdown bullet intact when provider errors carry stack
+    fragments."""
+    exc = embeddings.EmbeddingUnavailable(
+        reason="provider_error",
+        provider="openai",
+        detail="line one\nline two\r\nline three\rline four",
+    )
+    embeddings.log_skip(exc)
+
+    from scripts.db import memex_home
+
+    log = (memex_home() / "audits" / "embedding-skip-log.md").read_text(encoding="utf-8")
+    # Detail substring should contain only one bullet's worth of text — no
+    # embedded newlines that would break parsing.
+    detail_line = next(line for line in log.splitlines() if "detail=" in line)
+    assert "\n" not in detail_line and "\r" not in detail_line
+    assert "line one line two line three line four" in detail_line
+
+
+# ── Caller-loop behavior ──────────────────────────────────────────────────
+
+
+def test_backfill_null_logs_skip_and_continues(tmp_memex_home, monkeypatch):
+    """backfill_null catches EmbeddingUnavailable narrowly, logs each skip,
+    and continues processing remaining rows."""
+    from scripts.db import get_connection, memex_home
+
+    index_db = str(memex_home() / "index.db")
+    conn = get_connection(index_db)
+    conn.executescript(
+        """
+        CREATE TABLE documents (
+            index_id TEXT PRIMARY KEY,
+            searchable TEXT,
+            embedding BLOB
+        );
+        INSERT INTO documents VALUES ('id-1', 'text 1', NULL);
+        INSERT INTO documents VALUES ('id-2', 'text 2', NULL);
+        INSERT INTO documents VALUES ('id-3', 'text 3', NULL);
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    calls = {"n": 0}
+
+    def fake_encode(text):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise embeddings.EmbeddingUnavailable(
+                reason="provider_error", provider="openai", detail="transient"
+            )
+        return b"\x00" * 4
+
+    monkeypatch.setattr("scripts.embeddings.encode", fake_encode)
+
+    summary = embeddings.backfill_null()
+    assert summary["considered"] == 3
+    assert summary["encoded"] == 2
+    assert summary["errors"] == 1
+
+    log = (memex_home() / "audits" / "embedding-skip-log.md").read_text(encoding="utf-8")
+    assert log.count("reason=provider_error") == 1
+
+
+def test_reembed_all_logs_skip_and_continues(tmp_memex_home, monkeypatch):
+    """reembed_all catches EmbeddingUnavailable narrowly, logs each skip,
+    and continues processing remaining rows."""
+    from scripts.db import get_connection, memex_home
+
+    index_db = str(memex_home() / "index.db")
+    conn = get_connection(index_db)
+    conn.executescript(
+        """
+        CREATE TABLE documents (
+            index_id TEXT PRIMARY KEY,
+            searchable TEXT,
+            embedding BLOB
+        );
+        INSERT INTO documents VALUES ('id-1', 'text 1', x'00000000');
+        INSERT INTO documents VALUES ('id-2', 'text 2', x'00000000');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    def fake_encode(text):
+        raise embeddings.EmbeddingUnavailable(
+            reason="not_configured", provider="openai", detail="no key"
+        )
+
+    monkeypatch.setattr("scripts.embeddings.encode", fake_encode)
+
+    summary = embeddings.reembed_all()
+    assert summary["considered"] == 2
+    assert summary["encoded"] == 0
+    assert summary["errors"] == 2
+
+    log = (memex_home() / "audits" / "embedding-skip-log.md").read_text(encoding="utf-8")
+    assert log.count("reason=not_configured") == 2

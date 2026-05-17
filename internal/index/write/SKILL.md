@@ -76,10 +76,20 @@ Retry Step 2 once on `ValueError`. After two failures, report `BLOCKED` and stop
 from scripts import embeddings
 try:
     embedding = embeddings.encode(librarian_output["searchable"])
-except Exception as e:
-    print(f"warn: embedding skipped ({e})")
+except embeddings.EmbeddingUnavailable as e:
+    embeddings.log_skip(
+        e,
+        caller_agent_id=caller_agent_id,
+        index_id=librarian_output["index_id"],
+        input_chars=len(librarian_output["searchable"]),
+    )
     embedding = None
 ```
+
+Catches only `EmbeddingUnavailable` (degraded-mode signal) — any other
+exception propagates so real bugs surface. `log_skip` writes a structured
+row to `~/.memex/audits/embedding-skip-log.md`; the FTS5 path is
+unaffected by the missing vector.
 
 ### Step 5 — Persist
 

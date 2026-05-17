@@ -29,6 +29,112 @@ import math
 import os
 import struct
 
+# ── Typed failure ─────────────────────────────────────────────────────────
+
+
+class EmbeddingUnavailable(Exception):
+    """Raised by encode() when no embedding can be produced for the input.
+
+    Callers may catch and proceed with embedding=None (FTS5-only indexing)
+    or surface as fatal — degraded-mode semantics, not an error.
+
+    The four `reason` values are the frozen contract for consumers
+    (Atelier, custom plugins) that want to branch on cause:
+
+      - "not_configured"  → API key missing OR provider SDK not installed
+      - "oversize_input"  → provider rejected text for exceeding token cap
+      - "provider_error"  → network/rate-limit/5xx/parse fail from provider
+      - "unknown"         → defensive catch-all for unexpected leaks
+
+    Always raised via `raise EmbeddingUnavailable(...) from original_exc`
+    so __cause__ preserves the original traceback.
+
+    See docs/specs/2026-05-17-embedding-unavailable-design.md for the
+    full contract.
+
+    Attributes:
+        reason:   one of the four frozen values above; branch on this.
+        provider: the configured provider name at raise time (e.g. 'openai').
+        detail:   optional human-readable elaboration; may be empty string.
+    """
+
+    def __init__(self, reason: str, provider: str, detail: str = ""):
+        self.reason = reason
+        self.provider = provider
+        self.detail = detail
+        super().__init__(
+            f"embedding unavailable (provider={provider!r}, reason={reason!r})"
+            + (f": {detail}" if detail else "")
+        )
+
+
+# ── Skip log ──────────────────────────────────────────────────────────────
+
+
+def _append_skip_log(entry: str) -> None:
+    """Append a single audit row to ~/.memex/audits/embedding-skip-log.md.
+    Mirrors data_steward._append_audit's shape; private file-write
+    primitive. I/O exceptions propagate by design.
+    """
+    from scripts.db import memex_home
+
+    audits_dir = memex_home() / "audits"
+    audits_dir.mkdir(parents=True, exist_ok=True)
+    log_path = audits_dir / "embedding-skip-log.md"
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(entry)
+
+
+def log_skip(
+    exc: EmbeddingUnavailable,
+    *,
+    caller_agent_id: str = "",
+    index_id: str = "",
+    input_chars: int = 0,
+) -> None:
+    """Public helper for callers to emit a structured audit row for an
+    EmbeddingUnavailable they caught. Writes to
+    ~/.memex/audits/embedding-skip-log.md.
+
+    Row format: single-line markdown bullet, ISO-8601 UTC timestamp,
+    pipe-separated `key=value` fields. Mirrors data_steward._append_audit's
+    shape. Omitted optional fields (empty caller_agent_id / index_id /
+    input_chars=0) are absent from the row entirely — no empty `field=`
+    form is written.
+
+    `detail` is sanitized for log readability: literal `|` → `/`, literal
+    `\\r`/`\\n` → single space; then truncated to 200 chars. Full
+    traceback is always available via `exc.__cause__`.
+
+    I/O exceptions from the audit-log write (disk full, file locked, etc.)
+    propagate by design — matches data_steward._append_audit's behavior.
+    Consumers requiring isolation from audit-write failure should wrap
+    log_skip() in their own try/except so audit failure cannot mask the
+    original embedding skip.
+    """
+    from datetime import datetime, timezone
+
+    ts = datetime.now(timezone.utc).isoformat()
+    fields = [
+        f"timestamp={ts}",
+        f"provider={exc.provider}",
+        f"reason={exc.reason}",
+    ]
+    if caller_agent_id:
+        fields.append(f"caller={caller_agent_id}")
+    if index_id:
+        fields.append(f"index_id={index_id}")
+    if input_chars:
+        fields.append(f"input_chars={input_chars}")
+    if exc.detail:
+        sanitized = (
+            exc.detail.replace("\r\n", " ").replace("\n", " ").replace("\r", " ").replace("|", "/")
+        )[:200]
+        fields.append(f"detail={sanitized}")
+    entry = "\n- " + " | ".join(fields) + "\n"
+    _append_skip_log(entry)
+
+
 # ── Provider defaults ─────────────────────────────────────────────────────
 
 # Per-provider model defaults. Override at the env-var level if you want a
@@ -94,38 +200,65 @@ def _call_provider(text: str) -> list[float]:
 def _openai_encode(text: str) -> list[float]:
     """Call OpenAI text-embedding-3-small (or `MEMEX_OPENAI_MODEL` override).
     Requires OPENAI_API_KEY env var. Lazy import so the SDK isn't required
-    when using a different provider."""
+    when using a different provider.
+
+    Raises EmbeddingUnavailable with classified reason:
+      - not_configured: SDK missing OR OPENAI_API_KEY unset
+      - oversize_input: BadRequestError with 'context_length_exceeded'
+      - provider_error: any other failure from the API call
+    """
     try:
-        from openai import OpenAI
+        from openai import BadRequestError, OpenAI
     except ImportError as e:
-        raise RuntimeError(
-            "openai SDK is not installed. `pip install openai`, "
-            "or switch to a different provider via MEMEX_EMBEDDING_PROVIDER."
+        raise EmbeddingUnavailable(
+            "not_configured",
+            "openai",
+            "openai SDK not installed (`pip install openai`)",
         ) from e
-    client = OpenAI()
+    try:
+        client = OpenAI()  # raises on misconfiguration (missing key, malformed base URL, etc.)
+    except Exception as e:
+        raise EmbeddingUnavailable("not_configured", "openai", str(e)) from e
     model = _active_model()
-    resp = client.embeddings.create(input=text, model=model)
+    try:
+        resp = client.embeddings.create(input=text, model=model)
+    except Exception as e:
+        if isinstance(e, BadRequestError) and "context_length_exceeded" in str(e):
+            raise EmbeddingUnavailable("oversize_input", "openai", str(e)) from e
+        raise EmbeddingUnavailable("provider_error", "openai", str(e)) from e
     return list(resp.data[0].embedding)
 
 
 def _voyage_encode(text: str) -> list[float]:
     """Call Voyage voyage-3 (or `MEMEX_VOYAGE_MODEL` override). Requires
     VOYAGE_API_KEY env var. Anthropic recommends Voyage for embeddings
-    used alongside Claude. Lazy import."""
+    used alongside Claude. Lazy import.
+
+    Raises EmbeddingUnavailable with classified reason:
+      - not_configured: SDK missing OR VOYAGE_API_KEY unset
+      - oversize_input: error message matches token-limit shape
+      - provider_error: any other failure from the API call
+    """
     try:
         import voyageai
     except ImportError as e:
-        raise RuntimeError(
-            "voyageai SDK is not installed. `pip install voyageai`, "
-            "or switch to a different provider via MEMEX_EMBEDDING_PROVIDER."
+        raise EmbeddingUnavailable(
+            "not_configured",
+            "voyage",
+            "voyageai SDK not installed (`pip install voyageai`)",
         ) from e
     if not os.environ.get("VOYAGE_API_KEY"):
-        raise RuntimeError("VOYAGE_API_KEY environment variable is not set.")
-    client = voyageai.Client()  # picks up VOYAGE_API_KEY from env
-    model = _active_model()
-    # Voyage's SDK takes a list and returns an EmbeddingsObject with
-    # `.embeddings` -> list[list[float]]. Pass a single-item list, take [0].
-    result = client.embed([text], model=model, input_type="document")
+        raise EmbeddingUnavailable(
+            "not_configured", "voyage", "VOYAGE_API_KEY environment variable is not set"
+        )
+    try:
+        client = voyageai.Client()
+        result = client.embed([text], model=_active_model(), input_type="document")
+    except Exception as e:
+        msg = str(e).lower()
+        if "token" in msg and ("exceed" in msg or "limit" in msg):
+            raise EmbeddingUnavailable("oversize_input", "voyage", str(e)) from e
+        raise EmbeddingUnavailable("provider_error", "voyage", str(e)) from e
     return list(result.embeddings[0])
 
 
@@ -148,23 +281,33 @@ def _voyage_dim(model: str) -> int:
 def _local_encode(text: str) -> list[float]:
     """Call sentence-transformers (default model all-MiniLM-L6-v2, 384-dim).
     No API key required. First call downloads model weights (~80MB) to the
-    HuggingFace cache. Lazy import + cached model instance."""
+    HuggingFace cache. Lazy import + cached model instance.
+
+    Raises EmbeddingUnavailable with classified reason:
+      - not_configured: sentence-transformers not installed
+      - oversize_input: tokenizer overflow / max-length error
+      - provider_error: any other failure (model load, corrupt cache, etc.)
+    """
     try:
         from sentence_transformers import SentenceTransformer  # type: ignore
     except ImportError as e:
-        raise RuntimeError(
-            "sentence-transformers is not installed. "
-            "`pip install sentence-transformers`, "
-            "or switch to a different provider via MEMEX_EMBEDDING_PROVIDER."
+        raise EmbeddingUnavailable(
+            "not_configured",
+            "local",
+            "sentence-transformers not installed (`pip install sentence-transformers`)",
         ) from e
     model_name = _active_model()
-    model = _LOCAL_MODEL_CACHE.get(model_name)
-    if model is None:
-        # Loads from HuggingFace on first use; cached afterward.
-        model = SentenceTransformer(model_name)
-        _LOCAL_MODEL_CACHE[model_name] = model
-    vec = model.encode(text, convert_to_numpy=False, normalize_embeddings=False)
-    # sentence-transformers returns either a Tensor or a list-like; coerce to list[float].
+    try:
+        model = _LOCAL_MODEL_CACHE.get(model_name)
+        if model is None:
+            model = SentenceTransformer(model_name)
+            _LOCAL_MODEL_CACHE[model_name] = model
+        vec = model.encode(text, convert_to_numpy=False, normalize_embeddings=False)
+    except Exception as e:
+        msg = str(e).lower()
+        if any(tok in msg for tok in ("max_seq_length", "exceeds", "too long")):
+            raise EmbeddingUnavailable("oversize_input", "local", str(e)) from e
+        raise EmbeddingUnavailable("provider_error", "local", str(e)) from e
     if hasattr(vec, "tolist"):
         return [float(x) for x in vec.tolist()]
     return [float(x) for x in vec]
@@ -226,9 +369,22 @@ def recorded_model_info() -> dict | None:
 
 
 def encode(text: str) -> bytes:
-    """Encode text -> float32 BLOB. Records model info on every call so
-    registry.json stays in sync with what's actually being used."""
-    vec = _call_provider(text)
+    """Encode text -> float32 BLOB.
+
+    Records model info on every successful call so registry.json stays in
+    sync with what's actually being used.
+
+    Raises EmbeddingUnavailable on any failure. The four reason values are
+    the frozen contract (see EmbeddingUnavailable docstring). Per-provider
+    encoders classify their own failure modes; this central wrapper only
+    catches the defensive `unknown` case for unexpected leaks.
+    """
+    try:
+        vec = _call_provider(text)
+    except EmbeddingUnavailable:
+        raise  # already classified by the provider function
+    except Exception as e:
+        raise EmbeddingUnavailable("unknown", _active_provider(), str(e)) from e
     _record_model_info(len(vec))
     return _pack(vec)
 
@@ -286,7 +442,12 @@ def backfill_null(batch_size: int = 100, dry_run: bool = False) -> dict:
         for i, row in enumerate(null_rows):
             try:
                 blob = encode(row["searchable"] or "")
-            except Exception:
+            except EmbeddingUnavailable as e:
+                log_skip(
+                    e,
+                    index_id=row["index_id"],
+                    input_chars=len(row["searchable"] or ""),
+                )
                 summary["errors"] += 1
                 continue
             conn.execute(
@@ -350,7 +511,12 @@ def reembed_all(batch_size: int = 100, dry_run: bool = False) -> dict:
         for i, row in enumerate(all_rows):
             try:
                 blob = encode(row["searchable"] or "")
-            except Exception:
+            except EmbeddingUnavailable as e:
+                log_skip(
+                    e,
+                    index_id=row["index_id"],
+                    input_chars=len(row["searchable"] or ""),
+                )
                 summary["errors"] += 1
                 continue
             conn.execute(
