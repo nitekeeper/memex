@@ -1,21 +1,21 @@
 {
-  "version": "2.2.2",
-  "built_at": "2026-05-17T00:18:36.016777+00:00",
+  "version": "2.3.0",
+  "built_at": "2026-05-17T03:40:20.953029+00:00",
   "file_count": 61,
   "files": [
     {
       "path": ".claude-plugin\\plugin.json",
-      "sha256": "7e5dd8c3d7e1b52972952542850c31aa1740d3ca3a5051faf34931a61612c817",
+      "sha256": "a3bd95be2b04f1063baebdcf24dd8ae64237936cda86194d1fad1f998e5f802c",
       "bytes": 707
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "c762a31b83084a7aa9aaa3b71171aac795323fde10b5700847d052e3755880d8",
-      "bytes": 12021
+      "sha256": "667d2415f5e16a09726ca4e17f53873fa1a4de13a260de9bb70a04c80074348a",
+      "bytes": 14501
     },
     {
       "path": "INSTALL.md",
-      "sha256": "b9d7515c19d5f005c59b14d429a27a5feac71321cbe3cf898b5b30e78cdb18b3",
+      "sha256": "7e2d085a129bc231cb52aa27571cc1e4a35ceaa03727ca0115a1afe2d8a34642",
       "bytes": 2816
     },
     {
@@ -45,8 +45,8 @@
     },
     {
       "path": "db\\index.sql",
-      "sha256": "6231a59af16451281e37adc80f0519cf0373e02c0a8f5e792b831d7f7ce21cf0",
-      "bytes": 2155
+      "sha256": "ef1fc0d19e317284042b81f8d0cb49a63631f5487096a734c251555a9cb2e6f2",
+      "bytes": 2576
     },
     {
       "path": "db\\internal_agents_seed.py",
@@ -205,7 +205,7 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "908647ab07d58d9e95ce70959e99fecf8eb7eaca449d47cead96439c89182432",
+      "sha256": "01fee44d98032982ac76e105420ac7561e32ada07dd0736fbc6623f791aab4cf",
       "bytes": 2687
     },
     {
@@ -235,8 +235,8 @@
     },
     {
       "path": "scripts\\agents\\librarian.py",
-      "sha256": "451706c56abf6954f77591501d783eaaa8c91b0de7207517004fbf6277b1e22b",
-      "bytes": 9333
+      "sha256": "9690c98478cb8334581ba813ffd2fed3c4350ab33b1a104e6cabbfe5bd88d340",
+      "bytes": 10799
     },
     {
       "path": "scripts\\agents\\reference_librarian.py",
@@ -265,8 +265,8 @@
     },
     {
       "path": "scripts\\install.py",
-      "sha256": "6c06252d294340646125cf3fdc156b47c7c028f50ce27ec6570a888f2b945bfa",
-      "bytes": 3870
+      "sha256": "0709e79c32a085ad9f5c5ba534cdb643ed6822a0e59181eda279cac4c6b72900",
+      "bytes": 5498
     },
     {
       "path": "scripts\\onboarding.py",

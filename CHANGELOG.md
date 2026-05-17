@@ -8,6 +8,12 @@ Format: [version] — date — summary.
 
 ## Unreleased
 
+(no in-progress work)
+
+---
+
+## v2.3.0 — 2026-05-17
+
 ### Index — duplicate-key invariant (spec §6.4)
 
 **What.** `documents.key` now carries a UNIQUE index
@@ -40,7 +46,7 @@ unkeyed captures (key IS NULL) remain unconstrained.
 Files: `docs/specs/2026-05-16-memex-v2-redesign-design.md` (§5.2, new §6.4,
 §A.1 Librarian role-card), `db/index.sql`, `scripts/install.py`,
 `scripts/agents/librarian.py`. Tests: 6 new (`test_index_schema.py`,
-`test_librarian_harness.py`, `test_install.py`).
+`test_librarian_harness.py`, `test_install.py`). 284 passing.
 
 ---
 
