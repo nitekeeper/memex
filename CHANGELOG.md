@@ -12,6 +12,25 @@ Format: [version] — date — summary.
 
 ---
 
+## v2.2.1 — 2026-05-16
+
+**Release-tooling validation. No code or behavior changes.**
+
+Exercises the full v2.2.0 release toolchain end-to-end:
+
+- `scripts/bump.py` driving the version-file updates and dist rebuild.
+- `.github/workflows/release.yml` building and publishing the GitHub
+  Release from a tag push.
+- `.github/workflows/notify-agora.yml` firing a `repository_dispatch` at
+  `nitekeeper/agora` so the marketplace can auto-bump the pinned version
+  without manual intervention.
+
+If you installed v2.2.0 you can stay on v2.2.0 — nothing about Memex's
+behavior changed. v2.2.1 exists solely to validate that the release
+pipeline works.
+
+---
+
 ## v2.2.0 — 2026-05-16
 
 **Caller-built classification for consumer writes (Atelier-style fast path).**

@@ -1,0 +1,312 @@
+{
+  "version": "2.2.1",
+  "built_at": "2026-05-17T00:11:33.770972+00:00",
+  "file_count": 61,
+  "files": [
+    {
+      "path": ".claude-plugin\\plugin.json",
+      "sha256": "1444af09481acb8a4f99c56cccb9fdd0486e7a79f7279ddc1dac119e3c44fb35",
+      "bytes": 707
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "1cd16d8cab78e1b2561fca410521162f8be2ca50c2cadd7d03e7400224b11812",
+      "bytes": 11349
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "68e64f8af9ad4d78cb978fa17686dbacf41307a9cfa7e6540eb86aaf5a25004a",
+      "bytes": 2816
+    },
+    {
+      "path": "README.md",
+      "sha256": "d0a21ed25f84b3123cc18767ce0acb5f85c27a400bbcf229f4df1038504d3530",
+      "bytes": 6829
+    },
+    {
+      "path": "USER_GUIDE.md",
+      "sha256": "3c61341f1b7220330fd14e9210a9ec914a545ae2079e3e4921d70d0d4949f92a",
+      "bytes": 8060
+    },
+    {
+      "path": "db\\__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "db\\agents.sql",
+      "sha256": "b6714ad00b927ccd05d70b987930de8bdb20901825f1dabc006c7e89a7edad27",
+      "bytes": 815
+    },
+    {
+      "path": "db\\brain.sql",
+      "sha256": "21f9532906ce934c429bd00c6f38ba6c6f88de6b67d9fa881bc35f6a962ebeb3",
+      "bytes": 1318
+    },
+    {
+      "path": "db\\index.sql",
+      "sha256": "6231a59af16451281e37adc80f0519cf0373e02c0a8f5e792b831d7f7ce21cf0",
+      "bytes": 2155
+    },
+    {
+      "path": "db\\internal_agents_seed.py",
+      "sha256": "ff88528960db541634c40c74c12ceeb3d19f9d66f4a1f63bbc518b994feeca74",
+      "bytes": 16579
+    },
+    {
+      "path": "db\\migrations_table.sql",
+      "sha256": "0bc4cb4c123701db5e6d552ce858736a214f4f1dd322bec91cb58a9e4adecc56",
+      "bytes": 450
+    },
+    {
+      "path": "internal\\brain\\ask\\SKILL.md",
+      "sha256": "e6321110a7180b1e6ea317fe3e035f770677ca9c9ed91c9bacae1980d0a0ccd9",
+      "bytes": 4109
+    },
+    {
+      "path": "internal\\brain\\capture\\SKILL.md",
+      "sha256": "7c1f162d57af72c430013c422b519037c9a23c9efc3a1544a89e4fee2b17d663",
+      "bytes": 2372
+    },
+    {
+      "path": "internal\\brain\\ingest\\SKILL.md",
+      "sha256": "8bccb682bdee7cacbd02718895c87298e66a8ef0ca9c5f08d3a67050bca18694",
+      "bytes": 4401
+    },
+    {
+      "path": "internal\\brain\\lint\\SKILL.md",
+      "sha256": "96db9a6fa57a2cc663c144fee79a74d79a8ffcdf48de3a3be09b26dfb0b5f71d",
+      "bytes": 547
+    },
+    {
+      "path": "internal\\brain\\synthesize\\SKILL.md",
+      "sha256": "b51e7cd07dc43d84b67644e61eb55f7228141d7668a2f7620a6c1993c53b457d",
+      "bytes": 4940
+    },
+    {
+      "path": "internal\\core\\create-store\\SKILL.md",
+      "sha256": "2c612ed435ad800941f2bfe5cd94521a15d576b1c3a7fb67b9233dbec84b7154",
+      "bytes": 1140
+    },
+    {
+      "path": "internal\\core\\delete\\SKILL.md",
+      "sha256": "9736e141fd264daf4f69905e3e4a093a8dd7c87113de61cb994e54713d07d639",
+      "bytes": 367
+    },
+    {
+      "path": "internal\\core\\get-agent\\SKILL.md",
+      "sha256": "98eed56b5169d2b8cfea37dd9e1dd9d2d99f8a1bf345d1c3576b0c5c19a1b623",
+      "bytes": 400
+    },
+    {
+      "path": "internal\\core\\insert\\SKILL.md",
+      "sha256": "d2bdb1f29fcf38f6be377a7dc823f52593dafffc327fa23ae3dc5f563f9c92af",
+      "bytes": 443
+    },
+    {
+      "path": "internal\\core\\list-stores\\SKILL.md",
+      "sha256": "f23fdd936c5f606331b8f11f04db0d7cec911b638de9dba1117ce3d7fd7c6e71",
+      "bytes": 246
+    },
+    {
+      "path": "internal\\core\\migrate\\SKILL.md",
+      "sha256": "52f93e1832b16ee9ff1768470098d739028ef406608bed9f2dd056d3d6a8daac",
+      "bytes": 613
+    },
+    {
+      "path": "internal\\core\\query\\SKILL.md",
+      "sha256": "6d5555299c64c1dd723aa893e2619ef92c7b6ac6a40abce9c9cb19e37efc1f2a",
+      "bytes": 444
+    },
+    {
+      "path": "internal\\core\\register-agent\\SKILL.md",
+      "sha256": "70fd7b82a5a30d7c358760655c9d16a6c0d4dacd84679440774d463c2c387064",
+      "bytes": 562
+    },
+    {
+      "path": "internal\\core\\register-role\\SKILL.md",
+      "sha256": "bad4121bed9859d3626d1d7fb4661b26023d23bf7d01891288d48954d221d321",
+      "bytes": 500
+    },
+    {
+      "path": "internal\\core\\update\\SKILL.md",
+      "sha256": "37149b0e3ae969b9b81f4c52315c9989ec9f18ff365a8c1382a815c29e59e5fa",
+      "bytes": 396
+    },
+    {
+      "path": "internal\\dba\\checkpoint\\SKILL.md",
+      "sha256": "7a2ff5a916c41026ef9079f9f6c9d00a4cf68822c2489091687a349e2a683d7f",
+      "bytes": 323
+    },
+    {
+      "path": "internal\\dba\\integrity-check\\SKILL.md",
+      "sha256": "b49ad063eb785344f337c356555111fa0c4db08cf58c9e13889c9a3f1a466b56",
+      "bytes": 285
+    },
+    {
+      "path": "internal\\dba\\vacuum\\SKILL.md",
+      "sha256": "79d471057da0f73bd7b91f971531d794d7587d8c5ebd2628640bd46375f86c5a",
+      "bytes": 276
+    },
+    {
+      "path": "internal\\embed\\backfill\\SKILL.md",
+      "sha256": "671c35cb1236a9324af0bed6b52343ee89f81984d61ee54f6421b878dbe1b62e",
+      "bytes": 3135
+    },
+    {
+      "path": "internal\\embed\\reembed\\SKILL.md",
+      "sha256": "ecc551cfbe81a3e74cd5136cab506a57dc593e8937e4408bb55ad7e7c167fee2",
+      "bytes": 3842
+    },
+    {
+      "path": "internal\\index\\archive\\SKILL.md",
+      "sha256": "e61c41387cabc92ad9ce65aca00a13cc5cd5847f51761d14e9e136cd974b3a2c",
+      "bytes": 1024
+    },
+    {
+      "path": "internal\\index\\search\\SKILL.md",
+      "sha256": "41f229ccfc9b345b6c347235ef95d64487bf84c81d23d4380a7b1726a9bbc645",
+      "bytes": 2817
+    },
+    {
+      "path": "internal\\index\\write\\SKILL.md",
+      "sha256": "4b719c67edf1a3bd72c4e0a18821960db791e2e15a34ab420fff493c080b566b",
+      "bytes": 6411
+    },
+    {
+      "path": "internal\\steward\\audit-store\\SKILL.md",
+      "sha256": "0dcd4406877158d27ccd749dcdf95f74eff9916c0a68dc80cd3895b9ebb0a76e",
+      "bytes": 426
+    },
+    {
+      "path": "internal\\steward\\audit\\SKILL.md",
+      "sha256": "adcc76520cc620b9776082122948f25899feb130af0ec890d27222ef184ee14c",
+      "bytes": 812
+    },
+    {
+      "path": "internal\\steward\\reconcile-orphan\\SKILL.md",
+      "sha256": "ec25b64d965e6bb1210a47f59d6744c46a76d26055b3bd190f9eae9e3842fec6",
+      "bytes": 806
+    },
+    {
+      "path": "prompts\\librarian.md",
+      "sha256": "7d5efe503da539c83aa5870dc4480ea9693ab215705f7f44063f0b366c63fb65",
+      "bytes": 1935
+    },
+    {
+      "path": "prompts\\reference_librarian.md",
+      "sha256": "42bbf370bbb14ad96ecee17a72f72e4902324479252cf2ef5b9d4e08d73eaba0",
+      "bytes": 795
+    },
+    {
+      "path": "prompts\\synthesizer.md",
+      "sha256": "951ed2635bfa4d1d73cdff793b78214edcb9be9d65b815e0097dee88e30ca5a4",
+      "bytes": 619
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "f9d4fbdc9f974019b3bd5086163455b61c20619ff8a7e10fe7bf7230b1d61c95",
+      "bytes": 2687
+    },
+    {
+      "path": "scripts\\__init__.py",
+      "sha256": "19bcd6be0665e144eba5fe2307a2df826f186738912e00dd24e4629f88bc4dac",
+      "bytes": 56
+    },
+    {
+      "path": "scripts\\agents\\__init__.py",
+      "sha256": "5f89a4b9d977717ba2b92879e059519eb7f6de87bfa687e5741e2f70bc6d2c3d",
+      "bytes": 3777
+    },
+    {
+      "path": "scripts\\agents\\archivist.py",
+      "sha256": "15c0f4b63476ea286a00f6b107cdef029ac058fc55d125fb2d4959a16c487501",
+      "bytes": 1862
+    },
+    {
+      "path": "scripts\\agents\\data_steward.py",
+      "sha256": "67b6051f9a515c75692bb0b1fad6af371806056a3ab827bc95993aa5d5d089a2",
+      "bytes": 7809
+    },
+    {
+      "path": "scripts\\agents\\dba.py",
+      "sha256": "21a12477d8c716044c71e784bceeede6f83f258be696107d8bebd89489cfa842",
+      "bytes": 2105
+    },
+    {
+      "path": "scripts\\agents\\librarian.py",
+      "sha256": "451706c56abf6954f77591501d783eaaa8c91b0de7207517004fbf6277b1e22b",
+      "bytes": 9333
+    },
+    {
+      "path": "scripts\\agents\\reference_librarian.py",
+      "sha256": "596cf9a88f7f2ff8a45b47673587b9f69e7ddfeb4b73c11cdd1e1cca60c5487d",
+      "bytes": 8676
+    },
+    {
+      "path": "scripts\\brain.py",
+      "sha256": "f5917b6f08d93cec7bd04b6adff9f1890fb451c824ab92bacf0309cf0f1dc469",
+      "bytes": 13410
+    },
+    {
+      "path": "scripts\\bump.py",
+      "sha256": "a6ee64e66d2c15dc9e247bc39c77d3bd8d9f421e5b031a172e2bc391f3a61cb9",
+      "bytes": 5308
+    },
+    {
+      "path": "scripts\\db.py",
+      "sha256": "9e53ca4b9396a513d289d38de2ed7b8f4294f52deab3cf12b10debc7f11139e6",
+      "bytes": 2980
+    },
+    {
+      "path": "scripts\\embeddings.py",
+      "sha256": "aa68dc792a6c2799f539e1e3a15b934078f3840e7fb83ccf0809f44e7fbf177a",
+      "bytes": 15620
+    },
+    {
+      "path": "scripts\\install.py",
+      "sha256": "6c06252d294340646125cf3fdc156b47c7c028f50ce27ec6570a888f2b945bfa",
+      "bytes": 3870
+    },
+    {
+      "path": "scripts\\onboarding.py",
+      "sha256": "ed4bb1fee937558bd804dcc20e182b24e18f82bc14d8826d82c8f7f74b262750",
+      "bytes": 2327
+    },
+    {
+      "path": "scripts\\registry.py",
+      "sha256": "bb09f74606ff8c298de5cdb00353f82a92b3204832a7a0b5aa9f556c624e6ab9",
+      "bytes": 2370
+    },
+    {
+      "path": "scripts\\release.py",
+      "sha256": "18b77767818010667ff53ae0e9568aaaf792a43dfd9f4614aba0ad3133b8da24",
+      "bytes": 6043
+    },
+    {
+      "path": "scripts\\roles.py",
+      "sha256": "dace152ef1c8f41d0aeabf75aaa65aff92a2a0e9f8fe0c586d759b1e73833e3b",
+      "bytes": 3186
+    },
+    {
+      "path": "scripts\\stores.py",
+      "sha256": "9e08ef8f76efb675c993fa114e1e9756de6e491c027d566466b9a61b30b34cb0",
+      "bytes": 4766
+    },
+    {
+      "path": "scripts\\upgrade_from_v1.py",
+      "sha256": "ebcd43434a4424044c3a496cb9ae092cd3b4bac59ae4e94c5342528af51d80a7",
+      "bytes": 2104
+    },
+    {
+      "path": "skills\\README.md",
+      "sha256": "5b06f7d68d3a1ae74d5a9ea336d8a85f874d868f5323e3d6773b0b48d7416936",
+      "bytes": 516
+    },
+    {
+      "path": "skills\\run\\SKILL.md",
+      "sha256": "f5b11bab0e5ef9941ad0c2b1dc174b46aea35d8758d70406ab132f5295a12322",
+      "bytes": 5521
+    }
+  ]
+}
