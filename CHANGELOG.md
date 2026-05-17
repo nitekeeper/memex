@@ -12,7 +12,7 @@ Format: [version] — date — summary.
 
 ---
 
-## v2.4.1 — <RELEASE-DATE>
+## v2.4.1 — 2026-05-17
 
 ### Changed
 - Embedding failures now raise a typed `embeddings.EmbeddingUnavailable`
