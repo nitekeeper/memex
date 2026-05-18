@@ -40,3 +40,49 @@ def test_registry_persists_as_json(tmp_memex_home):
     raw = (tmp_memex_home / "registry.json").read_text()
     data = json.loads(raw)
     assert "alpha" in data
+
+
+# v2.5.1: __dunder__ keys in registry.json are reserved for config blobs
+# (e.g. embeddings writes __embedding_model__). The registry API must treat
+# them as not-stores so downstream consumers (e.g. Atelier's backend_memex)
+# don't have to filter them client-side.
+
+
+def test_list_stores_excludes_dunder_config_keys(tmp_memex_home):
+    """list_stores() must filter out __key__ entries written by other subsystems
+    (embeddings.__embedding_model__, etc.)."""
+    registry.register_store("alpha", "/abs/alpha.db", "v1")
+    # Simulate the embeddings layer writing config to registry.json directly.
+    data = registry._load()
+    data["__embedding_model__"] = {"provider": "openai", "model": "text-embedding-3-small"}
+    registry._save(data)
+
+    listed = registry.list_stores()
+    names = [s.get("name") for s in listed]
+    assert names == ["alpha"], f"expected only [alpha], got {names}"
+
+
+def test_get_store_rejects_dunder_key(tmp_memex_home):
+    """get_store('__embedding_model__') must return None, not the config dict."""
+    data = registry._load()
+    data["__embedding_model__"] = {"provider": "openai"}
+    registry._save(data)
+
+    assert registry.get_store("__embedding_model__") is None
+
+
+def test_register_store_rejects_dunder_name(tmp_memex_home):
+    """Reserve the __dunder__ namespace so callers can't collide with config blobs."""
+    with pytest.raises(ValueError, match="reserved"):
+        registry.register_store("__embedding_model__", "/abs/x.db", "v1")
+
+
+def test_unregister_store_refuses_dunder_key(tmp_memex_home):
+    """unregister_store on a config blob must no-op (return False), not delete it."""
+    data = registry._load()
+    data["__embedding_model__"] = {"provider": "openai"}
+    registry._save(data)
+
+    assert registry.unregister_store("__embedding_model__") is False
+    # Config blob is still there.
+    assert registry._load().get("__embedding_model__") == {"provider": "openai"}

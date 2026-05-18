@@ -1,32 +1,32 @@
 {
-  "version": "2.5.0",
-  "built_at": "2026-05-18T01:32:15.680182+00:00",
+  "version": "2.5.1",
+  "built_at": "2026-05-18T01:57:26.787040+00:00",
   "file_count": 62,
   "files": [
     {
       "path": ".claude-plugin/plugin.json",
-      "sha256": "efa22834033c773be5054f6ed238b6d3ae625812988f114ee2651d169763e0f0",
+      "sha256": "7c97a58e7ca9d20948bb37bef31b8cf62d95b7c757f937da345eab95ce6ead90",
       "bytes": 689
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "37327ae64d55d3825bb0c41c2f9314f83c1d7ead753456f5ed7be17fde9e595c",
-      "bytes": 20669
+      "sha256": "3d107faff652cbc533f49774bf4b763231b2bcd5e3b22cadef968b69aa9f9adc",
+      "bytes": 21531
     },
     {
       "path": "INSTALL.md",
-      "sha256": "6c9a5d423bcba851cabd4aa324e95e66e71783c692d953a34b034f1d3849804c",
+      "sha256": "ede9d1865b6eebc4fefaa71d173ddce41e4d77f49ed3d43c1dbd58a3a758470e",
       "bytes": 3014
     },
     {
       "path": "README.md",
-      "sha256": "279c2d1a9284a80d317833e04ed2ee744c02d07598afc4a98f4930b051a8624e",
-      "bytes": 6948
+      "sha256": "6891e2f1fb09bb8bef41aad8cf01d9440c039a0781c205c2f171f7340a28a1df",
+      "bytes": 6839
     },
     {
       "path": "USER_GUIDE.md",
-      "sha256": "c42984dc2a01f7db57339803b7576e49988ac927a9f7e1956ada793b57e3a37c",
-      "bytes": 10315
+      "sha256": "f4fbe6fe9ad6512f0166479438ef2a7ef12e8e8e5f6f77cd4d28122d88828bb0",
+      "bytes": 10104
     },
     {
       "path": "db/__init__.py",
@@ -65,8 +65,8 @@
     },
     {
       "path": "internal/brain/ingest/SKILL.md",
-      "sha256": "2b9f147c79ea525312a167f77f3dc9d9d6ee7cf2f171fb32a872c370d989756b",
-      "bytes": 4776
+      "sha256": "ebdc908b41ba88651912587e38d388e56a0b5ee2e23fb79e7f6e87f6b23e87ba",
+      "bytes": 4654
     },
     {
       "path": "internal/brain/lint/SKILL.md",
@@ -200,8 +200,8 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "eefb4f5bd1dc3a3ef1322aebaab4f1adcc952107c3a1db7b4f788235dd4bc788",
-      "bytes": 2620
+      "sha256": "5bc233bdb30c72874e13cdcbe45359773308b1e532acfed55837e8cc5c447de4",
+      "bytes": 2820
     },
     {
       "path": "scripts/__init__.py",
@@ -220,8 +220,8 @@
     },
     {
       "path": "scripts/agents/archivist.py",
-      "sha256": "5aa6b0cd8c74bbb05896be02c5bc2719c6aa0a6af30e50996f8bdb5bc4a9c6e7",
-      "bytes": 1906
+      "sha256": "fc2701adbd5b32b8a83b150d6cb2bcd08f9bac8b28f2b8239be8b9f885054d4b",
+      "bytes": 1850
     },
     {
       "path": "scripts/agents/data_steward.py",
@@ -235,17 +235,17 @@
     },
     {
       "path": "scripts/agents/librarian.py",
-      "sha256": "e60d0b596fb26a6902d0e824d5851b3fc0f882af4f849a8ca17fa99384ff13b4",
-      "bytes": 10814
+      "sha256": "62bd09245f16ca03cade0eecb4d27a72cff3a6e96f93a247b8501047da1a800a",
+      "bytes": 10529
     },
     {
       "path": "scripts/agents/reference_librarian.py",
-      "sha256": "8056b327a10b98a4eceee9c1614b27155875d4ca01e853767cfe146a13a5a164",
-      "bytes": 8777
+      "sha256": "f34105d3e33fbce3efaf929a7c69b96369cc4b4473955142891d434376885034",
+      "bytes": 8553
     },
     {
       "path": "scripts/brain.py",
-      "sha256": "e5e536d55a24f88aeb38493d9e821e9b00690f5a2fd3abdd70251245d1ef915a",
+      "sha256": "e5e8065b92e9b3d7caef979c9fb14c15c76a2ac16c67bf67109bd87b60388c38",
       "bytes": 13293
     },
     {
@@ -255,18 +255,18 @@
     },
     {
       "path": "scripts/db.py",
-      "sha256": "4be319d337e99965b9d818641eff3623889db69bdc11533b8af0a15c335d0396",
-      "bytes": 5736
+      "sha256": "90bac572fb81aba6c3cc297371f98bab73811c7b8b42235de4a29739f6b1a34c",
+      "bytes": 5738
     },
     {
       "path": "scripts/embeddings.py",
-      "sha256": "ef01cc94a0070d498a2801f51e8ab07f6fd27aec88432d9a812125efb38ae89e",
-      "bytes": 22033
+      "sha256": "fc88dfca52cb240672ea58a405734d731b0bcf462abb394782fad3390f0c707b",
+      "bytes": 22081
     },
     {
       "path": "scripts/install.py",
-      "sha256": "c182fcec4742cd4f69b5715bc5444536a691e7deb3dc82c74ebd8478a9491488",
-      "bytes": 8639
+      "sha256": "73ef369ef2f54fdfcbf11a03fbf44446fcc40ac177eb57d71ef10156c43c0cec",
+      "bytes": 8587
     },
     {
       "path": "scripts/onboarding.py",
@@ -280,13 +280,13 @@
     },
     {
       "path": "scripts/registry.py",
-      "sha256": "bb09f74606ff8c298de5cdb00353f82a92b3204832a7a0b5aa9f556c624e6ab9",
-      "bytes": 2370
+      "sha256": "f328d9d0a79aa6d872d46227ef21a66985b947c1fcaa25d2937986d94c1e654b",
+      "bytes": 3104
     },
     {
       "path": "scripts/release.py",
-      "sha256": "7ba38d6c763892e96e0dd0bb0f040f7bbc81e1710c218285f24b06a01d6e5b47",
-      "bytes": 6309
+      "sha256": "eb21ceab42293a5785efdc4abf7b8d32f83244d8e72a59b2b340d6cb84abf4eb",
+      "bytes": 6142
     },
     {
       "path": "scripts/roles.py",
@@ -295,13 +295,13 @@
     },
     {
       "path": "scripts/stores.py",
-      "sha256": "4e659fb3764e9e8704e56fa98b7e157288143b3456c6432feec3d8b250ca7894",
-      "bytes": 4971
+      "sha256": "66dce5038e51d29b8e26ca90d62ffb363774ca2c59a9cdbc80087dfd5b150e31",
+      "bytes": 4818
     },
     {
       "path": "scripts/upgrade_from_v1.py",
-      "sha256": "41a4eb6d5d91fcafcc3bb8d28eeb3c14b92af209a8bdd107d47ab879fa3a92ed",
-      "bytes": 3839
+      "sha256": "c681e9c86fef8d787e2c7539ad208fb4375e785a932444a894470a24d2fc0f7a",
+      "bytes": 3795
     },
     {
       "path": "skills/README.md",
@@ -310,8 +310,8 @@
     },
     {
       "path": "skills/run/SKILL.md",
-      "sha256": "cf73b078b5214178fa08eb34b8ca021387613e84984e19ecb0dc65c9712d54eb",
-      "bytes": 13869
+      "sha256": "917fbf5f4ad2648b276f44e8b8e77e00942fae14989c324c9f5b0addf3455c1d",
+      "bytes": 13601
     }
   ]
 }

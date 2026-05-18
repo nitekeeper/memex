@@ -12,6 +12,15 @@ from pathlib import Path
 
 from scripts.db import memex_home
 
+# Keys in registry.json that match this shape are reserved for config blobs
+# written by other subsystems (e.g. embeddings.__embedding_model__) and must
+# not be confused with store rows by the registry API.
+_RESERVED_PREFIX = "__"
+
+
+def _is_reserved(name: str) -> bool:
+    return name.startswith(_RESERVED_PREFIX)
+
 
 def _registry_path() -> Path:
     return memex_home() / "registry.json"
@@ -31,7 +40,12 @@ def _save(data: dict) -> None:
 
 
 def register_store(name: str, path: str, schema_version: str) -> dict:
-    """Add a store to the registry. Raises ValueError if name exists."""
+    """Add a store to the registry. Raises ValueError if name exists or is reserved."""
+    if _is_reserved(name):
+        raise ValueError(
+            f"Store name {name!r} is reserved (the __dunder__ namespace is for "
+            f"internal config blobs, e.g. __embedding_model__)"
+        )
     data = _load()
     if name in data:
         raise ValueError(f"Store already registered: {name}")
@@ -47,14 +61,18 @@ def register_store(name: str, path: str, schema_version: str) -> dict:
 
 
 def get_store(name: str) -> dict | None:
+    if _is_reserved(name):
+        return None
     return _load().get(name)
 
 
 def list_stores() -> list[dict]:
-    return list(_load().values())
+    return [v for k, v in _load().items() if not _is_reserved(k)]
 
 
 def unregister_store(name: str) -> bool:
+    if _is_reserved(name):
+        return False
     data = _load()
     if name not in data:
         return False
@@ -64,6 +82,8 @@ def unregister_store(name: str) -> bool:
 
 
 def update_schema_version(name: str, new_version: str) -> dict | None:
+    if _is_reserved(name):
+        return None
     data = _load()
     if name not in data:
         return None

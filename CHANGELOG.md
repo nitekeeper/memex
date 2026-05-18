@@ -12,6 +12,22 @@ Format: [version] — date — summary.
 
 ---
 
+## v2.5.1 — 2026-05-17
+
+### Fixed
+
+- **`registry.list_stores()` leaked `__embedding_model__` config blob.** Since v2.4.1, `scripts.embeddings._record_model_info()` writes `__embedding_model__` to `registry.json` to track the active provider/model. `list_stores()` returned every value in the file (including this config dict), so downstream consumers iterating registered stores saw a malformed row with no `name` key. The registry API now reserves the `__dunder__` namespace for internal config and filters reserved keys out of all public reads/writes.
+- **`get_store("__embedding_model__")` returned the config dict** instead of `None`. Now returns `None`.
+- **`register_store("__foo", …)` succeeded** with no namespace protection. Now raises `ValueError` ("reserved namespace").
+- **`unregister_store("__embedding_model__")` would have deleted the config blob.** Now a no-op returning `False`.
+- **`update_schema_version("__foo", …)` would have rewritten the config blob's value as a string.** Now a no-op returning `None`.
+
+### Migration
+
+No action required. The fix tightens the contract — no legitimate caller was depending on the buggy behavior. Downstream consumers (Atelier's `backend_memex.py`) can now drop client-side `__*` filtering.
+
+---
+
 ## v2.5.0 — 2026-05-17
 
 ### Added
