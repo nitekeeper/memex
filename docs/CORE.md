@@ -34,7 +34,7 @@ table in `skills/run/SKILL.md`.
 ## Acceptance criteria for Plan 1
 
 1. `pytest tests/` passes with all tests green.
-2. `python -m scripts.install` is idempotent and creates `~/.memex/` with `agents.db` and `registry.json`.
+2. `python3 -m scripts.install` is idempotent and creates `~/.memex/` with `agents.db` and `registry.json`. Auto-invoked by `memex:run` Step 0 on first use; see `docs/specs/2026-05-17-install-hardening-design.md` §"Step 0.2".
 3. The 10 internal core SKILL.md files exist at `internal/core/<name>/SKILL.md` with correct `name: memex:core:<name>` frontmatter.
 4. The plugin manifest registers ONLY `memex:run`.
 5. `skills/run/SKILL.md` contains routing entries for all 10 core procedures.

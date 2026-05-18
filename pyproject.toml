@@ -1,6 +1,6 @@
 [project]
 name = "memex"
-version = "2.4.1"
+version = "2.5.0"
 description = "Memex Core: structured memory and shared knowledge runtime for AI agents."
 requires-python = ">=3.10"
 
@@ -48,9 +48,11 @@ ignore = [
     "SIM117", # nested-with — sometimes clearer in test setup
 ]
 # Agent profiles are long-form natural-language strings with deliberate
-# typography (em-dashes, en-dashes for ranges, etc.). Linting them as code
-# strings is a false positive.
-"db/internal_agents_seed.py" = ["RUF001", "RUF003"]
+# typography (em-dashes, en-dashes for ranges, etc.); linting them as code
+# strings is a false positive. v2.5.0 moved the file from db/ to scripts/
+# and added hash-pinning imports at the bottom of the module (E402) —
+# computing the seed hash requires the agent list to be defined first.
+"scripts/_internal_agents_seed.py" = ["RUF001", "RUF003", "E402"]
 
 # ----------------------------------------------------------------------------
 # Security — Bandit

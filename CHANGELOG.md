@@ -12,6 +12,44 @@ Format: [version] — date — summary.
 
 ---
 
+## v2.5.0 — 2026-05-17
+
+### Added
+
+- **Auto-bootstrap on `memex:run` (Step 0.2).** Detects missing/incomplete `~/.memex/`, prompts strictly `(y/n)`, runs `scripts.install` via Python stdin (deterministic match) on `y`.
+- **Python 3.10+ preflight (Step 0.1).** `python3 -c 'sys.version_info[:2] >= (3, 10)'`; fallback to `python` then `py -3`; OS-specific install instructions on miss.
+- **`scripts/paths.py`.** Plugin-anchored `PLUGIN_ROOT`, `DB_DIR`, `PROMPTS_DIR`. Import-time bundle integrity check.
+- **`~/.memex/config.json`.** Persistent plugin-root cache; written on first invocation, read by all subsequent ones. Eliminates per-invocation discovery.
+- **`scripts.db.MemexNotInitializedError` + `require_bootstrap()`.** Typed precondition for direct Python imports.
+- **`MemexHomeInvalidError` + `$MEMEX_HOME` / `~/.memex/` validation.** Rejects out-of-home paths and symlinked home unless `MEMEX_HOME_ALLOW_UNUSUAL=1`.
+- **v1-archive symlink protection.** `copytree(symlinks=True)`; `$MEMEX_V1_PATH` / `.ai` validation. New `MEMEX_V1_PATH_ALLOW_UNUSUAL=1` escape hatch for test fixtures.
+- **Internal agent profile hash-pinning.** Drift detection via `agents.db.meta.seed_hash`.
+- **Concurrent install lock.** `os.O_NOFOLLOW` + `flock`/`msvcrt.locking`; new `InstallLockBusyError`.
+- **`.gitattributes`** enforcing LF line endings.
+
+### Changed
+
+- **Bundle reads CWD-independent.** Library/agent code reads `agents.sql`, `prompts/*.md`, etc. via `DB_DIR` / `PROMPTS_DIR` from `scripts.paths`, no longer via CWD-relative paths.
+- **`db/internal_agents_seed.py` relocated to `scripts/_internal_agents_seed.py`.** Eliminates sibling-package import.
+- **All user-facing docs say `python3` and `python3 -m pip`.**
+- **Brain `ingest`'s manual-install error pointer removed; `Unknown store: article` reworded to point at Step 0.**
+- **Plugin install path docs corrected** from `~/.claude-code/plugins/` to `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`.
+
+### Migration
+
+Existing v2.4.1 installs continue to work without action. The first `memex:run` after upgrade re-runs preflight; on a healthy install it passes silently and writes `~/.memex/config.json` for future invocations.
+
+**Degraded install** (deleted DB files, partial install, stale `MEMEX_HOME`): first `memex:run` after upgrade prompts `(y/n)` to bootstrap. Idempotent.
+
+**`$MEMEX_HOME` outside `$HOME`** (rare): v2.5.0 raises `MemexHomeInvalidError`. Set `MEMEX_HOME_ALLOW_UNUSUAL=1` to retain v2.4.x behavior.
+
+**Manually-edited internal agent profiles** (very rare): on upgrade, `_seed_internal()` detects hash drift and prints a stderr warning before overwriting. Back up before running install if you've customized profiles.
+
+### Spec
+- `docs/specs/2026-05-17-install-hardening-design.md` (cycle-3 design); v2-redesign spec now has §8.6 cross-reference.
+
+---
+
 ## v2.4.1 — 2026-05-17
 
 ### Changed

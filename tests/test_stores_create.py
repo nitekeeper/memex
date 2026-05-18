@@ -4,7 +4,7 @@ from scripts import registry, stores
 from scripts.db import get_connection
 
 
-def test_create_store_creates_file(tmp_memex_home, tmp_path):
+def test_create_store_creates_file(bootstrapped_marker, tmp_path):
     migrations_dir = tmp_path / "migrations"
     migrations_dir.mkdir()
     (migrations_dir / "001_init.sql").write_text("CREATE TABLE t (a INTEGER);")
@@ -13,7 +13,7 @@ def test_create_store_creates_file(tmp_memex_home, tmp_path):
     assert target.exists()
 
 
-def test_create_store_runs_migrations(tmp_memex_home, tmp_path):
+def test_create_store_runs_migrations(bootstrapped_marker, tmp_path):
     migrations_dir = tmp_path / "migrations"
     migrations_dir.mkdir()
     (migrations_dir / "001_init.sql").write_text("CREATE TABLE t (a INTEGER, b TEXT);")
@@ -26,7 +26,7 @@ def test_create_store_runs_migrations(tmp_memex_home, tmp_path):
     assert "migrations" in tables
 
 
-def test_create_store_records_applied_migrations(tmp_memex_home, tmp_path):
+def test_create_store_records_applied_migrations(bootstrapped_marker, tmp_path):
     migrations_dir = tmp_path / "migrations"
     migrations_dir.mkdir()
     (migrations_dir / "001_init.sql").write_text("CREATE TABLE t (a INTEGER);")
@@ -41,7 +41,7 @@ def test_create_store_records_applied_migrations(tmp_memex_home, tmp_path):
     assert applied == ["001_init.sql", "002_more.sql"]
 
 
-def test_create_store_registers_in_registry(tmp_memex_home, tmp_path):
+def test_create_store_registers_in_registry(bootstrapped_marker, tmp_path):
     migrations_dir = tmp_path / "migrations"
     migrations_dir.mkdir()
     (migrations_dir / "001_init.sql").write_text("CREATE TABLE t (a INTEGER);")
@@ -52,7 +52,7 @@ def test_create_store_registers_in_registry(tmp_memex_home, tmp_path):
     assert rec["path"] == str(target)
 
 
-def test_create_store_refuses_existing_name(tmp_memex_home, tmp_path):
+def test_create_store_refuses_existing_name(bootstrapped_marker, tmp_path):
     migrations_dir = tmp_path / "migrations"
     migrations_dir.mkdir()
     (migrations_dir / "001_init.sql").write_text("CREATE TABLE t (a INTEGER);")
@@ -61,7 +61,7 @@ def test_create_store_refuses_existing_name(tmp_memex_home, tmp_path):
         stores.create_store("alpha", str(tmp_path / "b.db"), str(migrations_dir))
 
 
-def test_create_store_applies_migrations_in_lexical_order(tmp_memex_home, tmp_path):
+def test_create_store_applies_migrations_in_lexical_order(bootstrapped_marker, tmp_path):
     migrations_dir = tmp_path / "migrations"
     migrations_dir.mkdir()
     (migrations_dir / "002_second.sql").write_text("CREATE TABLE b (x INTEGER);")

@@ -111,8 +111,8 @@ Ingested into Brain:
 
 ## Errors
 
-- `ValueError: Agent not registered: librarian-1` → run `python -m scripts.install` to seed the internal agents.
-- `ValueError: Unknown store: article` → article.db not registered; rerun install.
+- `MemexNotInitializedError` → Memex is not bootstrapped. Re-invoke `memex:run`; Step 0 will prompt to bootstrap. If Step 0 is unreachable, run `python3 -m scripts.install` manually.
+- `ValueError: Unknown store: article` → `article.db` is missing from `~/.memex/registry.json`. This indicates a partial install — re-invoke `memex:run` so Step 0 detects the missing path, or rerun `python3 -m scripts.install`.
 - `ValueError: librarian_output missing fields` → subagent returned bad JSON twice; report BLOCKED.
 
 ## Notes

@@ -1,4 +1,4 @@
-from db.internal_agents_seed import INTERNAL_AGENTS
+from scripts._internal_agents_seed import INTERNAL_AGENTS
 
 
 def test_seed_has_five_entries():

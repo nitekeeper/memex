@@ -4,7 +4,7 @@ from scripts import stores
 
 
 @pytest.fixture
-def store_with_table(tmp_memex_home, tmp_path):
+def store_with_table(bootstrapped_marker, tmp_path):
     migrations_dir = tmp_path / "migrations"
     migrations_dir.mkdir()
     (migrations_dir / "001_init.sql").write_text(
@@ -60,6 +60,6 @@ def test_delete_returns_false_when_missing(store_with_table):
     assert stores.delete(store_with_table, "items", 99999) is False
 
 
-def test_query_unknown_store_raises(tmp_memex_home):
+def test_query_unknown_store_raises(bootstrapped_marker):
     with pytest.raises(ValueError):
         stores.query("no-such-store", "SELECT 1")

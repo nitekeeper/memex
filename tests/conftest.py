@@ -5,11 +5,33 @@ from scripts.db import get_connection
 
 @pytest.fixture
 def tmp_memex_home(monkeypatch, tmp_path):
-    """Isolated ~/.memex/ root for tests."""
+    """Isolated ~/.memex/ root for tests.
+
+    Sets MEMEX_HOME_ALLOW_UNUSUAL=1 because tmp_path is under /tmp,
+    which fails the v2.5.0 $MEMEX_HOME validation.
+    """
     home = tmp_path / "memex_home"
     home.mkdir()
     monkeypatch.setenv("MEMEX_HOME", str(home))
+    monkeypatch.setenv("MEMEX_HOME_ALLOW_UNUSUAL", "1")
+    monkeypatch.setenv("MEMEX_V1_PATH_ALLOW_UNUSUAL", "1")
     return home
+
+
+@pytest.fixture
+def bootstrapped_marker(tmp_memex_home):
+    """Lightweight: write registry.json so require_bootstrap() passes."""
+    (tmp_memex_home / "registry.json").write_text("{}")
+    return tmp_memex_home
+
+
+@pytest.fixture
+def bootstrapped_home(tmp_memex_home):
+    """Full install. Use for tests that exercise post-bootstrap behavior."""
+    from scripts import install
+
+    install.run()
+    return tmp_memex_home
 
 
 @pytest.fixture

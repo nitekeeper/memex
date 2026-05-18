@@ -16,7 +16,7 @@ from scripts import embeddings
 # ── pack / unpack / cosine ─────────────────────────────────────────────────
 
 
-def test_encode_returns_blob():
+def test_encode_returns_blob(bootstrapped_marker):
     with patch("scripts.embeddings._call_provider", return_value=[0.1, 0.2, 0.3]):
         result = embeddings.encode("hello")
     assert isinstance(result, bytes)
@@ -50,7 +50,7 @@ def test_cosine_opposite_vectors_is_negative_one():
 # ── Model-info recording ───────────────────────────────────────────────────
 
 
-def test_encode_records_model_info(tmp_memex_home):
+def test_encode_records_model_info(bootstrapped_marker):
     """encode() records the active provider/model/dim in registry.json."""
     with patch("scripts.embeddings._call_provider", return_value=[0.0] * 1536):
         embeddings.encode("hello")
@@ -95,11 +95,11 @@ def test_active_model_info_for_local(monkeypatch):
     assert info["dim"] == 384
 
 
-def test_recorded_model_info_returns_none_before_any_encode(tmp_memex_home):
+def test_recorded_model_info_returns_none_before_any_encode(bootstrapped_marker):
     assert embeddings.recorded_model_info() is None
 
 
-def test_recorded_model_info_returns_dict_after_encode(tmp_memex_home):
+def test_recorded_model_info_returns_dict_after_encode(bootstrapped_marker):
     with patch("scripts.embeddings._call_provider", return_value=[0.0] * 1024):
         embeddings.encode("hello")
     info = embeddings.recorded_model_info()
@@ -250,7 +250,7 @@ def _seed_documents(rows: list[dict]):
     conn.close()
 
 
-def test_backfill_null_counts_correctly_dry_run(tmp_memex_home):
+def test_backfill_null_counts_correctly_dry_run(bootstrapped_marker):
     from scripts import install
 
     install.run()
@@ -268,7 +268,7 @@ def test_backfill_null_counts_correctly_dry_run(tmp_memex_home):
     assert result["dry_run"] is True
 
 
-def test_backfill_null_encodes_only_null_rows(tmp_memex_home):
+def test_backfill_null_encodes_only_null_rows(bootstrapped_marker):
     from scripts import install
 
     install.run()
@@ -298,7 +298,7 @@ def test_backfill_null_encodes_only_null_rows(tmp_memex_home):
     assert rows["c"] is not None
 
 
-def test_backfill_null_tolerates_per_row_errors(tmp_memex_home):
+def test_backfill_null_tolerates_per_row_errors(bootstrapped_marker):
     from scripts import install
 
     install.run()
@@ -323,7 +323,7 @@ def test_backfill_null_tolerates_per_row_errors(tmp_memex_home):
     assert result["errors"] == 1
 
 
-def test_reembed_all_overwrites_existing(tmp_memex_home):
+def test_reembed_all_overwrites_existing(bootstrapped_marker):
     from scripts import install
 
     install.run()
@@ -349,7 +349,7 @@ def test_reembed_all_overwrites_existing(tmp_memex_home):
         assert len(r["embedding"]) == 16
 
 
-def test_reembed_all_dry_run_changes_nothing(tmp_memex_home):
+def test_reembed_all_dry_run_changes_nothing(bootstrapped_marker):
     from scripts import install
 
     install.run()
@@ -372,7 +372,7 @@ def test_reembed_all_dry_run_changes_nothing(tmp_memex_home):
     assert embedding == b"\x01" * 8  # unchanged
 
 
-def test_detect_model_change_returns_none_when_unrecorded(tmp_memex_home):
+def test_detect_model_change_returns_none_when_unrecorded(bootstrapped_marker):
     """No __embedding_model__ in registry yet → no drift to report."""
     from scripts import install
 
@@ -380,7 +380,7 @@ def test_detect_model_change_returns_none_when_unrecorded(tmp_memex_home):
     assert embeddings.detect_model_change() is None
 
 
-def test_detect_model_change_returns_none_when_aligned(tmp_memex_home, monkeypatch):
+def test_detect_model_change_returns_none_when_aligned(bootstrapped_marker, monkeypatch):
     monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "openai")
     with patch("scripts.embeddings._call_provider", return_value=[0.0] * 1536):
         embeddings.encode("hello")  # records {provider:openai, model:..., dim:1536}
@@ -388,7 +388,7 @@ def test_detect_model_change_returns_none_when_aligned(tmp_memex_home, monkeypat
     assert embeddings.detect_model_change() is None
 
 
-def test_detect_model_change_flags_provider_switch(tmp_memex_home, monkeypatch):
+def test_detect_model_change_flags_provider_switch(bootstrapped_marker, monkeypatch):
     monkeypatch.setenv("MEMEX_EMBEDDING_PROVIDER", "openai")
     with patch("scripts.embeddings._call_provider", return_value=[0.0] * 1536):
         embeddings.encode("hello")
@@ -401,7 +401,7 @@ def test_detect_model_change_flags_provider_switch(tmp_memex_home, monkeypatch):
     assert drift["recorded"]["provider"] == "openai"
 
 
-def test_reembed_all_records_previous_in_result(tmp_memex_home, monkeypatch):
+def test_reembed_all_records_previous_in_result(bootstrapped_marker, monkeypatch):
     from scripts import install
 
     install.run()  # need index.db for _seed_documents
@@ -633,7 +633,7 @@ def test_local_provider_error_fallback(monkeypatch):
 # ── Central encode() defensive wrap ────────────────────────────────────────
 
 
-def test_encode_wraps_unknown_leak(monkeypatch):
+def test_encode_wraps_unknown_leak(bootstrapped_marker, monkeypatch):
     """If _call_provider somehow leaks a non-EmbeddingUnavailable exception,
     encode() must re-raise as EmbeddingUnavailable(reason='unknown').
     """
@@ -649,7 +649,7 @@ def test_encode_wraps_unknown_leak(monkeypatch):
     assert isinstance(exc_info.value.__cause__, RuntimeError)
 
 
-def test_encode_passes_through_embedding_unavailable(monkeypatch):
+def test_encode_passes_through_embedding_unavailable(bootstrapped_marker, monkeypatch):
     """If _call_provider raises EmbeddingUnavailable, encode() must re-raise
     it as-is — NOT re-wrap it as reason='unknown'.
     """
@@ -669,7 +669,7 @@ def test_encode_passes_through_embedding_unavailable(monkeypatch):
 # ── Skip log helper ───────────────────────────────────────────────────────
 
 
-def test_append_skip_log_creates_audits_dir(tmp_memex_home):
+def test_append_skip_log_creates_audits_dir(bootstrapped_marker):
     """_append_skip_log() creates the audits/ directory if it doesn't exist
     and appends the entry to embedding-skip-log.md.
     """
@@ -686,7 +686,7 @@ def test_append_skip_log_creates_audits_dir(tmp_memex_home):
     assert log_path.read_text(encoding="utf-8") == "\n- test entry\n"
 
 
-def test_log_skip_writes_required_fields(tmp_memex_home):
+def test_log_skip_writes_required_fields(bootstrapped_marker):
     """log_skip() always writes timestamp, provider, reason."""
     exc = embeddings.EmbeddingUnavailable(
         reason="not_configured", provider="openai", detail="no api key"
@@ -702,7 +702,7 @@ def test_log_skip_writes_required_fields(tmp_memex_home):
     assert "detail=no api key" in log
 
 
-def test_log_skip_omits_empty_optional_fields(tmp_memex_home):
+def test_log_skip_omits_empty_optional_fields(bootstrapped_marker):
     """Omitted optional fields are absent from the row entirely — never
     written as 'field=' with empty value."""
     exc = embeddings.EmbeddingUnavailable(reason="unknown", provider="local")
@@ -717,7 +717,7 @@ def test_log_skip_omits_empty_optional_fields(tmp_memex_home):
     assert "detail=" not in log  # detail also empty
 
 
-def test_log_skip_includes_optional_fields_when_provided(tmp_memex_home):
+def test_log_skip_includes_optional_fields_when_provided(bootstrapped_marker):
     exc = embeddings.EmbeddingUnavailable(
         reason="oversize_input", provider="voyage", detail="token cap exceeded"
     )
@@ -731,7 +731,7 @@ def test_log_skip_includes_optional_fields_when_provided(tmp_memex_home):
     assert "input_chars=42189" in log
 
 
-def test_log_skip_truncates_long_detail(tmp_memex_home):
+def test_log_skip_truncates_long_detail(bootstrapped_marker):
     """detail is truncated to 200 chars in the audit row."""
     long_detail = "x" * 500
     exc = embeddings.EmbeddingUnavailable(
@@ -746,7 +746,7 @@ def test_log_skip_truncates_long_detail(tmp_memex_home):
     assert "x" * 201 not in log
 
 
-def test_log_skip_escapes_pipe_in_detail(tmp_memex_home):
+def test_log_skip_escapes_pipe_in_detail(bootstrapped_marker):
     """Literal | in detail is replaced with / to keep rows parseable."""
     exc = embeddings.EmbeddingUnavailable(
         reason="provider_error", provider="openai", detail="error | with | pipes"
@@ -760,7 +760,7 @@ def test_log_skip_escapes_pipe_in_detail(tmp_memex_home):
     assert "error | with" not in log
 
 
-def test_log_skip_collapses_newlines_in_detail(tmp_memex_home):
+def test_log_skip_collapses_newlines_in_detail(bootstrapped_marker):
     """Literal \\r and \\n in detail collapsed to single space — keeps the
     single-line markdown bullet intact when provider errors carry stack
     fragments."""
@@ -784,7 +784,7 @@ def test_log_skip_collapses_newlines_in_detail(tmp_memex_home):
 # ── Caller-loop behavior ──────────────────────────────────────────────────
 
 
-def test_backfill_null_logs_skip_and_continues(tmp_memex_home, monkeypatch):
+def test_backfill_null_logs_skip_and_continues(bootstrapped_marker, monkeypatch):
     """backfill_null catches EmbeddingUnavailable narrowly, logs each skip,
     and continues processing remaining rows."""
     from scripts.db import get_connection, memex_home
@@ -827,7 +827,7 @@ def test_backfill_null_logs_skip_and_continues(tmp_memex_home, monkeypatch):
     assert log.count("reason=provider_error") == 1
 
 
-def test_reembed_all_logs_skip_and_continues(tmp_memex_home, monkeypatch):
+def test_reembed_all_logs_skip_and_continues(bootstrapped_marker, monkeypatch):
     """reembed_all catches EmbeddingUnavailable narrowly, logs each skip,
     and continues processing remaining rows."""
     from scripts.db import get_connection, memex_home

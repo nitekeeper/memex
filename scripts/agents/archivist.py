@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from scripts.db import memex_home
+from scripts.db import memex_home, require_bootstrap
 
 
 def _canonicalize(payload: bytes) -> bytes:
@@ -36,6 +36,7 @@ def archive(payload: bytes, filename: str) -> dict:
 
     Idempotency: same canonical → same path → no rewrite if file already exists.
     """
+    require_bootstrap()
     canonical = _canonicalize(payload)
     h = _hash(canonical)
     prefix = h[:2]

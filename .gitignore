@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .worktrees/
+.venv/
+uv.lock
 
 # Superpowers brainstorm visual-companion session artifacts (local-only).
 # Recreated on demand by the brainstorming skill; never tracked.

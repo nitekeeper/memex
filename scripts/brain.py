@@ -16,11 +16,11 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from pathlib import Path
 
 from scripts import stores
 from scripts.agents import archivist, data_steward, librarian, reference_librarian
-from scripts.db import memex_home
+from scripts.db import memex_home, require_bootstrap
+from scripts.paths import PROMPTS_DIR
 
 # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -92,6 +92,7 @@ def ingest_prepare(
           prompt=subagent_prompt), receives the JSON response, passes both
           to ingest_complete().
     """
+    require_bootstrap()
     source_hash = _canonical_hash(body)
     existing = _find_existing_by_hash(source_hash)
     if existing is not None:
@@ -149,6 +150,7 @@ def ingest_complete(
     Raises:
         ValueError: prepare_result is not "ready", or librarian_output is malformed.
     """
+    require_bootstrap()
     if prepare_result.get("status") != "ready":
         raise ValueError(
             f"ingest_complete called with prepare_result.status="
@@ -180,6 +182,7 @@ def capture_prepare(
               "target_store": "article", "target_table": "captures",
               "caller_agent_id": ..., "subagent_prompt": ...}
     """
+    require_bootstrap()
     payload = {
         "title": title,
         "body": body,
@@ -206,6 +209,7 @@ def capture_complete(
     embedding: bytes | None = None,
 ) -> dict:
     """Phase 2 of brain capture. Persists to article.db.captures."""
+    require_bootstrap()
     if prepare_result.get("status") != "ready":
         raise ValueError(
             f"capture_complete called with prepare_result.status="
@@ -234,6 +238,7 @@ def ask_prepare(query: str, caller_agent_id: str = "reference-librarian-1") -> d
     Skill markdown dispatches the subagent, parses the query plan, and
     calls ask_execute() with both.
     """
+    require_bootstrap()
     return reference_librarian.ask_prepare(query, caller_agent_id=caller_agent_id)
 
 
@@ -243,6 +248,7 @@ def ask_execute(
     with_embedding: bool = False,
 ) -> list[dict]:
     """Phase 2 of brain ask. Executes the query plan and returns ranked results."""
+    require_bootstrap()
     return reference_librarian.ask_execute(
         prepare_result,
         query_plan,
@@ -255,6 +261,7 @@ def ask_execute(
 
 def lint() -> str:
     """Run a Data Steward audit and return the report path."""
+    require_bootstrap()
     index_db = str(memex_home() / "index.db")
     return data_steward.audit(index_db)
 
@@ -281,12 +288,13 @@ def synthesize_prepare(
     body, then dispatches the Librarian subagent to classify the synthesis,
     then calls synthesize_complete().
     """
+    require_bootstrap()
     sources = _fetch_source_bodies(input_index_ids)
     sources_md = "\n\n".join(
         [f"### [{s['index_id']}] {s.get('title', '')}\n\n{s['body']}" for s in sources]
     )
 
-    template = Path("prompts/synthesizer.md").read_text(encoding="utf-8")
+    template = (PROMPTS_DIR / "synthesizer.md").read_text(encoding="utf-8")
     synthesizer_prompt = template.replace("{{TOPIC}}", topic).replace("{{SOURCES}}", sources_md)
 
     return {
@@ -330,6 +338,7 @@ def synthesize_complete(
             f"synthesize_complete called with prepare_result.status="
             f"{prepare_result.get('status')!r}; expected 'ready'"
         )
+    require_bootstrap()
 
     # Auto-add `synthesizes` relations for each input. These are deterministic
     # (we know the inputs from prepare_result) — don't rely on the Librarian

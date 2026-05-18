@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from scripts import registry
-from scripts.db import get_connection, safe_identifier
+from scripts.db import get_connection, require_bootstrap, safe_identifier
+from scripts.paths import DB_DIR
 
 
 def _now() -> str:
@@ -14,11 +15,12 @@ def _now() -> str:
 
 
 def _migrations_table_sql() -> str:
-    return Path("db/migrations_table.sql").read_text()
+    return (DB_DIR / "migrations_table.sql").read_text()
 
 
 def create_store(name: str, path: str, migrations_dir: str, schema_version: str = "v1") -> dict:
     """Create a new SQLite store and register it."""
+    require_bootstrap()
     if registry.get_store(name) is not None:
         raise ValueError(f"Store already registered: {name}")
 
@@ -46,6 +48,7 @@ def migrate(name: str, migrations_dir: str) -> list[str]:
 
     Returns the list of newly-applied filenames.
     """
+    require_bootstrap()
     rec = registry.get_store(name)
     if rec is None:
         raise ValueError(f"Unknown store: {name}")
@@ -78,6 +81,7 @@ def _resolve(name: str) -> str:
 
 def query(name: str, sql: str, params: tuple = ()) -> list[dict]:
     """Execute SELECT against a registered store. Returns list of dict rows."""
+    require_bootstrap()
     conn = get_connection(_resolve(name))
     cur = conn.execute(sql, params)
     rows = [dict(r) for r in cur.fetchall()]
@@ -91,6 +95,7 @@ def insert(name: str, table: str, row: dict) -> dict:
     Assumes the table has an integer PRIMARY KEY AUTOINCREMENT column
     named `id`. For tables with TEXT PKs, the caller supplies `id` in `row`.
     """
+    require_bootstrap()
     safe_table = safe_identifier(table)
     cols = list(row.keys())
     for c in cols:
@@ -113,6 +118,7 @@ def insert(name: str, table: str, row: dict) -> dict:
 
 
 def update(name: str, table: str, row_id, updates: dict) -> dict | None:
+    require_bootstrap()
     if not updates:
         return None
     safe_table = safe_identifier(table)
@@ -134,6 +140,7 @@ def update(name: str, table: str, row_id, updates: dict) -> dict | None:
 
 
 def delete(name: str, table: str, row_id) -> bool:
+    require_bootstrap()
     safe_table = safe_identifier(table)
     conn = get_connection(_resolve(name))
     cur = conn.execute(

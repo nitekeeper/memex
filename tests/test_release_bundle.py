@@ -54,3 +54,16 @@ def test_dist_includes_install_md(tmp_path):
     install_doc = target / "v2.0.0" / "INSTALL.md"
     assert install_doc.exists()
     assert "2.0.0" in install_doc.read_text()
+
+
+def test_install_md_uses_python3(tmp_path):
+    """v2.5.0 §D: generated INSTALL.md must use `python3 -m scripts.install`,
+    never the bare `python` form. Windows users on Python launcher can
+    follow the documented `py -3` fallback elsewhere in the doc."""
+    target = tmp_path / "dist"
+    release.build(version="2.0.0", target_root=target)
+    install_md = (target / "v2.0.0" / "INSTALL.md").read_text()
+    assert "python3 -m scripts.install" in install_md
+    # Must not contain the bare-python form (we still allow `py -3` mentions,
+    # which don't match this substring).
+    assert "python -m scripts.install" not in install_md

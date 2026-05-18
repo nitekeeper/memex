@@ -26,11 +26,17 @@ Memex has two audiences with different install paths.
 
 You want to install Memex alongside your other Claude Code plugins and use it to remember things, search across stores, and let other plugins write to a shared memory plane.
 
-1. **Get the bundle.** Download the latest release archive from [GitHub Releases](https://github.com/nitekeeper/memex/releases). Each release ships an `INSTALL.md` inside the bundle with the authoritative steps; the summary below is the typical case.
-2. **Place the bundle** in your Claude Code plugins directory, typically `~/.claude-code/plugins/memex/`.
-3. **Restart Claude Code**, or invoke `/plugin reload memex` if your version supports it.
-4. **Bootstrap `~/.memex/`** by running once: `python -m scripts.install`. This seeds the 5 internal agents, creates the default `article.db`, and registers everything in the global registry. (If you skip this, the first Brain operation will error with a helpful pointer back to this step.)
-5. **Invoke `memex:run`** and express an intent in natural language (e.g., *"ingest this article"*, *"what do I know about X?"*, *"capture this thought"*). On first use of any Brain operation you'll be prompted to register yourself as a human agent — one-time setup.
+1. **Install via your Claude Code marketplace.** Claude Code unpacks the bundle to `~/.claude/plugins/cache/<marketplace>/memex/<version>/` (it manages this path — do not place files manually). Each release ships an `INSTALL.md` inside the bundle.
+2. **Restart Claude Code**, or invoke `/plugin reload memex` if your version supports it.
+3. **Invoke `memex:run`** and express an intent in natural language (e.g., *"ingest this article"*, *"what do I know about X?"*, *"capture this thought"*).
+   - On the very first invocation, `memex:run` Step 0 detects the missing `~/.memex/`, prints a consent block listing what will be created, and prompts `(y/n)`. Answer `y` and Memex bootstraps `~/.memex/` (seeds the 5 internal agents, creates `article.db`, writes `registry.json` and `config.json`). No separate install command is required.
+   - On first use of any Brain operation you'll be prompted to register yourself as a human agent — one-time setup.
+
+If you ever need to bootstrap manually (Step 0 is unreachable, broken `~/.memex/`, automated deployment), run:
+
+```bash
+python3 -m scripts.install
+```
 
 **Optional but recommended:** configure an embedding provider for hybrid retrieval (FTS5 + vector cosine). Memex works without one — FTS5 alone retrieves results — but the dashed-line search quality is meaningfully better with embeddings. See the bundle's `INSTALL.md` for provider options (`openai`, `voyage`, or local sentence-transformers) and the env vars each one expects.
 
@@ -41,7 +47,7 @@ You want to hack on Memex, run the tests, send PRs, or fork it.
 ```bash
 git clone https://github.com/nitekeeper/memex.git
 cd memex
-pip install pytest ruff bandit pip-audit    # dev tooling
+python3 -m pip install pytest ruff bandit pip-audit    # dev tooling
 pytest tests/                                # run the full suite (~20s)
 ruff check . && ruff format --check .        # lint + format
 bandit -c pyproject.toml -r scripts internal skills db   # security
@@ -50,7 +56,7 @@ bandit -c pyproject.toml -r scripts internal skills db   # security
 To bootstrap a working `~/.memex/` against your working tree:
 
 ```bash
-python -m scripts.install
+python3 -m scripts.install
 ```
 
 This creates `~/.memex/`, seeds the 5 internal agents, creates the default `article.db`, and registers everything in the registry — the same flow that runs on a consumer's first invocation, but driven from the source tree instead of an installed plugin.
@@ -58,7 +64,7 @@ This creates `~/.memex/`, seeds the 5 internal agents, creates the default `arti
 To rebuild a distribution bundle from the source tree:
 
 ```bash
-python -m scripts.bump 2.X.Y        # bump plugin.json + pyproject.toml + dist/
+python3 -m scripts.bump 2.X.Y        # bump plugin.json + pyproject.toml + dist/
 # edit CHANGELOG.md with an entry for v2.X.Y
 git commit -am "release: bump to v2.X.Y"
 git push                             # open PR, merge as usual

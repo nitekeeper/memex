@@ -29,6 +29,8 @@ import math
 import os
 import struct
 
+from scripts.db import require_bootstrap
+
 # ── Typed failure ─────────────────────────────────────────────────────────
 
 
@@ -339,6 +341,8 @@ def active_model_info() -> dict:
 
     Backfill / reembed tooling uses this to compare against
     registry.json:__embedding_model__ and detect mismatches.
+
+    No bootstrap guard: pure env-var read, no filesystem side effects.
     """
     provider = _active_provider()
     model = _active_model()
@@ -360,6 +364,7 @@ def active_model_info() -> dict:
 def recorded_model_info() -> dict | None:
     """Return the LAST recorded provider/model/dim from registry.json, or
     None if nothing has been recorded yet."""
+    require_bootstrap()
     from scripts import registry
 
     return registry._load().get("__embedding_model__")
@@ -379,6 +384,7 @@ def encode(text: str) -> bytes:
     encoders classify their own failure modes; this central wrapper only
     catches the defensive `unknown` case for unexpected leaks.
     """
+    require_bootstrap()
     try:
         vec = _call_provider(text)
     except EmbeddingUnavailable:
@@ -414,6 +420,7 @@ def backfill_null(batch_size: int = 100, dry_run: bool = False) -> dict:
     helper. Callers do NOT need to be in a Claude Code session — this is
     pure Python with no Task-tool dispatch.
     """
+    require_bootstrap()
     from scripts.db import get_connection, memex_home
 
     index_db = str(memex_home() / "index.db")
@@ -483,6 +490,7 @@ def reembed_all(batch_size: int = 100, dry_run: bool = False) -> dict:
     helper and adds a confirmation prompt because this is destructive
     (existing embeddings are overwritten).
     """
+    require_bootstrap()
     from scripts.db import get_connection, memex_home
 
     index_db = str(memex_home() / "index.db")
@@ -543,6 +551,7 @@ def detect_model_change() -> dict | None:
 
     Used by the reembed skill to warn the user before re-encoding.
     """
+    require_bootstrap()
     active = active_model_info()
     recorded = recorded_model_info()
     if recorded is None:

@@ -6,7 +6,7 @@ A practical guide to using Memex day-to-day after it's installed. For install in
 
 1. Install Memex into your Claude Code (see the **For consumers** section of `README.md`, or the `INSTALL.md` inside the dist bundle).
 2. Restart Claude Code.
-3. Run `python -m scripts.install` once. This bootstraps `~/.memex/`: seeds the 5 internal agents, creates the default `article.db`, and registers everything in the registry.
+3. Invoke `memex:run` for the first time. Step 0 detects the missing `~/.memex/`, prints a consent block listing what will be created, and prompts `(y/n)`. Answer `y` and Memex auto-bootstraps: seeds the 5 internal agents, creates `article.db`, writes `registry.json` and `config.json`. (If you need to bootstrap manually — e.g., automated deployment — run `python3 -m scripts.install`.)
 4. (Optional) Configure embeddings — see "Embeddings & retrieval" below. Memex works fine without an embedding provider; FTS5 alone retrieves results, and you can add a provider any time.
 
 ## How to invoke Memex
@@ -185,15 +185,15 @@ Move-Item "$env:USERPROFILE\.memex\audits\embedding-skip-log.md" "$env:USERPROFI
 You skipped onboarding. Register manually:
 
 ```
-python -m scripts.onboarding register <id> <name> <role>
+python3 -m scripts.onboarding register <id> <name> <role>
 ```
 
 ### "Agent not registered: librarian-1" / "Unknown store: article"
 
-You haven't run the one-time bootstrap. Run:
+`~/.memex/` is not bootstrapped. Re-invoke `memex:run` — Step 0 will detect the missing state and prompt to bootstrap automatically. If Step 0 is unreachable (e.g., scripted context, broken install), bootstrap manually:
 
 ```
-python -m scripts.install
+python3 -m scripts.install
 ```
 
 This seeds the 5 internal agents and creates the default `article.db`.
@@ -203,7 +203,7 @@ This seeds the 5 internal agents and creates the default `article.db`.
 The store name you used isn't in `~/.memex/registry.json`. Check what's registered:
 
 ```
-python -m scripts.registry list
+python3 -m scripts.registry list
 ```
 
 ### Audit reports orphans

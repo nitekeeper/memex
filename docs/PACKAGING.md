@@ -45,7 +45,7 @@ registration model).
 ## Build
 
 ```bash
-python -m scripts.release 2.0.0
+python3 -m scripts.release 2.0.0
 ```
 
 Produces `dist/v2.0.0/`. The `dist/v*/` body is gitignored; only
@@ -55,13 +55,27 @@ preserves a verifiable record of every file shipped in the release
 
 ## Install flow
 
-1. Bundle is placed in `~/.claude-code/plugins/memex/` (or the
-   equivalent plugin directory for the user's Claude Code install).
+1. The user installs Memex via their Claude Code marketplace. Claude
+   Code unpacks the bundle under
+   `~/.claude/plugins/cache/<marketplace>/memex/<version>/` (it manages
+   this path — there is no manual placement).
 2. Claude Code reloads the plugin (`/plugin reload memex` or a
    restart).
-3. The user invokes `memex:run` and expresses an intent in natural
-   language (e.g. "ingest this article: <url>"). On first invocation
-   the plugin runs `install.run()`, which:
+3. The user invokes `memex:run`. **Step 0 — Preflight** (see
+   `skills/run/SKILL.md` and the
+   `docs/specs/2026-05-17-install-hardening-design.md` spec) runs
+   before intent routing on every top-level invocation:
+   - Step 0.1: verify Python ≥ 3.10 (loop over `python3`, `python`,
+     `py -3`; emit `PYTHON=<token>` for substitution; OS-specific
+     install blocks on miss).
+   - Step 0.2: resolve `<RESOLVED_PLUGIN_ROOT>` via the
+     `~/.memex/config.json` → `$PWD` → `$PATH` cascade, then check
+     five paths under `<RESOLVED_HOME>`. If any are missing, prompt
+     `(y/n)` with Block A (v1 archive bullet) or Block B (no v1). On
+     `y`, pipe consent to `install.run()` via stdin and rerun the
+     check.
+4. `install.run()` (auto-invoked by Step 0, or `python3 -m scripts.install`
+   manually):
    - Archives v1 if `MEMEX_V1_PATH` is set (see "Upgrade from v0.1").
    - Creates `~/.memex/agents.db` and seeds the 5 internal Memex
      agents (Librarian, Reference Librarian, Archivist, Database
@@ -70,13 +84,15 @@ preserves a verifiable record of every file shipped in the release
      embeddings).
    - Creates `~/.memex/article.db` (Brain's default store).
    - Registers all stores in `~/.memex/registry.json`.
-4. The onboarding prompt registers the human user as an agent in
-   `~/.memex/agents.db`. Subsequent writes are attributed to that
-   agent.
+   - Writes `~/.memex/config.json` with `plugin_root` so subsequent
+     Step 0 invocations skip discovery.
+5. The onboarding prompt (first Brain operation) registers the human
+   user as an agent in `~/.memex/agents.db`. Subsequent writes are
+   attributed to that agent.
 
-Subsequent invocations of `memex:run` skip the install step (it is
-idempotent and short-circuits when the install footprint is already
-present).
+Subsequent invocations of `memex:run` re-run Step 0 (~7ms; cheap enough
+that no caching layer is warranted), find the five paths intact, and
+proceed straight to routing.
 
 ## Upgrade from v0.1
 
@@ -107,7 +123,7 @@ but is not part of the v2 Index until re-ingested.
 ## Acceptance criteria
 
 1. `pytest tests/` is 100% green across all 4 plans' tests.
-2. `python -m scripts.release 2.0.0` produces a valid bundle at
+2. `python3 -m scripts.release 2.0.0` produces a valid bundle at
    `dist/v2.0.0/`.
 3. `dist/v2.0.0/manifest.json` lists every file shipped with SHA-256
    and byte count, and has `version == "2.0.0"`.

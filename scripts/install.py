@@ -1,74 +1,144 @@
-"""One-shot ~/.memex/ bootstrap. Extended in Plan 2 to seed internal agents
-and create index.db."""
+"""One-shot ~/.memex/ bootstrap. v2.5.0: flock-protected, hash-pinned, consent-gated."""
 
 from __future__ import annotations
 
+import errno
+import os
+import sys
 from pathlib import Path
 
-from db.internal_agents_seed import INTERNAL_AGENTS
 from scripts import agents, registry, roles
+from scripts._internal_agents_seed import INTERNAL_AGENTS, INTERNAL_AGENTS_HASH
 from scripts.db import get_connection, memex_home
+from scripts.paths import DB_DIR
+
+
+class InstallLockBusyError(RuntimeError):
+    """Another scripts.install.run() is already in progress."""
+
+
+def _acquire_lock(lock_path: Path):
+    """Cross-platform exclusive lock with O_NOFOLLOW.
+
+    Returns the open file handle. Caller MUST close it to release the lock.
+    """
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_RDWR | os.O_CREAT
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        fd = os.open(str(lock_path), flags, 0o600)
+    except OSError as e:
+        if e.errno == getattr(errno, "ELOOP", 40):
+            raise InstallLockBusyError(
+                f"Lock path is a symlink: {lock_path}. Refusing to follow."
+            ) from e
+        raise
+
+    fh = os.fdopen(fd, "r+")
+    if sys.platform.startswith("win") or os.name == "nt":
+        import msvcrt
+
+        try:
+            msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+        except OSError as e:
+            fh.close()
+            if e.errno in (errno.EACCES, getattr(errno, "EDEADLK", 35)):
+                raise InstallLockBusyError(
+                    f"Another Memex install is already running (lock at {lock_path})."
+                ) from e
+            raise
+    else:
+        import fcntl
+
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as e:
+            fh.close()
+            raise InstallLockBusyError(
+                f"Another Memex install is already running (lock at {lock_path})."
+            ) from e
+        except OSError as e:
+            fh.close()
+            raise InstallLockBusyError(f"Lock acquisition failed at {lock_path}: {e}.") from e
+    return fh
+
+
+def _read_consent_from_stdin() -> bool:
+    """Read y/n from stdin.
+
+    Returns True for proceed, False for decline. Exits the process on invalid input.
+    Empty stdin (no SKILL invocation; manual CLI from terminal) → proceed.
+    """
+    try:
+        line = sys.stdin.readline().strip().lower()
+    except Exception:
+        return True
+    if not line:
+        return True
+    if line == "y":
+        return True
+    if line == "n":
+        return False
+    sys.stderr.write(
+        f"install.py: invalid consent token {line!r}; expected 'y' or 'n'. Aborting.\n"
+    )
+    sys.exit(2)
 
 
 def run() -> None:
-    # Plan 4: archive v1 if present (no-op otherwise)
-    from scripts import upgrade_from_v1
-
-    upgrade_from_v1.archive_v1()
+    if not _read_consent_from_stdin():
+        sys.exit(1)
 
     home = memex_home()
     home.mkdir(parents=True, exist_ok=True)
-    (home / "raw").mkdir(exist_ok=True)
-    (home / "backups").mkdir(exist_ok=True)
-    (home / "audits").mkdir(exist_ok=True)
-    (home / "templates").mkdir(exist_ok=True)
 
-    # agents.db (Plan 1 functionality, preserved)
-    agents_db_path = home / "agents.db"
-    if not agents_db_path.exists():
-        agents_sql = Path("db/agents.sql").read_text(encoding="utf-8")
-        conn = get_connection(str(agents_db_path))
-        conn.executescript(agents_sql)
-        conn.commit()
-        conn.close()
-    if registry.get_store("agents") is None:
-        registry.register_store("agents", str(agents_db_path), schema_version="v1")
+    lock_fh = _acquire_lock(home / ".install.lock")
+    try:
+        # Plan 4: archive v1 if present (no-op otherwise) — symlink-safe per §F.
+        from scripts import upgrade_from_v1
 
-    # Seed roles + agents (Plan 2 addition). Idempotent — checks existence.
-    _seed_internal(str(agents_db_path))
+        upgrade_from_v1.archive_v1()
 
-    # index.db (Plan 2 addition). Bootstrapped directly here to avoid the
-    # circular dependency of registering ourselves via create-store.
-    index_db_path = home / "index.db"
-    if not index_db_path.exists():
-        conn = get_connection(str(index_db_path))
-        conn.executescript(Path("db/migrations_table.sql").read_text(encoding="utf-8"))
-        conn.executescript(Path("db/index.sql").read_text(encoding="utf-8"))
-        conn.execute(
-            "INSERT INTO migrations (filename) VALUES (?)",
-            ("index.sql",),
-        )
-        conn.commit()
-        conn.close()
-    else:
-        _migrate_index_db_to_unique_key(str(index_db_path))
-    if registry.get_store("index") is None:
-        registry.register_store("index", str(index_db_path), schema_version="v1")
+        for sub in ("raw", "backups", "audits", "templates"):
+            (home / sub).mkdir(exist_ok=True)
 
-    # article.db (Plan 3 addition)
-    article_db_path = home / "article.db"
-    if not article_db_path.exists():
-        conn = get_connection(str(article_db_path))
-        conn.executescript(Path("db/migrations_table.sql").read_text())
-        conn.executescript(Path("db/brain.sql").read_text())
-        conn.execute(
-            "INSERT INTO migrations (filename) VALUES (?)",
-            ("brain.sql",),
-        )
-        conn.commit()
-        conn.close()
-    if registry.get_store("article") is None:
-        registry.register_store("article", str(article_db_path), schema_version="v1")
+        agents_db_path = home / "agents.db"
+        if not agents_db_path.exists():
+            conn = get_connection(str(agents_db_path))
+            conn.executescript((DB_DIR / "agents.sql").read_text(encoding="utf-8"))
+            conn.commit()
+            conn.close()
+        if registry.get_store("agents") is None:
+            registry.register_store("agents", str(agents_db_path), schema_version="v1")
+
+        _seed_internal(str(agents_db_path))
+
+        index_db_path = home / "index.db"
+        if not index_db_path.exists():
+            conn = get_connection(str(index_db_path))
+            conn.executescript((DB_DIR / "migrations_table.sql").read_text(encoding="utf-8"))
+            conn.executescript((DB_DIR / "index.sql").read_text(encoding="utf-8"))
+            conn.execute("INSERT INTO migrations (filename) VALUES (?)", ("index.sql",))
+            conn.commit()
+            conn.close()
+        else:
+            _migrate_index_db_to_unique_key(str(index_db_path))
+        if registry.get_store("index") is None:
+            registry.register_store("index", str(index_db_path), schema_version="v1")
+
+        article_db_path = home / "article.db"
+        if not article_db_path.exists():
+            conn = get_connection(str(article_db_path))
+            conn.executescript((DB_DIR / "migrations_table.sql").read_text())
+            conn.executescript((DB_DIR / "brain.sql").read_text())
+            conn.execute("INSERT INTO migrations (filename) VALUES (?)", ("brain.sql",))
+            conn.commit()
+            conn.close()
+        if registry.get_store("article") is None:
+            registry.register_store("article", str(article_db_path), schema_version="v1")
+    finally:
+        lock_fh.close()
 
 
 def _migrate_index_db_to_unique_key(index_db_path: str) -> None:
@@ -77,7 +147,6 @@ def _migrate_index_db_to_unique_key(index_db_path: str) -> None:
 
     Idempotent. On pre-existing duplicate keys, raises ValueError listing
     the offending keys — the install does not silently merge or delete.
-    Operators resolve by hand (e.g. via memex:steward:reconcile), then re-run.
     """
     conn = get_connection(index_db_path)
     try:
@@ -108,7 +177,27 @@ def _migrate_index_db_to_unique_key(index_db_path: str) -> None:
 
 
 def _seed_internal(agents_db_path: str) -> None:
-    """Idempotent seed of internal roles + agents."""
+    """Idempotent seed of internal roles + agents. Hash-pinned for drift detection (§G)."""
+    conn = get_connection(agents_db_path)
+    try:
+        conn.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        cur = conn.execute("SELECT value FROM meta WHERE key = 'seed_hash'")
+        row = cur.fetchone()
+        stored_hash = row["value"] if row else None
+    finally:
+        conn.close()
+
+    if stored_hash == INTERNAL_AGENTS_HASH:
+        return  # already seeded with this exact content.
+
+    if stored_hash is not None and stored_hash != INTERNAL_AGENTS_HASH:
+        print(
+            f"Updating internal agent profiles "
+            f"(bundle hash {INTERNAL_AGENTS_HASH[:8]} != stored hash {stored_hash[:8]}). "
+            f"If you have manually edited any profiles, back them up before re-running install.",
+            file=sys.stderr,
+        )
+
     existing_roles = {r["name"]: r["id"] for r in roles.list_roles(agents_db_path)}
     for entry in INTERNAL_AGENTS:
         if entry["role_name"] in existing_roles:
@@ -126,7 +215,6 @@ def _seed_internal(agents_db_path: str) -> None:
                 entry["agent_profile"],
             )
         else:
-            # Update profile in place (handles seed-text updates across versions)
             agents.update_agent(
                 agents_db_path,
                 entry["agent_id"],
@@ -134,6 +222,17 @@ def _seed_internal(agents_db_path: str) -> None:
                 name=entry["agent_name"],
                 role_id=role_id,
             )
+
+    conn = get_connection(agents_db_path)
+    try:
+        conn.execute(
+            "INSERT INTO meta (key, value) VALUES ('seed_hash', ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (INTERNAL_AGENTS_HASH,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

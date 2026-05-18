@@ -769,6 +769,29 @@ DBA, and Data Steward are deterministic Python (no subagent dispatch);
 Librarian, Reference Librarian, and Synthesizer use Task-tool dispatch
 per the pattern above.
 
+### 8.6 Step 0 preflight — auto-bootstrap (added 2026-05-17)
+
+`skills/run/SKILL.md` runs a two-step preflight before any routing
+table dispatch on every top-level `memex:run` invocation:
+
+1. **Step 0.1** — verify Python ≥ 3.10 (loop over `python3`, `python`,
+   `py -3`; OS-specific install blocks on miss).
+2. **Step 0.2** — resolve `<RESOLVED_PLUGIN_ROOT>` via the
+   `~/.memex/config.json` → `$PWD` → `$PATH` cascade, then probe for
+   five paths under `<RESOLVED_HOME>`. If any are missing, prompt
+   `(y/n)` and (on `y`) pipe consent to `scripts.install` via stdin.
+
+This eliminates the need for users to run `python3 -m scripts.install`
+manually before their first Brain operation, and decouples `memex:run`
+from CWD assumptions. Subagents and internal procedure files do not
+re-enter `memex:run`, so the preflight cost (~7ms) is paid only once
+per top-level invocation.
+
+See `docs/specs/2026-05-17-install-hardening-design.md` for the full
+design, including the security validation of `$MEMEX_HOME`, symlink
+protection in the v1 archive flow, internal-agent profile hash-pinning,
+and the concurrent-install lock.
+
 ---
 
 ## 9. Distribution

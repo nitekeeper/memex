@@ -32,11 +32,11 @@ retained as a thin convenience wrapper for callers passing through
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from scripts import agents as agents_mod
 from scripts import embeddings
 from scripts.db import get_connection, memex_home
+from scripts.paths import PROMPTS_DIR
 
 
 def _get_agent(agent_id: str) -> dict:
@@ -68,7 +68,7 @@ def build_prompt(query: str, caller_agent_id: str = "reference-librarian-1") -> 
     The skill markdown calls this to construct the Task tool's `prompt`
     argument (subagent_type=general-purpose).
     """
-    template = Path("prompts/reference_librarian.md").read_text(encoding="utf-8")
+    template = (PROMPTS_DIR / "reference_librarian.md").read_text(encoding="utf-8")
     agent = _get_agent(caller_agent_id)
     profile_block = f"You are {agent['name']}.\n\n{agent['profile']}"
     return template.replace("{{REFERENCE_LIBRARIAN_PROFILE}}", profile_block).replace(

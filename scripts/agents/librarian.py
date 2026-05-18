@@ -38,11 +38,11 @@ from __future__ import annotations
 
 import json
 import uuid
-from pathlib import Path
 
 from scripts import agents as agents_mod
 from scripts import stores
 from scripts.db import get_connection, memex_home
+from scripts.paths import PROMPTS_DIR
 
 _REQUIRED_FIELDS = {"index_id", "key", "domain", "searchable"}
 
@@ -70,7 +70,7 @@ class DuplicateKeyError(Exception):
 
 
 def _load_template() -> str:
-    return Path("prompts/librarian.md").read_text(encoding="utf-8")
+    return (PROMPTS_DIR / "librarian.md").read_text(encoding="utf-8")
 
 
 def _get_profile(agent_id: str) -> str:

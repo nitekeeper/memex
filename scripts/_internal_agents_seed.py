@@ -108,3 +108,14 @@ INTERNAL_AGENTS = [
         "agent_profile": _DATA_STEWARD_PROFILE,
     },
 ]
+
+# v2.5.0: hash-pin internal agent seed for drift detection (§G).
+# Sort entries by agent_id BEFORE hashing — order-insensitive across refactors.
+import hashlib as _hashlib
+import json as _json
+
+_SORTED = sorted(INTERNAL_AGENTS, key=lambda a: a["agent_id"])
+INTERNAL_AGENTS_HASH: str = _hashlib.sha256(
+    _json.dumps(_SORTED, sort_keys=True, ensure_ascii=False).encode("utf-8")
+).hexdigest()
+del _SORTED  # don't expose sort artifact

@@ -73,21 +73,28 @@ def build(version: str, target_root: Path | str = "dist") -> Path:
 
 ## Fresh install
 
-1. Place this bundle in `~/.claude-code/plugins/memex/` (or your plugin directory).
+1. Install via your Claude Code marketplace. The bundle lands under
+   `~/.claude/plugins/cache/<marketplace>/memex/<version>/` (Claude Code manages
+   this path — you do not place files manually).
 2. Restart Claude Code or invoke `/plugin reload memex`.
-3. Invoke `memex:run` and express your first intent (e.g. "ingest this article"). On first invocation of any Brain operation you will be prompted to register a human agent.
+3. Invoke `memex:run` and express your first intent (e.g. "ingest this article").
+   On first invocation, `memex:run` Step 0 detects the missing `~/.memex/` and
+   prompts to bootstrap it. On first Brain operation you will be prompted to
+   register a human agent.
 
 ## Upgrading from v0.1
 
 1. Set `MEMEX_V1_PATH` to your prior install root (the directory containing `.ai/`).
-2. Place this bundle in `~/.claude-code/plugins/memex/` (replace prior bundle).
-3. On first `memex:*` skill invocation, the plugin will archive v1's `.ai/` to
-   `~/.memex/legacy/v1-wiki/` and bootstrap v2. v1 wiki content is preserved but
-   NOT auto-migrated to v2 brain.db (per design decision).
+2. Install v2 via the marketplace as above.
+3. On first `memex:run` invocation, Step 0 detects the v1 install (via
+   `MEMEX_V1_PATH`), archives v1's `.ai/` to `~/.memex/legacy/v1-wiki/`, and
+   bootstraps v2. v1 wiki content is preserved but NOT auto-migrated to v2
+   brain.db (per design decision).
 
 ## Verifying
 
-Run `python -m scripts.install` to bootstrap `~/.memex/`. Then check:
+Run `python3 -m scripts.install` to bootstrap `~/.memex/` manually if Step 0
+does not run for any reason. Then check:
 - `~/.memex/agents.db` exists
 - `~/.memex/index.db` exists
 - `~/.memex/article.db` exists
