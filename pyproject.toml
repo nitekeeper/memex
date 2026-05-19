@@ -38,20 +38,17 @@ select = [
 ]
 ignore = [
     "E501",   # line-too-long — the formatter handles wrapping where it can; long URLs/strings get a pass
-    "SIM108", # ternary-instead-of-if-else — sometimes hurts readability
-    "B008",   # function-call-in-default-arg — Path() and similar are fine as defaults
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = [
-    "B011",   # assert-false — pytest tests use bare assert
-    "SIM117", # nested-with — sometimes clearer in test setup
-]
 # Agent profiles are long-form natural-language strings with deliberate
 # typography (em-dashes, en-dashes for ranges, etc.); linting them as code
 # strings is a false positive. v2.5.0 moved the file from db/ to scripts/
 # and added hash-pinning imports at the bottom of the module (E402) —
 # computing the seed hash requires the agent list to be defined first.
+# Defensive narrow scope: current ruff version finds 0 violations on this
+# file, but the rationale is real (em-dashes present in profile strings)
+# so future stricter ruff versions won't surprise CI.
 "scripts/_internal_agents_seed.py" = ["RUF001", "RUF003", "E402"]
 
 # ----------------------------------------------------------------------------
