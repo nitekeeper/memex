@@ -24,6 +24,66 @@ class InternalAgentsMissingError(RuntimeError):
     another process after seeding)."""
 
 
+def ensure_internal_agents(db_path: str) -> dict:
+    """Idempotently ensure the 5 internal Memex agents are present in `db_path`.
+
+    Public hook for any consumer that touches `agents.db` directly
+    (atelier's bootstrap, future plugins, manual restore scripts). Call
+    this after the touch to re-establish the invariant.
+
+    Initialises the schema if `db_path` does not yet exist. Seeds any
+    missing internal agents (and their roles). Safe to call multiple times.
+
+    Returns a dict with keys:
+      - status:         "already_present" | "repaired"
+      - missing_before: list[str]   agent IDs absent before this call
+      - present_after:  list[str]   agent IDs present after this call (== all 5)
+
+    Raises `InternalAgentsMissingError` if seeding fails to land all 5 agents.
+
+    Concurrency: this function does not acquire a file lock. If you call
+    it against ~/.memex/agents.db concurrently with a running
+    `memex.install.run()`, both may attempt to seed the same rows. The
+    seed is row-idempotent (uses get_agent checks; no duplicate INSERTs),
+    so the worst case is wasted work. Serialize via your own mechanism
+    if that worst case matters.
+    """
+    path = Path(db_path)
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        conn = get_connection(str(path))
+        try:
+            conn.executescript((DB_DIR / "agents.sql").read_text(encoding="utf-8"))
+            conn.commit()
+        finally:
+            conn.close()
+
+    missing_before = _missing_internal_agent_ids(str(path))
+
+    if not missing_before:
+        return {
+            "status": "already_present",
+            "missing_before": [],
+            "present_after": list(_INTERNAL_AGENT_IDS),
+        }
+
+    _seed_internal(str(path))
+
+    missing_after = _missing_internal_agent_ids(str(path))
+    if missing_after:
+        raise InternalAgentsMissingError(
+            f"ensure_internal_agents({db_path}) finished but "
+            f"{len(missing_after)} internal Memex agent(s) are still missing: "
+            f"{missing_after} (was missing before: {missing_before})."
+        )
+
+    return {
+        "status": "repaired",
+        "missing_before": missing_before,
+        "present_after": list(_INTERNAL_AGENT_IDS),
+    }
+
+
 def _acquire_lock(lock_path: Path):
     """Cross-platform exclusive lock with O_NOFOLLOW.
 
