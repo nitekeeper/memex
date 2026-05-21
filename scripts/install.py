@@ -17,6 +17,13 @@ class InstallLockBusyError(RuntimeError):
     """Another scripts.install.run() is already in progress."""
 
 
+class InternalAgentsMissingError(RuntimeError):
+    """install.run() finished but one or more of the 5 internal Memex
+    agents are not present in `~/.memex/agents.db`. Indicates either a
+    failed seed step or post-install corruption (DB wiped/rebuilt by
+    another process after seeding)."""
+
+
 def _acquire_lock(lock_path: Path):
     """Cross-platform exclusive lock with O_NOFOLLOW.
 
@@ -113,6 +120,7 @@ def run() -> None:
             registry.register_store("agents", str(agents_db_path), schema_version="v1")
 
         _seed_internal(str(agents_db_path))
+        _verify_internal_agents_present(str(agents_db_path))
 
         index_db_path = home / "index.db"
         if not index_db_path.exists():
@@ -176,8 +184,39 @@ def _migrate_index_db_to_unique_key(index_db_path: str) -> None:
         conn.close()
 
 
+_INTERNAL_AGENT_IDS: tuple[str, ...] = tuple(sorted(a["agent_id"] for a in INTERNAL_AGENTS))
+
+
+def _missing_internal_agent_ids(agents_db_path: str) -> list[str]:
+    """Return the subset of the 5 internal agent IDs that are absent from
+    `agents_db_path`. Empty list = all present."""
+    return [aid for aid in _INTERNAL_AGENT_IDS if agents.get_agent(agents_db_path, aid) is None]
+
+
+def _verify_internal_agents_present(agents_db_path: str) -> None:
+    """Hard post-condition for install.run(): all 5 internal Memex agents
+    MUST be registered in agents.db. Surfaced as `InternalAgentsMissingError`
+    with the specific missing IDs so the operator can diagnose without
+    spelunking the DB."""
+    missing = _missing_internal_agent_ids(agents_db_path)
+    if missing:
+        raise InternalAgentsMissingError(
+            f"install.run() finished but {len(missing)} internal Memex agent(s) "
+            f"are missing from {agents_db_path}: {missing}. "
+            f"This indicates the seed step did not run to completion or the DB "
+            f"was rebuilt by another process after seeding. Re-run "
+            f"`python -m scripts.install` to restore."
+        )
+
+
 def _seed_internal(agents_db_path: str) -> None:
-    """Idempotent seed of internal roles + agents. Hash-pinned for drift detection (§G)."""
+    """Idempotent seed of internal roles + agents. Hash-pinned for drift detection (§G).
+
+    The seed_hash short-circuit only fires when every one of the 5 internal
+    agents is actually present in the DB. A stale seed_hash on a DB whose
+    agent rows have been wiped (e.g. by another consumer rebuilding the
+    file) MUST NOT prevent re-seeding — that was the live-machine bug.
+    """
     conn = get_connection(agents_db_path)
     try:
         conn.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
@@ -187,8 +226,11 @@ def _seed_internal(agents_db_path: str) -> None:
     finally:
         conn.close()
 
-    if stored_hash == INTERNAL_AGENTS_HASH:
-        return  # already seeded with this exact content.
+    # Drift-safe short-circuit: only honour seed_hash when the rows it
+    # claims to have written are still there. Verifying rows is the
+    # authoritative invariant; seed_hash is just an optimisation.
+    if stored_hash == INTERNAL_AGENTS_HASH and not _missing_internal_agent_ids(agents_db_path):
+        return  # already seeded with this exact content AND rows are present.
 
     if stored_hash is not None and stored_hash != INTERNAL_AGENTS_HASH:
         print(
