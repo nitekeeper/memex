@@ -12,6 +12,26 @@ Format: [version] — date — summary.
 
 ---
 
+## v2.6.0 — 2026-05-20
+
+### Added
+
+- **Public `ensure_internal_agents(db_path)` API** — idempotent verify-and-seed for any consumer that touches `agents.db` directly (atelier's bootstrap, future plugins, manual restore scripts). Returns `{"status": "already_present" | "repaired", "missing_before": list[str], "present_after": list[str]}`. Raises `InternalAgentsMissingError` if seeding fails. Initialises schema if `db_path` does not exist. Safe to call multiple times. Refs: nitekeeper/atelier#9.
+
+### Fixed
+
+- **`install.run()` was not self-verifying after `_seed_internal`**, and the `_seed_internal` short-circuit was row-blind (matched on `meta.seed_hash` only). If anything wiped the 5 internal Memex agents (`librarian-1`, `reference-librarian-1`, `archivist-1`, `dba-1`, `data-steward-1`) while preserving the `meta` table — e.g. a backup-restore or another consumer rebuilding `agents.db` — `install.run()` would silently no-op. Downstream callers then crashed with `ValueError: Agent not registered: librarian-1`. Now: short-circuit requires both hash-match AND row-presence; `install.run()` ends with `_verify_internal_agents_present()` raising `InternalAgentsMissingError` (listing the specific missing IDs). Refs: nitekeeper/atelier#6 bug #3.
+
+### Internal
+
+- `chore(lint): remove no-op ignores from pyproject.toml` (PR #18).
+
+### Migration
+
+(none — additive API + bug fix; existing surface unchanged. `install.run()`'s new post-condition will catch any pre-existing missing-agent state on the next install invocation.)
+
+---
+
 ## v2.5.1 — 2026-05-17
 
 ### Fixed
