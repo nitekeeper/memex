@@ -6,7 +6,7 @@ Memex hosts your personal knowledge — articles you read, notes you capture, sy
 
 ## A note on origins
 
-Most of the code in this repository is developed and maintained collaboratively with [Claude Code](https://claude.com/claude-code). Commits are typically co-authored (`Co-Authored-By: Claude Opus …`), tests and refactors are AI-assisted, and design documents under `docs/specs/` are pair-written. Human-authored PRs are welcome; when reviewing changes, apply the usual AI-codegen review reflexes — most of it is clean, but the occasional confident-but-wrong section is worth a careful read.
+Most of the code in this repository is developed and maintained collaboratively with [Claude Code](https://claude.com/claude-code). Commits are typically co-authored (`Co-Authored-By: Claude Opus …`), tests and refactors are AI-assisted, and the v2.0 design + implementation plans were pair-written (now captured in Memex itself; recoverable via git history pre-2026-05-26). Human-authored PRs are welcome; when reviewing changes, apply the usual AI-codegen review reflexes — most of it is clean, but the occasional confident-but-wrong section is worth a careful read.
 
 ## What Memex is
 
@@ -75,8 +75,8 @@ PRs run a CI gate (lint, security, tests) — see `.github/workflows/ci.yml`. Br
 
 Read these to get oriented as a contributor:
 
-- `docs/specs/2026-05-16-memex-v2-redesign-design.md` — locked architecture spec.
-- `docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md` — per-layer acceptance docs.
+- `docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md` — per-layer acceptance docs (the tracked v2.0 contract).
+- Locked architecture spec: see git history pre-2026-05-26 for the v2.0 design body, or query the dogfooded copy via `memex:run ask` (untracked in memex#22 — canonical store is Memex).
 - `USER_GUIDE.md` — user-facing operations reference.
 - `CHANGELOG.md` — version history.
 
@@ -89,7 +89,7 @@ Read these to get oriented as a contributor:
 - Open-ended `rel_type` vocabulary; the Librarian's prompt is the only consistency mechanism.
 - Hybrid retrieval — FTS5 + vector embeddings — from day one. Embedding is best-effort; FTS5 always works.
 
-Full design rationale: `docs/specs/2026-05-16-memex-v2-redesign-design.md`.
+Full design rationale: see git history pre-2026-05-26 for the v2.0 design body, or query via `memex:run ask` (untracked in memex#22).
 
 ## Layout
 

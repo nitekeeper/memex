@@ -6,11 +6,11 @@ Memex v2 is a personal knowledge runtime and shared memory plane for the agent f
 
 When this skill references `internal/<category>/<name>/SKILL.md` below, the agent should: (1) Read that file via the Read tool, (2) follow the procedure inline.
 
-See `docs/specs/2026-05-16-memex-v2-redesign-design.md` for the full v2.0 architecture.
+For the full v2.0 architecture: see the per-layer acceptance docs (`docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md`); the originating design body is recoverable via git history pre-2026-05-26 or `memex:run ask` (untracked in memex#22).
 
 ## Step 0 — Preflight
 
-Step 0 runs BEFORE intent routing on every top-level `memex:run` invocation. It verifies (0.1) a usable Python interpreter, then (0.2) that `~/.memex/` is bootstrapped. If either is missing, Step 0 ends the turn — no routing, no fallback. See `docs/specs/2026-05-17-install-hardening-design.md` for the full design.
+Step 0 runs BEFORE intent routing on every top-level `memex:run` invocation. It verifies (0.1) a usable Python interpreter, then (0.2) that `~/.memex/` is bootstrapped. If either is missing, Step 0 ends the turn — no routing, no fallback. The install-hardening design rationale is recoverable via git history pre-2026-05-26 or `memex:run ask` (untracked in memex#22).
 
 ### Step 0.1 — Verify Python ≥ 3.10 is available
 

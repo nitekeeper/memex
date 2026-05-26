@@ -13,3 +13,8 @@ uv.lock
 # Memex dist bundles — manifest tracked separately
 dist/v*/**
 !dist/v*/manifest.json
+
+# Process artifacts — bodies are recoverable via git history pre-memex#22; canonical going forward is Memex (memex:run capture)
+docs/plans/
+docs/specs/
+docs/superpowers/

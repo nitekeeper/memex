@@ -4,15 +4,14 @@ You are operating inside the **Memex product repo**. Memex is Product 1 of Skill
 
 ## Architecture in one paragraph
 
-Memex registers a single Claude-Code-visible skill — `memex:run` — which routes natural-language intent (for users) and named operations (for agents) to one of 26 internal procedures at `internal/<category>/<name>/SKILL.md` (categories: `core`, `index`, `brain`, `steward`, `dba`, `embed`). This keeps the plugin under Claude Code's 1% skill-description budget while exposing the full Memex surface on demand. See `docs/specs/2026-05-16-memex-v2-redesign-design.md` (§8.0) for the visibility model.
+Memex registers a single Claude-Code-visible skill — `memex:run` — which routes natural-language intent (for users) and named operations (for agents) to one of 26 internal procedures at `internal/<category>/<name>/SKILL.md` (categories: `core`, `index`, `brain`, `steward`, `dba`, `embed`). This keeps the plugin under Claude Code's 1% skill-description budget while exposing the full Memex surface on demand. The v2.0 visibility model is described in the canonical v2-redesign design — see git history pre-2026-05-26 for the spec body (recoverable via `git show <pre-rm-sha>:docs/specs/2026-05-16-memex-v2-redesign-design.md`) or query the dogfooded copy via `memex:run ask`.
 
 ## Read at session start (only if you're working ON Memex itself, not USING it)
 
-1. `docs/specs/2026-05-16-memex-v2-redesign-design.md` — v2.0 design
-2. `docs/plans/2026-05-16-memex-v2-plan-{1,2,3,4}-*.md` — implementation plans
-3. `docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md` — per-layer acceptance docs
-4. `README.md` and `USER_GUIDE.md` — user-facing entry points
-5. `CHANGELOG.md` — version history
+1. `docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md` — per-layer acceptance docs (the tracked v2.0 contract)
+2. `README.md` and `USER_GUIDE.md` — user-facing entry points
+3. `CHANGELOG.md` — version history
+4. Historical v2.0 design + implementation plans: see git history pre-2026-05-26 (e.g. `git show <pre-rm-sha>:docs/specs/2026-05-16-memex-v2-redesign-design.md`) or `memex:run ask`; the bodies were untracked in memex#22 — canonical store is Memex itself going forward.
 
 If you're a downstream agent USING Memex from another plugin or session, you don't need to read these files — invoke `memex:run` and follow its routing.
 
@@ -24,7 +23,7 @@ If you're a downstream agent USING Memex from another plugin or session, you don
 
 ## Working rules
 
-1. **Spec-first.** v2.0 design is locked in `docs/specs/2026-05-16-memex-v2-redesign-design.md`. Changes to architecture go through a spec revision, not ad-hoc edits.
+1. **Spec-first.** v2.0 design is locked — the per-layer acceptance docs (`docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md`) are the tracked contract; the originating design body is recoverable via git history pre-2026-05-26 or `memex:run ask`. Changes to architecture go through a spec revision (captured to Memex), not ad-hoc edits.
 2. **All writes through the Librarian.** Per spec §6, every document landing in any Memex-managed store must pass through `internal/index/write/` (which routes through the Librarian subagent + Archivist + Memex Core). No bypass paths.
 3. **Internal procedures are agent-only.** Don't register additional skills in `plugin.json`; everything goes through `memex:run` routing. New procedures land at `internal/<category>/<name>/SKILL.md` with a corresponding row in `skills/run/SKILL.md`.
 4. **Tests are the contract.** Every Python module ships with pytest tests; every SKILL.md ships with a presence/frontmatter test. Run `pytest tests/` before claiming done.
@@ -75,19 +74,21 @@ Memex does not run improvement cycles against external repos (that's kaizen's jo
 
 ### Process-artifact storage
 
-Memex IS the canonical process-artifact store for the four-repo bundle. Tracked artifacts under `docs/` exist because they have first-class consumers (specs feed the implementation; plans feed reviewers; runbooks feed operators; per-layer acceptance docs feed downstream plugins).
+Memex IS the canonical process-artifact store for the four-repo bundle. As of 2026-05-26 (memex#22), the prior tracked-by-default stance for specs/plans/superpowers is reversed — historical bodies remain recoverable via git history. Going forward, the canonical store for process artifacts is Memex itself (`memex:run capture` writes; `memex:run ask` reads); only first-class consumer-facing docs stay tracked in the git tree.
 
 - **Tracked under `docs/`** (committed, part of the source tree):
-  - `docs/specs/` — design specs (e.g. `2026-05-16-memex-v2-redesign-design.md`)
-  - `docs/plans/` — implementation plans (e.g. `2026-05-16-memex-v2-plan-{1..4}-*.md`, `release-*.md`)
-  - `docs/runbooks/` — operational SOPs
-  - `docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md` — per-layer acceptance docs
-- **Gitignored** (capture to memex via `memex:run capture`, query via `memex:run ask`):
+  - `docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md` — per-layer acceptance docs (the v2.0 contract surface for downstream plugins)
+  - `docs/runbooks/` — operational SOPs (consumed by operators)
+  - `CLAUDE.md` and `docs/claude-operational-rules.md` — operational charter + extended rationale (when present)
+- **Untracked + canonical-in-Memex** (capture via `memex:run capture`, query via `memex:run ask`; recoverable from git history pre-memex#22 for historical audit):
+  - Design specs (formerly `docs/specs/`) — e.g. v2-redesign, install-hardening, embedding-unavailable designs
+  - Implementation plans (formerly `docs/plans/`) — per-layer plans + release plans
+  - Superpowers brainstorm output (formerly `docs/superpowers/`)
   - Cycle minutes, abandonment reports, bridge-smoke reports
-  - Ad-hoc design notes / brainstorm artifacts not on the spec/plan track
+  - Ad-hoc design notes / brainstorm artifacts
   - Any process artifact produced by a memex-on-memex cycle run
 
-Cycle agents MUST NOT commit cycle minutes, abandonment reports, or smoke reports to the memex git tree; capture them to memex itself via `memex:run capture`. The product is its own canonical store — this is the dogfooding contract. *(mirrors kaizen `### Process-artifact storage` with the tracked/gitignored split inverted — memex publishes its own specs)*
+Cycle agents MUST NOT commit specs, plans, cycle minutes, abandonment reports, or smoke reports to the memex git tree; capture them to memex itself via `memex:run capture`. The product is its own canonical store — this is the dogfooding contract. Pre-existing process artifacts already in git history remain there as audit trail — only NEW artifacts (and the directories untracked in memex#22) are diverted to Memex. *(mirrors kaizen `### Process-artifact storage` — memex#22 closed the inversion gap; memex now matches kaizen's stance, dogfooded against its own runtime.)*
 
 ### Untrusted input boundaries
 

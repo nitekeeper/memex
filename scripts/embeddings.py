@@ -51,8 +51,9 @@ class EmbeddingUnavailable(Exception):
     Always raised via `raise EmbeddingUnavailable(...) from original_exc`
     so __cause__ preserves the original traceback.
 
-    See docs/specs/2026-05-17-embedding-unavailable-design.md for the
-    full contract.
+    For the full contract: see git history pre-2026-05-26 for the
+    embedding-unavailable design body, or query via `memex:run ask`
+    (untracked in memex#22 — canonical store is Memex).
 
     Attributes:
         reason:   one of the four frozen values above; branch on this.

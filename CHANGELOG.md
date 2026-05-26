@@ -4,6 +4,8 @@ All releases are logged here. Unreleased in-progress work is tracked in `ROADMAP
 
 Format: [version] — date — summary.
 
+Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/` in entries below are recoverable via git history; the directories were untracked in memex#22.
+
 ---
 
 ## Unreleased

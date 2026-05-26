@@ -62,8 +62,8 @@ preserves a verifiable record of every file shipped in the release
 2. Claude Code reloads the plugin (`/plugin reload memex` or a
    restart).
 3. The user invokes `memex:run`. **Step 0 — Preflight** (see
-   `skills/run/SKILL.md` and the
-   `docs/specs/2026-05-17-install-hardening-design.md` spec) runs
+   `skills/run/SKILL.md`; install-hardening design rationale in git
+   history pre-2026-05-26 or via `memex:run ask`) runs
    before intent routing on every top-level invocation:
    - Step 0.1: verify Python ≥ 3.10 (loop over `python3`, `python`,
      `py -3`; emit `PYTHON=<token>` for substitution; OS-specific
