@@ -1,0 +1,317 @@
+{
+  "version": "2.6.1",
+  "built_at": "2026-06-01T13:42:17.141768+00:00",
+  "file_count": 62,
+  "files": [
+    {
+      "path": ".claude-plugin/plugin.json",
+      "sha256": "ecd0cbc871a5b59e255399760ed701c8326a70d0938b836a6d68ee2134da3917",
+      "bytes": 689
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "a358878a60b13807ffb2848826a1caaaeae0677fa33c8cdb47ccc0f49a6e9380",
+      "bytes": 24238
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "649dc8611b408ac592bbef26372d431b0f2566cda089feca1348df4025f943c6",
+      "bytes": 3014
+    },
+    {
+      "path": "README.md",
+      "sha256": "1bd52f07f8153eb4d8866616babf22eda4745b13da5e335f2db257391f4e10e2",
+      "bytes": 7106
+    },
+    {
+      "path": "USER_GUIDE.md",
+      "sha256": "f4fbe6fe9ad6512f0166479438ef2a7ef12e8e8e5f6f77cd4d28122d88828bb0",
+      "bytes": 10104
+    },
+    {
+      "path": "db/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "db/agents.sql",
+      "sha256": "b6714ad00b927ccd05d70b987930de8bdb20901825f1dabc006c7e89a7edad27",
+      "bytes": 815
+    },
+    {
+      "path": "db/brain.sql",
+      "sha256": "21f9532906ce934c429bd00c6f38ba6c6f88de6b67d9fa881bc35f6a962ebeb3",
+      "bytes": 1318
+    },
+    {
+      "path": "db/index.sql",
+      "sha256": "6829238a322d82a6e400310c6635d8b65e4d90f7b42d2af1b04c294acd24fc84",
+      "bytes": 2523
+    },
+    {
+      "path": "db/migrations_table.sql",
+      "sha256": "0bc4cb4c123701db5e6d552ce858736a214f4f1dd322bec91cb58a9e4adecc56",
+      "bytes": 450
+    },
+    {
+      "path": "internal/brain/ask/SKILL.md",
+      "sha256": "a29b11668c395ed3a22bf790eb676aeb9010791b3db5b7c5fdbe180397d3ab9c",
+      "bytes": 4430
+    },
+    {
+      "path": "internal/brain/capture/SKILL.md",
+      "sha256": "646d29a25c23a7c58ac0ed17f1641947614eb678dbec60ed5a25006ea6a3728f",
+      "bytes": 2586
+    },
+    {
+      "path": "internal/brain/ingest/SKILL.md",
+      "sha256": "ebdc908b41ba88651912587e38d388e56a0b5ee2e23fb79e7f6e87f6b23e87ba",
+      "bytes": 4654
+    },
+    {
+      "path": "internal/brain/lint/SKILL.md",
+      "sha256": "96db9a6fa57a2cc663c144fee79a74d79a8ffcdf48de3a3be09b26dfb0b5f71d",
+      "bytes": 547
+    },
+    {
+      "path": "internal/brain/synthesize/SKILL.md",
+      "sha256": "153cd3d8651692e9fb77548e1871d88c00b2b60ab435b4500ac9da37ca1f6e01",
+      "bytes": 5154
+    },
+    {
+      "path": "internal/core/create-store/SKILL.md",
+      "sha256": "82efd3bb6e53f56333a2653f6758409d64e6dd85b5ad7523707dc429bdd1c1bd",
+      "bytes": 1112
+    },
+    {
+      "path": "internal/core/delete/SKILL.md",
+      "sha256": "009c3fe3bff7cca76211ce5371249b04161fa4f2f3fc67512c5a5f368f8ef6d7",
+      "bytes": 355
+    },
+    {
+      "path": "internal/core/get-agent/SKILL.md",
+      "sha256": "adcd0da9314b68ef842f50eb54753bfe5af048f4d727d01c91dd6569a2084076",
+      "bytes": 388
+    },
+    {
+      "path": "internal/core/insert/SKILL.md",
+      "sha256": "3704a8adc9c035109aa137e41fbf07aaf5be43144149eb6f0ed31da7ceca9c0b",
+      "bytes": 431
+    },
+    {
+      "path": "internal/core/list-stores/SKILL.md",
+      "sha256": "ae01640c9214b0e429675fa37dce3ced8708de8e9f6e18bb49e08eb22c87eff8",
+      "bytes": 237
+    },
+    {
+      "path": "internal/core/migrate/SKILL.md",
+      "sha256": "7e384b1340334f077c627d8f9afe4b841490dfed6cbfede931c8c319372f9dae",
+      "bytes": 597
+    },
+    {
+      "path": "internal/core/query/SKILL.md",
+      "sha256": "f4e470703c68c6ff329bf65826cafc9690029f30dd4c64bbe8f9ffbe5b99f2db",
+      "bytes": 430
+    },
+    {
+      "path": "internal/core/register-agent/SKILL.md",
+      "sha256": "ad9ad679b725a81a893fda824f2455153c3d5090e4a1398d5bce76271bf2aeb9",
+      "bytes": 547
+    },
+    {
+      "path": "internal/core/register-role/SKILL.md",
+      "sha256": "d6a85c003d137da04a22c63030ac25a45722310bbdbfa05f0ea881a283e4346c",
+      "bytes": 487
+    },
+    {
+      "path": "internal/core/update/SKILL.md",
+      "sha256": "e534545c15f5a99a7b950ad2686a9f6a7bcd10752c9994a7568e23ce47709984",
+      "bytes": 384
+    },
+    {
+      "path": "internal/dba/checkpoint/SKILL.md",
+      "sha256": "7a2ff5a916c41026ef9079f9f6c9d00a4cf68822c2489091687a349e2a683d7f",
+      "bytes": 323
+    },
+    {
+      "path": "internal/dba/integrity-check/SKILL.md",
+      "sha256": "b49ad063eb785344f337c356555111fa0c4db08cf58c9e13889c9a3f1a466b56",
+      "bytes": 285
+    },
+    {
+      "path": "internal/dba/vacuum/SKILL.md",
+      "sha256": "79d471057da0f73bd7b91f971531d794d7587d8c5ebd2628640bd46375f86c5a",
+      "bytes": 276
+    },
+    {
+      "path": "internal/embed/backfill/SKILL.md",
+      "sha256": "671c35cb1236a9324af0bed6b52343ee89f81984d61ee54f6421b878dbe1b62e",
+      "bytes": 3135
+    },
+    {
+      "path": "internal/embed/reembed/SKILL.md",
+      "sha256": "ecc551cfbe81a3e74cd5136cab506a57dc593e8937e4408bb55ad7e7c167fee2",
+      "bytes": 3842
+    },
+    {
+      "path": "internal/index/archive/SKILL.md",
+      "sha256": "e61c41387cabc92ad9ce65aca00a13cc5cd5847f51761d14e9e136cd974b3a2c",
+      "bytes": 1024
+    },
+    {
+      "path": "internal/index/search/SKILL.md",
+      "sha256": "537bc658a5380e0e7b30dfdcb88728a0759e57da06c11d43c11a69fed29b952a",
+      "bytes": 3249
+    },
+    {
+      "path": "internal/index/write/SKILL.md",
+      "sha256": "3670e70f49b8981ab939bf603cb3456263b3c9927a97a739e48d91b300e28e60",
+      "bytes": 6704
+    },
+    {
+      "path": "internal/steward/audit-store/SKILL.md",
+      "sha256": "0dcd4406877158d27ccd749dcdf95f74eff9916c0a68dc80cd3895b9ebb0a76e",
+      "bytes": 426
+    },
+    {
+      "path": "internal/steward/audit/SKILL.md",
+      "sha256": "adcc76520cc620b9776082122948f25899feb130af0ec890d27222ef184ee14c",
+      "bytes": 812
+    },
+    {
+      "path": "internal/steward/reconcile-orphan/SKILL.md",
+      "sha256": "2f98a39ca9cf284b8ba31f1228e65f4c03c1cc4eeb38822d0f5a0ba988629e7b",
+      "bytes": 2475
+    },
+    {
+      "path": "prompts/librarian.md",
+      "sha256": "7d5efe503da539c83aa5870dc4480ea9693ab215705f7f44063f0b366c63fb65",
+      "bytes": 1935
+    },
+    {
+      "path": "prompts/reference_librarian.md",
+      "sha256": "42bbf370bbb14ad96ecee17a72f72e4902324479252cf2ef5b9d4e08d73eaba0",
+      "bytes": 795
+    },
+    {
+      "path": "prompts/synthesizer.md",
+      "sha256": "951ed2635bfa4d1d73cdff793b78214edcb9be9d65b815e0097dee88e30ca5a4",
+      "bytes": 619
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "10b0765420835dc7800738d573421406cb707c0aed47d108a186570b827ef391",
+      "bytes": 2714
+    },
+    {
+      "path": "scripts/__init__.py",
+      "sha256": "19bcd6be0665e144eba5fe2307a2df826f186738912e00dd24e4629f88bc4dac",
+      "bytes": 56
+    },
+    {
+      "path": "scripts/_internal_agents_seed.py",
+      "sha256": "2fc4dcbc9ff7edfd93dfc3f53cc758105e4785ec0dfb14ee7d082bc5e8039613",
+      "bytes": 17018
+    },
+    {
+      "path": "scripts/agents/__init__.py",
+      "sha256": "57efc0352ba0aa421271b5b313292ff2b0a32fe927f610ad6e2734a8ed88b312",
+      "bytes": 3663
+    },
+    {
+      "path": "scripts/agents/archivist.py",
+      "sha256": "fc2701adbd5b32b8a83b150d6cb2bcd08f9bac8b28f2b8239be8b9f885054d4b",
+      "bytes": 1850
+    },
+    {
+      "path": "scripts/agents/data_steward.py",
+      "sha256": "7b4aef7009fdc29634c528922dbdc9a69f781c63fb57f92f7d4725baa11b9b1e",
+      "bytes": 10636
+    },
+    {
+      "path": "scripts/agents/dba.py",
+      "sha256": "e906cfecfcb7f25b1d81a464b153f4dee1cb6e2d8757105e448ba4281a0acc58",
+      "bytes": 2035
+    },
+    {
+      "path": "scripts/agents/librarian.py",
+      "sha256": "62bd09245f16ca03cade0eecb4d27a72cff3a6e96f93a247b8501047da1a800a",
+      "bytes": 10529
+    },
+    {
+      "path": "scripts/agents/reference_librarian.py",
+      "sha256": "f34105d3e33fbce3efaf929a7c69b96369cc4b4473955142891d434376885034",
+      "bytes": 8553
+    },
+    {
+      "path": "scripts/brain.py",
+      "sha256": "e5e8065b92e9b3d7caef979c9fb14c15c76a2ac16c67bf67109bd87b60388c38",
+      "bytes": 13293
+    },
+    {
+      "path": "scripts/bump.py",
+      "sha256": "a1d51cef6fb9a70149abba4582ac98202b7c86386f3f0e07d0a5534adae1f759",
+      "bytes": 5156
+    },
+    {
+      "path": "scripts/db.py",
+      "sha256": "90bac572fb81aba6c3cc297371f98bab73811c7b8b42235de4a29739f6b1a34c",
+      "bytes": 5738
+    },
+    {
+      "path": "scripts/embeddings.py",
+      "sha256": "c4aeb6301a5e1eceaf2a9c725c1721871601745db7d97a2d420c0f1e69c268d0",
+      "bytes": 22184
+    },
+    {
+      "path": "scripts/install.py",
+      "sha256": "68e27a6ab00ca2c280ef16d3937b2cd6fd80ca57ab4f0ca75bb359093951d9bb",
+      "bytes": 12971
+    },
+    {
+      "path": "scripts/onboarding.py",
+      "sha256": "4f45b5e65e022d369d7de511cf4f9064d866cd8eab015c5248535595ed3407f1",
+      "bytes": 2254
+    },
+    {
+      "path": "scripts/paths.py",
+      "sha256": "26a941a0956ae9f53e29b69731272eff117e317a8f247cbc286d3d8493b75518",
+      "bytes": 906
+    },
+    {
+      "path": "scripts/registry.py",
+      "sha256": "6ec00bcec567a74f16baa8d6de60a1f6f2082e3ca95b5c7292da317c1ab77891",
+      "bytes": 2993
+    },
+    {
+      "path": "scripts/release.py",
+      "sha256": "eb21ceab42293a5785efdc4abf7b8d32f83244d8e72a59b2b340d6cb84abf4eb",
+      "bytes": 6142
+    },
+    {
+      "path": "scripts/roles.py",
+      "sha256": "f1f18b2f2c11f79ac4194432801f4982c5f5c3b9226ed350a844e3773b6309f6",
+      "bytes": 3083
+    },
+    {
+      "path": "scripts/stores.py",
+      "sha256": "66dce5038e51d29b8e26ca90d62ffb363774ca2c59a9cdbc80087dfd5b150e31",
+      "bytes": 4818
+    },
+    {
+      "path": "scripts/upgrade_from_v1.py",
+      "sha256": "c681e9c86fef8d787e2c7539ad208fb4375e785a932444a894470a24d2fc0f7a",
+      "bytes": 3795
+    },
+    {
+      "path": "skills/README.md",
+      "sha256": "5b06f7d68d3a1ae74d5a9ea336d8a85f874d868f5323e3d6773b0b48d7416936",
+      "bytes": 516
+    },
+    {
+      "path": "skills/run/SKILL.md",
+      "sha256": "441c8d63860407ea39a9740b7aa0d84d712025693571ca1ab6dc4c5d0d052b7c",
+      "bytes": 13822
+    }
+  ]
+}

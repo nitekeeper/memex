@@ -14,6 +14,19 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.6.1 — 2026-06-01
+
+### Docs
+
+- **CLAUDE.md portability** — operational charter (M-rules) and per-skill/agent model recommendations folded into `CLAUDE.md` so installers inherit the maintainer's posture without reverse-engineering it (PR #25).
+- **Process-artifact untracking (memex#22)** — `docs/specs/`, `docs/plans/`, and `docs/superpowers/` removed from the git tree; Memex itself is now the canonical store (`memex:run capture` writes, `memex:run ask` reads). Historical bodies remain recoverable via git history pre-2026-05-26. Doc references in `skills/run/SKILL.md`, `README.md`, `docs/CORE.md`, `docs/PACKAGING.md`, and the `EmbeddingUnavailable` docstring (`scripts/embeddings.py`) updated to point at git history / `memex:run ask` (PR #26).
+
+### Migration
+
+(none — documentation and repo-housekeeping only; no behavioral code change. Shipped bundle deltas are limited to doc-reference wording in `README.md`, `skills/run/SKILL.md`, and one docstring.)
+
+---
+
 ## v2.6.0 — 2026-05-20
 
 ### Added
