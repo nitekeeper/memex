@@ -14,6 +14,18 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.6.2 — 2026-06-02
+
+### Fixed
+
+- **`memex:run ask` crashed on hyphenated queries (FTS5 `MATCH`).** `reference_librarian.execute_query_plan` passed the planner's `fts_query` to `documents_fts MATCH ?` unescaped; a bare hyphenated term — most commonly a capture slug like `memex22-superpower-2026-05-10-sync-skill` — was parsed by FTS5 as operator/column-filter syntax and raised `sqlite3.OperationalError` ("no such column: …") before any matching. The `MATCH` is now retried once with the query escaped as a single double-quoted FTS5 phrase; valid boolean queries (`OR`/`AND`/`NOT`, quoted phrases, prefix `*`) parse on the first try and are unaffected. Surfaced by the memex#22 dogfood-capture follow-up (#27) — a literal `ask <slug>` was the only query shape that exposed it. Adds `tests/test_reference_librarian_hyphen_query.py` (PR #29).
+
+### Migration
+
+(none — backward-compatible bug fix; no schema or API change.)
+
+---
+
 ## v2.6.1 — 2026-06-01
 
 ### Docs
