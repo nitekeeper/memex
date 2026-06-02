@@ -18,3 +18,7 @@ dist/v*/**
 docs/plans/
 docs/specs/
 docs/superpowers/
+
+# Loom agent-chat comms harness + dogfood-capture scaffolding (memex#27).
+# Local-only helpers; the durable outputs live in the Brain + the GH issue.
+.loom/

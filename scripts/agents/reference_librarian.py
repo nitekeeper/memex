@@ -32,6 +32,7 @@ retained as a thin convenience wrapper for callers passing through
 from __future__ import annotations
 
 import json
+import sqlite3
 
 from scripts import agents as agents_mod
 from scripts import embeddings
@@ -160,7 +161,22 @@ def execute_query_plan(plan: dict, with_embedding: bool = True) -> list[dict]:
             ORDER BY rank
             LIMIT ?
         """  # nosec B608
-        fts_rows = [dict(r) for r in conn.execute(sql, (fts_q, *params, limit))]
+        try:
+            fts_rows = [dict(r) for r in conn.execute(sql, (fts_q, *params, limit))]
+        except sqlite3.OperationalError:
+            # The FTS5 query parser rejected fts_q as a MATCH expression. This
+            # happens when the query contains bare special characters that FTS5
+            # reads as operators/column-filters rather than literal text — most
+            # commonly a hyphenated term like a slug (`memex22-plan-…`), where
+            # `-` and the embedded `:` parse as syntax and raise "no such
+            # column". Retry once with the whole query escaped as a single FTS5
+            # phrase: double-quoting neutralizes every special char, so the term
+            # matches literally. Valid boolean queries (OR/AND/NOT, quoted
+            # phrases, prefix `*`) parse on the first try and never reach here,
+            # so this is backward-compatible — only previously-crashing queries
+            # get the phrase fallback.
+            phrase_q = '"' + fts_q.replace('"', '""') + '"'
+            fts_rows = [dict(r) for r in conn.execute(sql, (phrase_q, *params, limit))]
 
     if not with_embedding or not plan.get("vector_query"):
         conn.close()
