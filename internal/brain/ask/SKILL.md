@@ -56,12 +56,18 @@ if red["status"] == "no_signal":
 ### Local mode recipe (neighborhood expansion)
 
 ```python
-from scripts import brain, embeddings
-try:
-    ctx = brain.local_ask(query, with_embedding=True)
-except embeddings.EmbeddingUnavailable as e:
-    embeddings.log_skip(e, caller_agent_id="reference-librarian-1")
-    ctx = brain.local_ask(query, with_embedding=False)
+from scripts import brain
+# Key-free default: FTS5-seeded neighborhood expansion — needs NO embedding
+# provider / API key (with_embedding defaults to False).
+ctx = brain.local_ask(query)
+# Optional booster: when an embedding provider IS configured, vector-seeded
+# recall can be added; it falls back to the FTS5 seed on EmbeddingUnavailable:
+#   from scripts import embeddings
+#   try:
+#       ctx = brain.local_ask(query, with_embedding=True)
+#   except embeddings.EmbeddingUnavailable as e:
+#       embeddings.log_skip(e, caller_agent_id="reference-librarian-1")
+#       ctx = brain.local_ask(query)
 # ctx = {seeds, neighborhood, documents:[{index_id, searchable}],
 #        community_reports:[{community_id, title, summary}]}
 # Assemble documents + community_reports into a single answering prompt and

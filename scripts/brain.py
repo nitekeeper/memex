@@ -411,15 +411,18 @@ def local_ask(
     query: str,
     seed_limit: int = 5,
     hops: int = 1,
-    with_embedding: bool = True,
+    with_embedding: bool = False,
 ) -> dict:
     """Local / neighborhood retrieval: seed on similar docs, expand via the
     relation graph, attach the seeds' community reports.
 
     Steps:
-      1. Seed: top-`seed_limit` documents by cosine to the query embedding
-         (falls back to FTS-less empty seeds if embeddings are unavailable and
-         no seed_ids can be derived).
+      1. Seed: top-`seed_limit` documents matching the query. The DEFAULT path
+         is key-free — it seeds by FTS5 lexical match (`documents_fts`) and
+         needs NO embedding provider. If `with_embedding=True` AND a provider
+         is configured, the embedding cosine is used as an OPTIONAL booster
+         (it raises embeddings.EmbeddingUnavailable only on that opt-in path,
+         which callers wrap in try/except as on the flat ask path).
       2. Expand: walk `relations` up to `hops` from the seeds to gather the
          neighborhood.
       3. Communities: for every doc in seeds+neighborhood, attach the
@@ -431,22 +434,22 @@ def local_ask(
              summary}]}.
 
     This assembles context; the skill dispatches a single answering subagent
-    over `documents` + `community_reports`. Degrades: no embeddings / empty
-    graph -> empty seeds/neighborhood, no crash.
-
-    Raises embeddings.EmbeddingUnavailable only if the caller did not request
-    with_embedding=False AND seeding by embedding fails — callers typically
-    pass with_embedding and wrap in try/except, matching the flat ask path.
+    over `documents` + `community_reports`. Degrades: empty corpus / empty
+    graph -> empty seeds/neighborhood, no crash. The GraphRAG local path is
+    embedding-free by default — no API key required.
     """
     require_bootstrap()
-    from scripts import embeddings
 
     index_db = str(memex_home() / "index.db")
 
-    # 1. Seed by cosine similarity to the query.
+    # 1. Seed candidate docs.
     seeds: list[str] = []
     if with_embedding:
-        qvec = embeddings.encode(query)  # may raise EmbeddingUnavailable
+        # Opt-in embedding booster (NOT the default). May raise
+        # EmbeddingUnavailable; callers wrap in try/except as on flat ask.
+        from scripts import embeddings
+
+        qvec = embeddings.encode(query)
         conn = get_connection(index_db)
         try:
             rows = [
@@ -463,6 +466,16 @@ def local_ask(
                 scored.append((embeddings.cosine(qvec, r["embedding"]), r["index_id"]))
         scored.sort(key=lambda t: (-t[0], t[1]))
         seeds = [idx for _s, idx in scored[:seed_limit]]
+    else:
+        # DEFAULT key-free seed: FTS5 lexical match via the Reference
+        # Librarian's query executor (with_embedding=False -> pure FTS5, no
+        # provider). Reuses the same MATCH-escape fallback as the flat ask.
+        # execute_query_plan already escapes a query the FTS5 parser would
+        # reject (retries it as a quoted phrase), so no provider and no
+        # MATCH-syntax crash on the default path.
+        plan = {"fts_query": query, "limit": seed_limit}
+        hits = reference_librarian.execute_query_plan(plan, with_embedding=False)
+        seeds = [h["index_id"] for h in hits[:seed_limit]]
 
     # 2. Expand the neighborhood over `relations`.
     neighborhood: list[str] = []

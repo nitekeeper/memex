@@ -159,40 +159,17 @@ def test_global_reduce_respects_budget(installed):
 # ── local ─────────────────────────────────────────────────────────────────
 
 
-def test_local_ask_expands_neighborhood_not_inert(installed):
-    """INERT-LEVER GUARD: local ask MUST expand the relation neighborhood."""
+def test_local_ask_key_free_seed_expand_and_reports(installed):
+    """KEY-FREE GUARD: the DEFAULT local path seeds via FTS5 — no provider.
+
+    No embedding column is populated and no embeddings.encode is called; the
+    seed is found by lexical FTS5 match, then the neighborhood expands over
+    `relations` and the seed/neighbor community report is attached.
+    """
     conn = get_connection(str(memex_home() / "index.db"))
-    # seed s1 (close to query), neighbor n1 reachable via a relation.
-    _doc(conn, "s1", "cats are great", vec=[1.0, 0.0, 0.0])
-    _doc(conn, "n1", "feline companions", vec=[0.0, 0.0, 1.0])  # far from query
-    conn.execute(
-        "INSERT INTO relations (from_index_id, to_index_id, rel_type, confidence) "
-        "VALUES ('s1','n1','similar_to',0.6)"
-    )
-    # n1 belongs to a community with a report.
-    conn.execute(
-        "INSERT INTO communities (community_id, level, parent, size) VALUES ('cc',0,NULL,2)"
-    )
-    conn.execute(
-        "INSERT INTO community_members (community_id, index_id, level) VALUES ('cc','n1',0)"
-    )
-    _report(conn, "cc", 0, "Felines", "Cat community summary.", 7.0)
-    conn.commit()
-    conn.close()
-
-    out = brain.local_ask("cats", seed_limit=1, hops=1, with_embedding=False)
-    # with_embedding=False -> no cosine seeds; assert the expansion machinery
-    # is wired by seeding manually below instead.
-    assert out["status"] == "ready"
-
-
-def test_local_ask_seed_expand_and_reports(installed, monkeypatch):
-    """Full local path with a deterministic fake embedding provider."""
-    from scripts import embeddings
-
-    conn = get_connection(str(memex_home() / "index.db"))
-    _doc(conn, "s1", "cats are great", vec=[1.0, 0.0, 0.0])
-    _doc(conn, "n1", "feline companions", vec=[0.0, 1.0, 0.0])
+    # Text-only docs (embedding=NULL). s1 matches the query lexically.
+    _doc(conn, "s1", "cats are great")
+    _doc(conn, "n1", "feline companions")  # reachable only via the relation
     conn.execute(
         "INSERT INTO relations (from_index_id, to_index_id, rel_type, confidence) "
         "VALUES ('s1','n1','similar_to',0.6)"
@@ -207,12 +184,10 @@ def test_local_ask_seed_expand_and_reports(installed, monkeypatch):
     conn.commit()
     conn.close()
 
-    # Fake the query embedding to point at s1's vector.
-    monkeypatch.setattr(embeddings, "encode", lambda text: _pack([1.0, 0.0, 0.0]))
-
-    out = brain.local_ask("cats", seed_limit=1, hops=1, with_embedding=True)
+    # Default path: with_embedding defaults to False -> NO provider needed.
+    out = brain.local_ask("cats", seed_limit=1, hops=1)
     assert out["status"] == "ready"
-    assert out["seeds"] == ["s1"]
+    assert out["seeds"] == ["s1"], "FTS5 seed did not find the lexical match"
     assert "n1" in out["neighborhood"], "neighborhood expansion is inert"
     doc_ids = {d["index_id"] for d in out["documents"]}
     assert {"s1", "n1"} <= doc_ids
@@ -220,12 +195,110 @@ def test_local_ask_seed_expand_and_reports(installed, monkeypatch):
     assert "cc" in report_ids, "seed/neighbor community reports not attached"
 
 
-def test_local_ask_degrades_without_embeddings(installed, monkeypatch):
-    """with_embedding=False -> empty seeds, no crash, no neighborhood."""
-    out = brain.local_ask("anything", with_embedding=False)
+def test_local_ask_default_never_raises_embedding_unavailable(installed, monkeypatch):
+    """The default local path MUST NOT touch the embedding provider at all.
+
+    Even if encode() would blow up (no key), local_ask must return useful seeds
+    via FTS5. We poison encode to guarantee it's never called on the default
+    path.
+    """
+    from scripts import embeddings
+
+    def _boom(_text):
+        raise embeddings.EmbeddingUnavailable("not_configured", "openai", "no key")
+
+    monkeypatch.setattr(embeddings, "encode", _boom)
+
+    conn = get_connection(str(memex_home() / "index.db"))
+    _doc(conn, "s1", "cats are great")
+    conn.commit()
+    conn.close()
+
+    out = brain.local_ask("cats")  # default with_embedding=False
+    assert out["status"] == "ready"
+    assert out["seeds"] == ["s1"]
+
+
+def test_local_ask_optional_embedding_booster(installed, monkeypatch):
+    """with_embedding=True remains an opt-in cosine booster (flat-ask parity)."""
+    from scripts import embeddings
+
+    conn = get_connection(str(memex_home() / "index.db"))
+    _doc(conn, "s1", "cats are great", vec=[1.0, 0.0, 0.0])
+    _doc(conn, "n1", "feline companions", vec=[0.0, 1.0, 0.0])
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr(embeddings, "encode", lambda text: _pack([1.0, 0.0, 0.0]))
+
+    out = brain.local_ask("cats", seed_limit=1, hops=1, with_embedding=True)
+    assert out["status"] == "ready"
+    assert out["seeds"] == ["s1"]
+
+
+def test_local_ask_degrades_on_empty_corpus(installed):
+    """No matching docs -> empty seeds, no crash, no neighborhood (key-free)."""
+    out = brain.local_ask("nothing-matches-this-query")
     assert out["status"] == "ready"
     assert out["seeds"] == []
     assert out["neighborhood"] == []
+
+
+# ── GraphRAG end-to-end, NO embedding provider ──────────────────────────────
+
+
+def test_graphrag_pipeline_runs_with_no_embedding_provider(installed, monkeypatch):
+    """E2E GUARD: graph_build -> detect_communities -> report prep -> global/local
+    all run with NO embedding provider configured.
+
+    Unset every provider env var and poison embeddings.encode so any embedding
+    dependency on the GraphRAG path would raise. The whole pipeline must still
+    produce edges, communities, report prep units, and ask context.
+    """
+    from scripts import communities, embeddings, graph_build
+    from scripts.agents import community_reporter
+
+    # No provider whatsoever.
+    for var in ("MEMEX_EMBEDDING_PROVIDER", "OPENAI_API_KEY", "VOYAGE_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+
+    def _boom(_text):
+        raise embeddings.EmbeddingUnavailable("not_configured", "openai", "no key")
+
+    monkeypatch.setattr(embeddings, "encode", _boom)
+
+    # Seed a text-rich, two-cluster corpus (embedding=NULL throughout).
+    conn = get_connection(str(memex_home() / "index.db"))
+    for i in range(3):
+        _doc(conn, f"cat{i}", f"cats feline whiskers purr kitten note{i}")
+    for i in range(3):
+        _doc(conn, f"dog{i}", f"dogs canine bark puppy leash note{i}")
+    conn.commit()
+    conn.close()
+
+    # 1. Lexical graph population — must produce real edges, key-free.
+    g = graph_build.build_graph()
+    assert g["considered"] == 6
+    assert g["edges_written"] > 0, "GraphRAG inert: no edges with no provider"
+
+    # 2. Community detection over the fresh similar_to edges.
+    c = communities.detect_communities()
+    assert c["communities"] >= 1
+
+    # 3. Report prep for a stale community (Python-only; no LLM, no embedding).
+    stale = community_reporter.stale_community_ids()
+    assert stale, "no communities to report on"
+    prep = community_reporter.report_prepare(stale[0])
+    assert prep["status"] == "ready"
+
+    # 4. local ask (default key-free FTS5 seed) returns context, no raise.
+    local = brain.local_ask("cats", seed_limit=2, hops=1)
+    assert local["status"] == "ready"
+    assert local["seeds"], "FTS5 seed empty with no provider"
+
+    # 5. global ask prepare reads community_reports (none yet) -> graceful.
+    glob = brain.global_ask_prepare("themes?", level=0)
+    assert glob["status"] in {"ready", "no_reports"}
 
 
 # ── flat regression ─────────────────────────────────────────────────────────

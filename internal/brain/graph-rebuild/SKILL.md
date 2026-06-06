@@ -1,6 +1,6 @@
 ---
 name: memex:brain:graph-rebuild
-description: Operator maintenance entry point for the GraphRAG knowledge layer — (re)build the similarity graph over embedded documents, detect hierarchical communities, then generate the missing community reports. Run after a batch of ingests, or whenever the Index has drifted from the derived graph/community/report artifacts.
+description: Operator maintenance entry point for the GraphRAG knowledge layer — (re)build the lexical similarity graph over document text (key-free, no embedding provider required), detect hierarchical communities, then generate the missing community reports. Run after a batch of ingests, or whenever the Index has drifted from the derived graph/community/report artifacts.
 ---
 
 # memex:brain:graph-rebuild
@@ -22,17 +22,22 @@ This path NEVER writes documents — document writes go through the Librarian
 
 ## Recipe
 
-### Step 1 — Build the similarity graph (deterministic, no LLM)
+### Step 1 — Build the similarity graph (deterministic, no LLM, no API key)
 
 ```python
 from scripts import graph_build
 g = graph_build.build_graph()   # {"considered", "edges_written", "k", "threshold"}
 ```
 
-Tunables (env): `MEMEX_GRAPH_KNN_K` (default 5), `MEMEX_GRAPH_SIM_THRESHOLD`
-(default 0.5). Idempotent — re-running clears and rewrites the `similar_to`
-edges without touching Librarian-authored semantic relations. Degrades on <2
-embedded docs (no edges, no crash).
+**Key-free.** Edges are drawn from a **lexical** similarity (Jaccard over the
+normalized token-set of each document's `searchable` text) — NO embedding
+provider, NO API key, NO extra dependency. Works on a Brain with NULL
+embeddings out of the box. Tunables (env): `MEMEX_GRAPH_KNN_K` (default 5),
+`MEMEX_GRAPH_SIM_THRESHOLD` (default 0.1 — Jaccard overlap is sparser than the
+old embedding cosine, so the default threshold is lower than 0.5). Idempotent —
+re-running clears and rewrites the `similar_to` edges without touching
+Librarian-authored semantic relations. Degrades on <2 docs with usable text (no
+edges, no crash).
 
 ### Step 2 — Detect hierarchical communities (deterministic, no LLM)
 
@@ -68,5 +73,9 @@ one LLM call per new community.
 - Steps 1-2 are pure Python and can run head-less (no Claude Code session).
   Step 3 needs the session because it dispatches the reporter subagent.
 - After a rebuild, `memex:brain:ask` in `global` mode map-reduces over the
-  fresh `community_reports`; `local` mode expands the fresh `relations`
-  neighborhood and attaches the fresh reports.
+  fresh `community_reports`; `local` mode seeds via FTS5 (key-free, no
+  provider), expands the fresh `relations` neighborhood, and attaches the fresh
+  reports.
+- The whole GraphRAG path (Steps 1-3 + `global`/`local` ask) runs with **zero
+  embedding provider** — no OpenAI/Voyage key, no torch/sentence-transformers.
+  Embeddings stay an optional enhancement for the `flat` hybrid ask only.

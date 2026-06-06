@@ -38,13 +38,17 @@ indexed documents and is never a document-ingest path).
 
 Pipeline (`internal/brain/graph-rebuild/SKILL.md` is the operator entry point):
 
-1. **Graph population** — `scripts/graph_build.py` connects each embedded
-   document to its top-K most-similar neighbors (cosine >= threshold) with a
-   distinct `relations.rel_type='similar_to'` edge whose `confidence` is the
-   cosine. Deterministic, LLM-free, dependency-light (pure stdlib +
-   `embeddings.cosine`). Env: `MEMEX_GRAPH_KNN_K` (5), `MEMEX_GRAPH_SIM_THRESHOLD`
-   (0.5). The graph is empty on a fresh Brain, so this seeding step is
-   load-bearing — without it the community layer would be inert.
+1. **Graph population** — `scripts/graph_build.py` connects each document to
+   its top-K most-similar neighbors by a **lexical** similarity (Jaccard over
+   the normalized token-set of the `searchable` text; similarity >= threshold)
+   with a distinct `relations.rel_type='similar_to'` edge whose `confidence` is
+   the similarity score. Deterministic, LLM-free, **key-free**, dependency-light
+   (pure stdlib `re` + set ops — no embedding provider, no API key, works
+   on a Brain with NULL embeddings). Env: `MEMEX_GRAPH_KNN_K` (5),
+   `MEMEX_GRAPH_SIM_THRESHOLD` (0.1 — Jaccard overlap is sparser than embedding
+   cosine, so the default is lower than the old 0.5). The graph is empty on a
+   fresh Brain, so this seeding step is load-bearing — without it the community
+   layer would be inert.
 2. **Hierarchical community detection** — `scripts/communities.py` runs
    pure-stdlib greedy-modularity clustering over the weighted relation graph
    and recurses inside communities above a size cap to produce hierarchical
@@ -63,17 +67,25 @@ Pipeline (`internal/brain/graph-rebuild/SKILL.md` is the operator entry point):
 - `global` — map-reduce over `community_reports` at a level for corpus-wide /
   thematic questions (`brain.global_ask_prepare` / `parse_map_response` /
   `global_ask_reduce_prepare`).
-- `local` — seed by cosine, expand the `relations` neighborhood, attach the
-  seeds' community reports (`brain.local_ask`).
+- `local` — **key-free by default**: seed by FTS5 lexical match
+  (`documents_fts`, no provider), expand the `relations` neighborhood, attach
+  the seeds' community reports (`brain.local_ask`). An embedding cosine seed is
+  an OPTIONAL booster via `with_embedding=True` (off by default); the default
+  path never requires a provider and never raises `EmbeddingUnavailable`.
 
-Deferred (follow-ups, not in v2.7.0): DRIFT search, LLM-confirmed semantic
+The entire GraphRAG path (population → communities → reports → global/local ask)
+runs with **zero embedding provider** — no OpenAI/Voyage key, no
+torch/sentence-transformers. Embeddings remain an optional enhancement for the
+`flat` hybrid ask only.
+
+Deferred (follow-ups, not in v2.8.0): DRIFT search, LLM-confirmed semantic
 relations, a within-document entity layer.
 
 Known limitation (deferred): community detection's recursive balanced-split can,
 on a perfectly uniform dense clique, peel into a deep hierarchy of many tiny
-communities (one report LLM call each). Not a practical risk — real kNN graphs
-are built with out-degree capped at k=5, so they are never uniform cliques. See
-the comment in `scripts/communities.py` near the recursion guard.
+communities (one report LLM call each). Not a practical risk — real lexical kNN
+graphs are built with out-degree capped at k=5, so they are never uniform
+cliques. See the comment in `scripts/communities.py` near the recursion guard.
 
 ## Storage
 
