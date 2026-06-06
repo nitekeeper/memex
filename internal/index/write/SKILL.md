@@ -127,3 +127,21 @@ Skip the subagent when **all** of the following hold:
 For everything else — articles, transcripts, free-form notes, anything where domain or relations need to be extracted from prose — dispatch the subagent.
 
 Whichever path produced the dict, `librarian.write_entry` is the single write surface. The architectural invariant (no bypass of the Index↔store coupling, Data Steward catches orphans) is preserved either way.
+
+## GraphRAG layer staleness (derived artifacts)
+
+The GraphRAG community layer (`relations` `similar_to` edges, `communities`,
+`community_members`, `community_reports`) is DERIVED from `documents` and is
+NOT kept live on the write path — recomputing it would put a similarity scan
++ clustering + an LLM call behind every ingest. A new document written here
+therefore makes the community layer **stale**: the new node is not yet in the
+similarity graph and not yet a member of any community.
+
+Staleness is resolved out-of-band by the operator-run maintenance entry point
+`internal/brain/graph-rebuild/SKILL.md` (build graph -> detect communities ->
+generate the missing reports). Report generation is incremental
+(`community_reporter.stale_community_ids()` returns only report-less
+communities), so a rebuild after a batch of ingests is cheap relative to the
+ingests themselves. `memex:brain:ask` in `flat` mode does not depend on the
+community layer and is always current; `global`/`local` modes read the layer
+as last rebuilt.

@@ -1,7 +1,7 @@
 {
   "name": "memex",
-  "version": "2.6.2",
-  "description": "Memex v2.6.2 — personal knowledge runtime and shared memory plane for the agent fleet. The only Claude-Code-visible skill is memex:run, which routes natural-language intent to internal procedures. This keeps the plugin under Claude Code's 1% skill-description budget while exposing the full Memex surface to agents on demand.",
+  "version": "2.7.0",
+  "description": "Memex v2.7.0 — personal knowledge runtime and shared memory plane for the agent fleet. The only Claude-Code-visible skill is memex:run, which routes natural-language intent to internal procedures. This keeps the plugin under Claude Code's 1% skill-description budget while exposing the full Memex surface to agents on demand.",
   "author": {
     "name": "nitekeeper"
   },

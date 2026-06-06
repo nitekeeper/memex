@@ -1,5 +1,5 @@
 ---
-description: Use to invoke any Memex v2.0 operation. Routes user-facing intents (ingest, ask, capture, lint, synthesize) and agent-facing CRUD primitives to the right internal procedure. The only Claude-Code-visible Memex skill — internal procedures (24 total) are read on demand to stay under the 1% skill-description budget.
+description: Use to invoke any Memex v2.0 operation. Routes user-facing intents (ingest, ask, capture, lint, synthesize) and agent-facing CRUD primitives to the right internal procedure. The only Claude-Code-visible Memex skill — internal procedures (28 total) are read on demand to stay under the 1% skill-description budget.
 ---
 
 Memex v2 is a personal knowledge runtime and shared memory plane for the agent fleet. This skill is the public entry point — it maps natural-language intent (for users) or agent-named operations (for AI consumers) to the right internal procedure under `internal/<category>/<name>/SKILL.md`.
@@ -217,6 +217,9 @@ Brain operations are the daily-use second-brain verbs. The user expresses one of
 | Capture a note / jot a thought / log an observation | `internal/brain/capture/SKILL.md` |
 | Run a Brain health check / lint Brain / audit my knowledge | `internal/brain/lint/SKILL.md` |
 | Synthesize across documents / find the through-line / summarize this topic | `internal/brain/synthesize/SKILL.md` |
+| Ask a thematic / corpus-wide question, or recall about an entity and its neighborhood (GraphRAG global/local) | `internal/brain/ask/SKILL.md` |
+| Summarize a detected knowledge community / write a community report | `internal/brain/community-report/SKILL.md` |
+| Rebuild the knowledge graph + communities + reports (GraphRAG maintenance) | `internal/brain/graph-rebuild/SKILL.md` |
 
 ## v2 Core CRUD routing (agent-facing)
 

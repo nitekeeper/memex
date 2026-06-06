@@ -14,6 +14,56 @@ def test_index_schema_applies_cleanly(tmp_path):
     conn.close()
     assert "documents" in tables
     assert "relations" in tables
+    # v2.7.0 GraphRAG community layer
+    assert "communities" in tables
+    assert "community_members" in tables
+    assert "community_reports" in tables
+
+
+def test_index_schema_community_tables_columns(tmp_path):
+    """v2.7.0: the GraphRAG community layer tables carry the expected columns."""
+    sql = Path("db/index.sql").read_text(encoding="utf-8")
+    db = tmp_path / "index.db"
+    conn = get_connection(str(db))
+    conn.executescript(sql)
+    conn.commit()
+
+    comm_cols = {r["name"] for r in conn.execute("PRAGMA table_info(communities)")}
+    assert {"community_id", "level", "parent", "size", "created_at"} <= comm_cols
+
+    mem_cols = {r["name"] for r in conn.execute("PRAGMA table_info(community_members)")}
+    assert {"community_id", "index_id", "level"} <= mem_cols
+
+    rep_cols = {r["name"]: r["type"] for r in conn.execute("PRAGMA table_info(community_reports)")}
+    assert {
+        "community_id",
+        "level",
+        "title",
+        "summary",
+        "rating",
+        "findings",
+        "embedding",
+        "created_at",
+    } <= set(rep_cols)
+    assert rep_cols["embedding"] == "BLOB"
+    assert rep_cols["rating"] == "REAL"
+    conn.close()
+
+
+def test_index_schema_reapply_is_idempotent(tmp_path):
+    """index.sql is re-entrant: applying it twice (the install additive path)
+    must not raise and must leave the community tables present."""
+    sql = Path("db/index.sql").read_text(encoding="utf-8")
+    db = tmp_path / "index.db"
+    conn = get_connection(str(db))
+    conn.executescript(sql)
+    conn.commit()
+    conn.executescript(sql)  # second apply — must be a no-op
+    conn.commit()
+    tables = {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    conn.close()
+    assert "communities" in tables
+    assert "community_reports" in tables
 
 
 def test_index_schema_has_fts5(tmp_path):

@@ -14,6 +14,53 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.7.0 — 2026-06-06
+
+### Added — GraphRAG knowledge layer
+
+Applies Microsoft GraphRAG's recipe (build a graph → cluster hierarchically →
+summarize bottom-up → answer global via map-reduce / local via neighborhood
+expansion) over the federated Index as **derived** artifacts. Document writes
+still flow through the Librarian (spec §6); the community layer summarizes
+already-indexed documents and is never a document-ingest path.
+
+- **Schema (`db/index.sql`, re-entrant additive).** New tables `communities`,
+  `community_members` (MECE per level), `community_reports` (+ summary
+  embedding). `install.run()` re-applies `index.sql` on existing index.db so
+  the layer lands without a separate migration file.
+- **Graph population (`scripts/graph_build.py`).** Deterministic, LLM-free
+  k-NN over document embeddings → `relations` rows with a distinct
+  `rel_type='similar_to'` (`confidence`=cosine), kept separate from
+  Librarian-authored semantic edges. The relation graph is empty on a fresh
+  Brain, so this seeding step is load-bearing. Env: `MEMEX_GRAPH_KNN_K` (5),
+  `MEMEX_GRAPH_SIM_THRESHOLD` (0.5).
+- **Hierarchical community detection (`scripts/communities.py`).** Pure-stdlib
+  greedy-modularity clustering with a fixed tie-break (deterministic),
+  recursing inside oversized communities for hierarchical levels. No new
+  dependency. Env: `MEMEX_COMMUNITY_SIZE_CAP` (10).
+- **Bottom-up community reports (`scripts/agents/community_reporter.py` +
+  `prompts/community_reporter.md` + `internal/brain/community-report/`).**
+  Option-B subagent flow; one LLM call per community; lazy/incremental;
+  EmbeddingUnavailable-tolerant.
+- **Ask modes (`scripts/brain.py`, `internal/brain/ask/`).** `flat` (default,
+  unchanged), `global` (map-reduce over `community_reports`), `local`
+  (cosine-seed + relation-neighborhood + attached reports).
+- **Maintenance entry point (`internal/brain/graph-rebuild/`).** Operator
+  recipe: build graph → detect communities → generate missing reports.
+
+Deferred (follow-ups): DRIFT search, LLM-confirmed semantic relations, a
+within-document entity layer.
+
+### Migration
+
+Additive, backward-compatible. `install.run()` re-applies the re-entrant
+`db/index.sql` to materialize the new tables on existing installs; no data
+migration. `memex:run ask` defaults to `flat` mode — existing behavior is
+unchanged. New `relations.rel_type='similar_to'` edges and all community
+tables are rebuildable at any time via `memex:brain:graph-rebuild`.
+
+---
+
 ## v2.6.2 — 2026-06-02
 
 ### Fixed

@@ -36,6 +36,50 @@ CREATE TABLE IF NOT EXISTS relations (
 
 CREATE INDEX IF NOT EXISTS relations_to_idx ON relations(to_index_id);
 
+-- ── GraphRAG community layer (v2.7.0) ─────────────────────────────────────
+-- DERIVED index artifacts maintained by the graph/community maintenance path
+-- (scripts/graph_build.py + scripts/communities.py + the community-report
+-- flow). These are NOT a document-ingest bypass: document writes still go
+-- through the Librarian (spec §6). The tables below are rebuilt from
+-- `documents` + `relations` and carry no authoritative content of their own.
+
+CREATE TABLE IF NOT EXISTS communities (
+    community_id  TEXT PRIMARY KEY,
+    level         INTEGER NOT NULL,
+    parent        TEXT,                    -- parent community_id (NULL at top level)
+    size          INTEGER,                 -- member count at this community's level
+    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS communities_level_idx  ON communities(level);
+CREATE INDEX IF NOT EXISTS communities_parent_idx ON communities(parent);
+
+-- MECE per level: a given index_id appears at most once per level. The PK
+-- (community_id, index_id) plus the per-level partitioning enforced by the
+-- detector keeps membership mutually exclusive within a level.
+CREATE TABLE IF NOT EXISTS community_members (
+    community_id  TEXT NOT NULL,
+    index_id      TEXT NOT NULL REFERENCES documents(index_id),
+    level         INTEGER NOT NULL,
+    PRIMARY KEY (community_id, index_id)
+);
+
+CREATE INDEX IF NOT EXISTS community_members_index_idx ON community_members(index_id);
+CREATE INDEX IF NOT EXISTS community_members_level_idx ON community_members(level);
+
+CREATE TABLE IF NOT EXISTS community_reports (
+    community_id  TEXT PRIMARY KEY,
+    level         INTEGER,
+    title         TEXT,
+    summary       TEXT,
+    rating        REAL,                    -- 0-10 importance/impact rating
+    findings      TEXT,                    -- JSON array of {summary, explanation}
+    embedding     BLOB,                    -- float32 BLOB of the report summary
+    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS community_reports_level_idx ON community_reports(level);
+
 -- FTS5 over documents.searchable. Manual sync via triggers below.
 CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
     searchable, content='documents', content_rowid='rowid'

@@ -12,8 +12,63 @@ The user wants to find or recall information across their Brain. Replaces v1's w
 ## Inputs
 
 - `query` — natural-language question (string)
+- `mode` — `flat` (default), `global`, or `local` (see "Ask modes" below)
 
-## Recipe (Option-B Task-tool dispatch)
+## Ask modes (GraphRAG)
+
+`memex:brain:ask` answers in one of three modes. **`flat` is the default and
+its behavior is unchanged** — pick `global`/`local` only when the GraphRAG
+community layer has been built (`internal/brain/graph-rebuild/SKILL.md`).
+
+| Mode | Use when | How it answers |
+|---|---|---|
+| `flat` (default) | A specific lookup/recall | Reference Librarian query plan -> FTS5 + vector cosine over `documents` (Steps 1-5 below). |
+| `global` | A corpus-wide / thematic question ("what are the main themes in my Brain?") | Map-reduce over `community_reports` at a level: MAP each report -> scored partial answer (drop zeros), REDUCE sort-desc + budget-fill -> final answer. |
+| `local` | An entity/neighborhood question ("what do I know about X and what's near it?") | Seed top docs by cosine, expand the `relations` neighborhood, attach the seeds' community reports, answer over the assembled context. |
+
+Both `global` and `local` depend on the derived layer; if it is empty, run
+`internal/brain/graph-rebuild/SKILL.md` first. `global` reports `no_reports` /
+`no_signal` and `local` returns empty seeds when the layer/embeddings are
+absent — degraded, not an error.
+
+### Global mode recipe (map-reduce over community reports)
+
+```python
+from scripts import brain
+prep = brain.global_ask_prepare(query, level=0)
+if prep["status"] == "no_reports":
+    # report "no community reports at level 0 — run graph-rebuild" and STOP
+    ...
+# MAP: dispatch one general-purpose subagent per unit; parse each:
+scored = []
+for unit in prep["map_units"]:
+    # Task tool: prompt = unit["map_prompt"]; capture <map_response>
+    m = brain.parse_map_response(map_response)
+    scored.append({"community_id": unit["community_id"], **m})
+# REDUCE: drop zeros, sort desc, budget-fill -> reduce prompt
+red = brain.global_ask_reduce_prepare(query, scored)
+if red["status"] == "no_signal":
+    # report "no community is relevant to <query>" and STOP
+    ...
+# Task tool: prompt = red["reduce_prompt"]; the response is the final answer.
+```
+
+### Local mode recipe (neighborhood expansion)
+
+```python
+from scripts import brain, embeddings
+try:
+    ctx = brain.local_ask(query, with_embedding=True)
+except embeddings.EmbeddingUnavailable as e:
+    embeddings.log_skip(e, caller_agent_id="reference-librarian-1")
+    ctx = brain.local_ask(query, with_embedding=False)
+# ctx = {seeds, neighborhood, documents:[{index_id, searchable}],
+#        community_reports:[{community_id, title, summary}]}
+# Assemble documents + community_reports into a single answering prompt and
+# dispatch ONE general-purpose subagent to answer the question over them.
+```
+
+## Recipe (Option-B Task-tool dispatch) — flat mode
 
 The Reference Librarian is a Claude Code subagent dispatched via the Task tool. Its job is to translate the user's question into a structured query plan; Python executes the plan.
 

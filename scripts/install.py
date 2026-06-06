@@ -192,6 +192,11 @@ def run() -> None:
             conn.close()
         else:
             _migrate_index_db_to_unique_key(str(index_db_path))
+            # Re-apply index.sql so additive `CREATE TABLE/INDEX IF NOT EXISTS`
+            # statements (e.g. the v2.7.0 GraphRAG community layer) land on
+            # pre-existing index.db installs. index.sql is re-entrant by
+            # construction; existing tables/triggers are untouched.
+            _apply_index_schema_additive(str(index_db_path))
         if registry.get_store("index") is None:
             registry.register_store("index", str(index_db_path), schema_version="v1")
 
@@ -239,6 +244,22 @@ def _migrate_index_db_to_unique_key(index_db_path: str) -> None:
             )
         conn.execute("DROP INDEX IF EXISTS documents_key_idx")
         conn.execute("CREATE UNIQUE INDEX documents_key_unique_idx ON documents(key)")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _apply_index_schema_additive(index_db_path: str) -> None:
+    """Re-run db/index.sql against an existing index.db.
+
+    index.sql is composed exclusively of re-entrant statements
+    (`CREATE TABLE/INDEX/TRIGGER/VIRTUAL TABLE IF NOT EXISTS`), so re-applying
+    it on an already-provisioned store is a no-op for pre-existing objects and
+    materializes any objects added since that store was created (e.g. the
+    v2.7.0 GraphRAG community layer). Idempotent."""
+    conn = get_connection(index_db_path)
+    try:
+        conn.executescript((DB_DIR / "index.sql").read_text(encoding="utf-8"))
         conn.commit()
     finally:
         conn.close()

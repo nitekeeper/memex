@@ -109,6 +109,32 @@ def test_brain_skills_frontmatter():
         assert f"name: memex:brain:{s}" in content
 
 
+# GraphRAG community layer (v2.7.0): these live under internal/brain/ but use
+# hyphenated directory names, so they need their own list rather than the
+# BRAIN_SKILLS frontmatter-name convention check.
+GRAPHRAG_BRAIN_SKILLS = ["community-report", "graph-rebuild"]
+
+
+def test_graphrag_brain_skills_present():
+    for s in GRAPHRAG_BRAIN_SKILLS:
+        p = Path(f"internal/brain/{s}/SKILL.md")
+        assert p.exists(), f"Missing: brain/{s}"
+
+
+def test_graphrag_brain_skills_frontmatter():
+    for s in GRAPHRAG_BRAIN_SKILLS:
+        content = Path(f"internal/brain/{s}/SKILL.md").read_text(encoding="utf-8")
+        assert f"name: memex:brain:{s}" in content
+
+
+def test_run_skill_routes_to_graphrag_brain_skills():
+    run_content = Path("skills/run/SKILL.md").read_text(encoding="utf-8")
+    for s in GRAPHRAG_BRAIN_SKILLS:
+        assert f"internal/brain/{s}/SKILL.md" in run_content, (
+            f"memex:run missing routing entry for internal/brain/{s}"
+        )
+
+
 EMBED_SKILLS = ["backfill", "reembed"]
 
 

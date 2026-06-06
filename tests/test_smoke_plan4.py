@@ -45,7 +45,7 @@ def test_release_bundle_builds(tmp_path):
     assert (out / "INSTALL.md").exists()
     # Top-level skills/ holds the memex:run registration entry.
     assert (out / "skills" / "run" / "SKILL.md").exists()
-    # The 24 procedures live under internal/<category>/ (spec §8.0).
+    # The internal procedures live under internal/<category>/ (spec §8.0).
     assert (out / "internal" / "core").is_dir()
     assert (out / "internal" / "index").is_dir()
     assert (out / "internal" / "brain").is_dir()
