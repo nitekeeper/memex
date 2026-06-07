@@ -288,10 +288,22 @@ def _apply_code_graph_schema_additive(code_graph_db_path: str) -> None:
     code_graph.sql is composed exclusively of re-entrant statements
     (`CREATE TABLE/INDEX IF NOT EXISTS`), so re-applying it on an already-
     provisioned store is a no-op for pre-existing objects and materializes any
-    objects added since that store was created. Idempotent."""
+    objects added since that store was created.
+
+    `CREATE TABLE IF NOT EXISTS` does NOT add a column to an already-existing
+    `nodes` table, so a pre-2.10 code_graph.db (which the real store already is,
+    holding atelier+kaizen+memex rows) would miss the v2.10.0 `has_docstring`
+    column. We close that gap with a GUARDED `ALTER TABLE ADD COLUMN`: read
+    `PRAGMA table_info(nodes)` and only add the column when it is absent. The
+    pragma is re-checked on every call, so this is idempotent and safe to
+    re-run. Adding a NULLABLE column with no default is a no-op for existing
+    rows (they read NULL = "extractor did not report"). Idempotent."""
     conn = get_connection(code_graph_db_path)
     try:
         conn.executescript((DB_DIR / "code_graph.sql").read_text(encoding="utf-8"))
+        node_cols = {r["name"] for r in conn.execute("PRAGMA table_info(nodes)")}
+        if "has_docstring" not in node_cols:
+            conn.execute("ALTER TABLE nodes ADD COLUMN has_docstring INTEGER")
         conn.commit()
     finally:
         conn.close()

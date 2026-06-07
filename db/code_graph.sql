@@ -32,6 +32,18 @@ CREATE TABLE IF NOT EXISTS repos (
     schema_version  INTEGER NOT NULL DEFAULT 1
 );
 
+-- Docstring presence / extractor boundary (memex stays EXTRACTOR-EXTERNAL):
+-- `has_docstring` is a PURE PASSTHROUGH of whatever the external extractor
+-- (graphify) emits per node — memex does NO source/AST parsing to derive it.
+-- graphify does NOT emit `has_docstring` today, so the column is NULL on every
+-- current ingest; it is forward-compatible storage for WHEN graphify starts
+-- reporting it. Semantics: 1 = extractor reported a docstring present, 0 =
+-- extractor reported NO docstring, NULL = "extractor did not report" (i.e.
+-- UNKNOWN — NOT "no docstring"). Do NOT treat `rationale_for` edges as a
+-- docstring proxy: those are COMMENT-derived (# NOTE / # WHY) and body-line-
+-- keyed (not the def line), so using them as a docstring signal causes false
+-- positives (observed in a real run). Docstring presence is available ONLY via
+-- this column, and ONLY once the extractor emits it.
 CREATE TABLE IF NOT EXISTS nodes (
     repo            TEXT NOT NULL,
     id              TEXT NOT NULL,           -- graphify content-derived stable id (verbatim)
@@ -39,6 +51,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     file_type       TEXT,
     source_file     TEXT,
     source_location TEXT,
+    has_docstring   INTEGER,                 -- extractor passthrough: 1/0/NULL (NULL = not reported)
     PRIMARY KEY (repo, id),
     FOREIGN KEY (repo) REFERENCES repos(repo) ON DELETE CASCADE
 );

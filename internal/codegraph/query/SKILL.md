@@ -57,6 +57,26 @@ code_graph.module_map("owner/repo", "src/foo.py")
 3. `neighbors(repo, id, depth=1)` → the immediate cluster to read.
 4. `module_map(repo, file)` → orient inside a single file before editing.
 
+## Docstring presence / limitations
+
+memex stays **EXTRACTOR-EXTERNAL** — it does NO source/AST parsing to derive
+docstrings. There is no "find undocumented symbols" query, and you must NOT
+synthesize one.
+
+- **Only signal: the `has_docstring` node attribute.** Returned node rows carry
+  `has_docstring` (from `where_is`, `module_map`, `neighbors`, and the node-row
+  results of `callers` / `dependencies`). The key is always present; its value is
+  `1` (extractor reported a docstring), `0` (extractor reported none), or `None`
+  (extractor did not report — **UNKNOWN, not "no docstring"**).
+- **graphify does not emit it today**, so in practice every value is `None` until
+  the external extractor starts reporting docstring presence. Do not infer
+  "undocumented" from `None`.
+- **`rationale_for` edges are NOT a docstring proxy.** That relation is
+  COMMENT-derived (`# NOTE` / `# WHY`) and body-line-keyed (it points at a body
+  line, not the def line), so using it as a docstring signal produces false
+  positives — this happened in a real run. Treat `rationale_for` as inline-
+  comment provenance only, never as documentation coverage.
+
 ## Notes
 
 - All values are parameterized; table names are fixed → no dynamic identifiers,

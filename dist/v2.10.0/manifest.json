@@ -1,22 +1,22 @@
 {
-  "version": "2.9.0",
-  "built_at": "2026-06-07T01:56:54.660220+00:00",
+  "version": "2.10.0",
+  "built_at": "2026-06-07T05:23:57.750549+00:00",
   "file_count": 74,
   "files": [
     {
       "path": ".claude-plugin/plugin.json",
-      "sha256": "cdf4bf29863b10ca0bfd57e8fdaa1035597ba8f44c870c92b0167ff9ce285bab",
-      "bytes": 689
+      "sha256": "441564ba8b72c0f446e6421583ce3f949e05bb059edb30ce91295cbb5b03595e",
+      "bytes": 691
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "bdc2e7f53f3bbdbdacdb211703759557ce44324fd7f1c09061165cf484fa2929",
-      "bytes": 27683
+      "sha256": "90945bb5d48093844a0704e2b898a331a1ce447d122a94dde2cf8d28f4a11a73",
+      "bytes": 30003
     },
     {
       "path": "INSTALL.md",
-      "sha256": "c7196bfd9cf702217d19d68831dd55b385fd70ee40b2ddd8168ed6ca151322c9",
-      "bytes": 3014
+      "sha256": "db781e533950b0493e55a1d514be97b053327b8fff959d9760ca2bb3e7c24001",
+      "bytes": 3015
     },
     {
       "path": "README.md",
@@ -45,8 +45,8 @@
     },
     {
       "path": "db/code_graph.sql",
-      "sha256": "2049c083bd03c52ae43c96616822267e132a641d370c2b8a0959ebc0a8d3d5c0",
-      "bytes": 3419
+      "sha256": "cb4f27052bc17c2070b08e11c9b97baba23beeeb0d9b2e7a9a5b4f8954ce6798",
+      "bytes": 4429
     },
     {
       "path": "db/index.sql",
@@ -95,13 +95,13 @@
     },
     {
       "path": "internal/codegraph/ingest/SKILL.md",
-      "sha256": "b027c589f52c87fcbcc8f9bcf73d410d351bb0e8259be749e696a2dd2d3a9192",
-      "bytes": 4103
+      "sha256": "8d23eea912bbd34b3cb77890e6af438fd3dd5b1b6437cc1c871107684596e02c",
+      "bytes": 5200
     },
     {
       "path": "internal/codegraph/query/SKILL.md",
-      "sha256": "8f7c376de36a99f782db7cb7a6e35dfcf8fe58f4481aad52f428f3dbf16ff749",
-      "bytes": 3054
+      "sha256": "f389b8436610b58ac853cbf321ba2d4ecf33ec6c49afe587ac21427813c0117e",
+      "bytes": 4206
     },
     {
       "path": "internal/core/create-store/SKILL.md",
@@ -240,8 +240,8 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "0c0bc36de1d4a75d4f8645914f1f6d7586514b61d8659db7b6e255e7888cc123",
-      "bytes": 2714
+      "sha256": "7b4fba61a00b82e293d071d4ed3e42059143179390a78104a30f7449a508fa26",
+      "bytes": 2715
     },
     {
       "path": "scripts/__init__.py",
@@ -300,8 +300,8 @@
     },
     {
       "path": "scripts/code_graph.py",
-      "sha256": "3479b75783062e7f24761969c52bfe4f76117460314960ab6d3dc592bb103fd5",
-      "bytes": 27929
+      "sha256": "fb7576735c46ad794483b1a0695d53a261d7efe73c2e1fe49d7966b9e91e7ee7",
+      "bytes": 31218
     },
     {
       "path": "scripts/communities.py",
@@ -325,8 +325,8 @@
     },
     {
       "path": "scripts/install.py",
-      "sha256": "ca57e91c7e2174184b1ce228f440875d87bfc181e9767adf9ca2804d4529e37d",
-      "bytes": 15637
+      "sha256": "cfc287c89c68d1ca3a0bfbdf047570f63bfc5817d35b6622f4c420f56244701e",
+      "bytes": 16442
     },
     {
       "path": "scripts/onboarding.py",

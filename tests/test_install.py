@@ -108,6 +108,60 @@ def test_install_code_graph_schema_present_and_reapply_idempotent(tmp_memex_home
     assert {"repos", "nodes", "edges"} <= tables
 
 
+def test_install_adds_has_docstring_to_pre_2_10_nodes_table(tmp_memex_home):
+    """A pre-2.10 code_graph.db has a `nodes` table WITHOUT `has_docstring`
+    (CREATE TABLE IF NOT EXISTS will not add a column to an existing table).
+    The install additive path must add it via a guarded ALTER, and re-running
+    must not error (idempotent guarded ALTER)."""
+    from scripts.db import get_connection
+
+    code_graph_db = memex_home() / "code_graph.db"
+    code_graph_db.parent.mkdir(parents=True, exist_ok=True)
+    # Stand up a "pre-2.10" nodes table lacking has_docstring.
+    conn = get_connection(str(code_graph_db))
+    conn.executescript(
+        """
+        CREATE TABLE repos (
+            repo TEXT PRIMARY KEY, built_at_commit TEXT,
+            needs_update INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL,
+            schema_version INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE TABLE nodes (
+            repo TEXT NOT NULL, id TEXT NOT NULL, label TEXT, file_type TEXT,
+            source_file TEXT, source_location TEXT,
+            PRIMARY KEY (repo, id),
+            FOREIGN KEY (repo) REFERENCES repos(repo) ON DELETE CASCADE
+        );
+        """
+    )
+    conn.execute(
+        "INSERT INTO repos (repo, updated_at) VALUES (?, ?)",
+        ("o/r", "2026-01-01T00:00:00+00:00"),
+    )
+    conn.execute("INSERT INTO nodes (repo, id, label) VALUES (?, ?, ?)", ("o/r", "n1", "f"))
+    conn.commit()
+    cols_before = {r["name"] for r in conn.execute("PRAGMA table_info(nodes)")}
+    conn.close()
+    assert "has_docstring" not in cols_before
+
+    install.run()  # additive path: guarded ALTER adds the column
+    conn = get_connection(str(code_graph_db))
+    cols_after = {r["name"] for r in conn.execute("PRAGMA table_info(nodes)")}
+    # No data loss: the pre-existing row survives, reads NULL for the new column.
+    row = conn.execute("SELECT id, has_docstring FROM nodes WHERE repo = ?", ("o/r",)).fetchone()
+    conn.close()
+    assert "has_docstring" in cols_after
+    assert row["id"] == "n1"
+    assert row["has_docstring"] is None
+
+    install.run()  # re-run: guarded ALTER re-checks pragma, no error / no dup column
+    conn = get_connection(str(code_graph_db))
+    cols_again = {r["name"] for r in conn.execute("PRAGMA table_info(nodes)")}
+    n_has_doc = sum(1 for c in cols_again if c == "has_docstring")
+    conn.close()
+    assert n_has_doc == 1
+
+
 def test_install_migrates_existing_index_db_to_unique_key(tmp_memex_home):
     """Spec §6.4: re-running install on a pre-existing index.db that was
     created before UNIQUE(key) landed must upgrade in place — drop the old

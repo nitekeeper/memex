@@ -93,6 +93,24 @@ PATH. memex itself imports nothing from graphify.
 - `MemexNotInitializedError` / unwritable home → re-invoke `memex:run`; Step 0
   bootstraps `~/.memex/` (including `code_graph.db`).
 
+## Docstring presence (`has_docstring` passthrough)
+
+The `nodes` table carries a forward-compatible, NULLABLE `has_docstring` column.
+memex stays **EXTRACTOR-EXTERNAL**: ingest does NO source/AST parsing — it only
+**passes through** a node's `has_docstring` value WHEN graphify provides one.
+
+- graphify does **NOT** emit `has_docstring` today, so the key is absent on every
+  current graph and the column is stored as **NULL**. NULL means "extractor did
+  not report" (UNKNOWN), **NOT** "no docstring". Re-ingesting today's graphs
+  therefore preserves EXACT prior behavior (counts + idempotency unchanged).
+- When graphify starts emitting it, ingest coerces the value: missing / `None` →
+  NULL; explicit `0` / `False` → `0`; any other truthy value → `1`. The upsert
+  updates `has_docstring` on conflict, so re-ingest stays idempotent (identical
+  counts AND identical values).
+- Do NOT use `rationale_for` edges as a docstring proxy — they are comment-
+  derived (`# NOTE` / `# WHY`) and body-line-keyed, not docstrings (see the query
+  SKILL's "Docstring presence / limitations").
+
 ## Notes
 
 - `code_graph.db` is a SEPARATE store from `index.db`; it holds no authoritative

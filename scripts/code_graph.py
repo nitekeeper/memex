@@ -60,6 +60,22 @@ OPTIONAL convenience
 ``extract_and_ingest`` shells out to ``graphify`` via subprocess for callers who
 want a one-step path. It degrades gracefully (clear error, no crash) if graphify
 is not on PATH and is NOT exercised by any test.
+
+Docstring presence / limitations
+--------------------------------
+memex stays EXTRACTOR-EXTERNAL: it does NO source/AST parsing to derive
+docstrings. Docstring presence is available ONLY via the optional
+``has_docstring`` node attribute, and ONLY when the external extractor (graphify)
+emits it. graphify does NOT emit ``has_docstring`` today, so the stored value is
+NULL on every current ingest — NULL means "extractor did not report" (UNKNOWN),
+NOT "no docstring". When the extractor starts reporting it: 1 = docstring
+present, 0 = no docstring. The query layer surfaces ``has_docstring`` on returned
+node rows (always present as a key; ``None`` when NULL). The ``rationale_for``
+edge relation is NOT a docstring proxy: those edges are COMMENT-derived
+(``# NOTE`` / ``# WHY``) and body-line-keyed (not the def line), so treating them
+as a docstring signal causes false positives (observed in a real run). There is
+deliberately NO "find undocumented" query keyed on NULL, because NULL is unknown,
+not absent.
 """
 
 from __future__ import annotations
@@ -154,17 +170,36 @@ def _node_source_file(node: dict) -> str | None:
     return node.get("source_file")
 
 
+def _coerce_has_docstring(node: dict) -> int | None:
+    """Coerce a graphify node's optional ``has_docstring`` to 1 / 0 / NULL.
+
+    memex stays EXTRACTOR-EXTERNAL: this is a pure passthrough of whatever the
+    external extractor reports, never derived from source. graphify does NOT
+    emit ``has_docstring`` today, so the key is absent and this returns None
+    (stored as NULL = "extractor did not report" — UNKNOWN, NOT "no docstring").
+    When present: a missing key or an explicit ``None`` → NULL; an explicit
+    ``0`` / ``False`` → 0; any other truthy value → 1. The absent-key case
+    returns NULL so re-ingesting today's graphs preserves EXACT prior behavior.
+    """
+    value = node.get("has_docstring")
+    if value is None:
+        return None
+    return 1 if value else 0
+
+
 def _edge_source_file(edge: dict) -> str | None:
     return edge.get("source_file")
 
 
 def _upsert_node(conn, repo: str, node: dict) -> None:
     conn.execute(
-        "INSERT INTO nodes (repo, id, label, file_type, source_file, source_location) "
-        "VALUES (?, ?, ?, ?, ?, ?) "
+        "INSERT INTO nodes (repo, id, label, file_type, source_file, source_location, "
+        "has_docstring) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?) "
         "ON CONFLICT(repo, id) DO UPDATE SET "
         "label=excluded.label, file_type=excluded.file_type, "
-        "source_file=excluded.source_file, source_location=excluded.source_location",
+        "source_file=excluded.source_file, source_location=excluded.source_location, "
+        "has_docstring=excluded.has_docstring",
         (
             repo,
             node["id"],
@@ -172,6 +207,7 @@ def _upsert_node(conn, repo: str, node: dict) -> None:
             node.get("file_type"),
             node.get("source_file"),
             node.get("source_location"),
+            _coerce_has_docstring(node),
         ),
     )
 
@@ -425,15 +461,16 @@ def repo_status(repo: str) -> dict | None:
 def where_is(repo: str, name: str) -> list[dict]:
     """Locate nodes whose label matches ``name`` (exact first, then substring).
 
-    Returns id/label/source_file/source_location dicts. Deterministic order:
-    exact-match rank, then label, then id.
+    Returns id/label/source_file/source_location/has_docstring dicts.
+    Deterministic order: exact-match rank, then label, then id. ``has_docstring``
+    is the extractor passthrough (``None`` when the extractor did not report it).
     """
     conn = _connect()
     try:
         _ensure_schema(conn)
         like = f"%{name}%"
         rows = conn.execute(
-            "SELECT id, label, source_file, source_location, "
+            "SELECT id, label, source_file, source_location, has_docstring, "
             "  CASE WHEN label = ? THEN 0 ELSE 1 END AS rank "
             "FROM nodes WHERE repo = ? AND (label = ? OR label LIKE ?) "
             "ORDER BY rank, label, id",
@@ -445,6 +482,7 @@ def where_is(repo: str, name: str) -> list[dict]:
                 "label": r["label"],
                 "source_file": r["source_file"],
                 "source_location": r["source_location"],
+                "has_docstring": r["has_docstring"],
             }
             for r in rows
         ]
@@ -462,7 +500,8 @@ def callers(repo: str, node_id: str) -> list[dict]:
         _ensure_schema(conn)
         rows = conn.execute(
             "SELECT e.source AS id, n.label AS label, n.source_file AS source_file, "
-            "n.source_location AS source_location, e.relation AS relation "
+            "n.source_location AS source_location, n.has_docstring AS has_docstring, "
+            "e.relation AS relation "
             "FROM edges e LEFT JOIN nodes n ON n.repo = e.repo AND n.id = e.source "
             "WHERE e.repo = ? AND e.target = ? AND e.relation = ? "
             "ORDER BY e.source",
@@ -485,7 +524,8 @@ def dependencies(repo: str, node_id: str) -> list[dict]:
         # nosec B608 - placeholders are '?' literals; all values parameterized.
         rows = conn.execute(
             "SELECT e.target AS id, n.label AS label, n.source_file AS source_file, "
-            "n.source_location AS source_location, e.relation AS relation "
+            "n.source_location AS source_location, n.has_docstring AS has_docstring, "
+            "e.relation AS relation "
             "FROM edges e LEFT JOIN nodes n ON n.repo = e.repo AND n.id = e.target "
             f"WHERE e.repo = ? AND e.source = ? AND e.relation IN ({placeholders}) "  # nosec B608
             "ORDER BY e.relation, e.target",
@@ -572,7 +612,7 @@ def neighbors(
         node_rows = []
         for nid in sorted(visited):
             r = conn.execute(
-                "SELECT id, label, source_file, source_location FROM nodes "
+                "SELECT id, label, source_file, source_location, has_docstring FROM nodes "
                 "WHERE repo = ? AND id = ?",
                 (repo, nid),
             ).fetchone()
@@ -581,7 +621,13 @@ def neighbors(
             else:
                 # A neighbor reachable via a (still-dangling) edge; surface the id.
                 node_rows.append(
-                    {"id": nid, "label": None, "source_file": None, "source_location": None}
+                    {
+                        "id": nid,
+                        "label": None,
+                        "source_file": None,
+                        "source_location": None,
+                        "has_docstring": None,
+                    }
                 )
         edges_out.sort(key=lambda e: (e["source"], e["target"], e["relation"]))
         return {
@@ -606,7 +652,7 @@ def module_map(repo: str, source_file: str | None) -> dict:
     try:
         _ensure_schema(conn)
         node_rows = conn.execute(
-            "SELECT id, label, file_type, source_file, source_location FROM nodes "
+            "SELECT id, label, file_type, source_file, source_location, has_docstring FROM nodes "
             "WHERE repo = ? AND source_file IS ? ORDER BY id",
             (repo, source_file),
         ).fetchall()

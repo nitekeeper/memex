@@ -14,6 +14,44 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.10.0 — 2026-06-07
+
+### Added — code_graph docstring-presence signal (memex#34)
+
+memex stays **EXTRACTOR-EXTERNAL** — it does NO source/AST parsing to derive
+docstrings. This release adds forward-compatible storage + documents the
+limitation; it does not (and must not) compute docstring presence itself.
+
+- **Schema (`db/code_graph.sql`).** Added a NULLABLE `has_docstring INTEGER`
+  column to the `nodes` table (values `1` / `0` / NULL). Fresh installs get it
+  via the CREATE.
+- **Additive migration (`scripts/install.py`).** `CREATE TABLE IF NOT EXISTS`
+  cannot add a column to an existing `nodes` table, so the code_graph
+  additive-reapply path now runs a GUARDED `ALTER TABLE nodes ADD COLUMN
+  has_docstring INTEGER` — it reads `PRAGMA table_info(nodes)` and only adds the
+  column when absent, re-checking on every call (idempotent, no data loss on
+  re-run). Pre-2.10 stores (the real one already holds atelier+kaizen+memex
+  rows) migrate in place; existing rows read NULL.
+- **Ingest passthrough (`scripts/code_graph.py`).** `ingest_graph` /
+  `ingest_fragment` now pass through each graphify node's optional
+  `has_docstring`: missing / `None` → NULL, explicit `0` / `False` → `0`, any
+  other truthy → `1`. graphify does NOT emit it today, so re-ingesting current
+  graphs stores NULL everywhere and preserves EXACT prior behavior (counts +
+  the run-66 idempotency guarantee unchanged; the upsert updates `has_docstring`
+  on conflict so values stay stable across re-ingest).
+- **Query inclusion.** `where_is`, `module_map`, `neighbors`, and the node-row
+  results of `callers` / `dependencies` now surface `has_docstring` on returned
+  rows. Convention: the key is ALWAYS present; its value is `None` when NULL.
+- **Documented limitation.** NULL means "extractor did not report" (UNKNOWN),
+  NOT "no docstring" — so there is deliberately NO "find undocumented" query.
+  The `rationale_for` edge relation is NOT a docstring proxy (it is
+  comment-derived `# NOTE` / `# WHY`, body-line-keyed, not the def line — using
+  it as one caused false positives in a real run). Caveats added to
+  `internal/codegraph/query/SKILL.md`, `internal/codegraph/ingest/SKILL.md`,
+  `db/code_graph.sql`, and the `scripts/code_graph.py` module docstring.
+
+---
+
 ## v2.9.0 — 2026-06-07
 
 ### Added — Code-navigation graph store

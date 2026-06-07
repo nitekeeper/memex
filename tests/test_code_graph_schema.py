@@ -39,7 +39,15 @@ def test_repos_columns(conn):
 def test_nodes_columns(conn):
     _apply(conn)
     cols = _table_columns(conn, "nodes")
-    assert cols == {"repo", "id", "label", "file_type", "source_file", "source_location"}
+    assert cols == {
+        "repo",
+        "id",
+        "label",
+        "file_type",
+        "source_file",
+        "source_location",
+        "has_docstring",
+    }
 
 
 def test_edges_columns(conn):

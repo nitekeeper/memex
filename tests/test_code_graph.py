@@ -331,6 +331,112 @@ def test_multi_repo_isolation(bootstrapped_home):
     assert code_graph.where_is(REPO, "bar_util") == []
 
 
+def test_has_docstring_passthrough_stores_1_0_and_null(bootstrapped_home):
+    """`has_docstring` is a pure extractor passthrough: explicit 1/0 stored as
+    1/0, an absent key stored as NULL (memex never derives it from source)."""
+    g = {
+        "nodes": [
+            {"id": "a:has_doc", "label": "has_doc", "source_file": "a.py", "has_docstring": 1},
+            {"id": "a:no_doc", "label": "no_doc", "source_file": "a.py", "has_docstring": 0},
+            # No has_docstring key at all -> NULL (today's graphify output shape).
+            {"id": "a:unknown", "label": "unknown", "source_file": "a.py"},
+            # Explicit None -> NULL.
+            {
+                "id": "a:explicit_none",
+                "label": "enone",
+                "source_file": "a.py",
+                "has_docstring": None,
+            },
+        ],
+        "links": [],
+    }
+    code_graph.ingest_graph(REPO, g)
+    conn = code_graph._connect()
+    try:
+        rows = {
+            r["id"]: r["has_docstring"]
+            for r in conn.execute(
+                "SELECT id, has_docstring FROM nodes WHERE repo = ? ORDER BY id", (REPO,)
+            )
+        }
+    finally:
+        conn.close()
+    assert rows["a:has_doc"] == 1
+    assert rows["a:no_doc"] == 0
+    assert rows["a:unknown"] is None
+    assert rows["a:explicit_none"] is None
+
+
+def test_has_docstring_absent_key_preserves_existing_behavior(bootstrapped_home):
+    """Today's graphify graphs carry no has_docstring key; ingest must store NULL
+    for every node and re-ingest must keep counts AND values identical (the
+    run-66 anti-duplicate-edge / idempotency guarantee must not regress)."""
+    s1 = code_graph.ingest_graph(REPO, _graph())
+    s2 = code_graph.ingest_graph(REPO, _graph())
+    assert s1["nodes"] == s2["nodes"] == 3
+    assert s1["edges"] == s2["edges"] == 3
+    conn = code_graph._connect()
+    try:
+        vals = [
+            r["has_docstring"]
+            for r in conn.execute("SELECT has_docstring FROM nodes WHERE repo = ?", (REPO,))
+        ]
+    finally:
+        conn.close()
+    # The fixture graph has no has_docstring key -> all NULL, unchanged on re-ingest.
+    assert vals == [None, None, None]
+
+
+def test_query_rows_include_has_docstring(bootstrapped_home):
+    """where_is / module_map / neighbors / callers / dependencies surface
+    has_docstring on node rows (always present as a key; None when NULL)."""
+    g = {
+        "nodes": [
+            {
+                "id": "foo:foo_main",
+                "label": "foo_main",
+                "source_file": "foo.py",
+                "source_location": "foo.py:1",
+                "has_docstring": 1,
+            },
+            {
+                "id": "bar:bar_util",
+                "label": "bar_util",
+                "source_file": "bar.py",
+                "source_location": "bar.py:1",
+                # no has_docstring -> NULL
+            },
+        ],
+        "links": [
+            {"source": "foo:foo_main", "target": "bar:bar_util", "relation": "calls"},
+        ],
+    }
+    code_graph.ingest_graph(REPO, g)
+
+    # where_is: documented node carries 1; undocumented carries None (key present).
+    documented = code_graph.where_is(REPO, "foo_main")[0]
+    assert documented["has_docstring"] == 1
+    unknown = code_graph.where_is(REPO, "bar_util")[0]
+    assert "has_docstring" in unknown
+    assert unknown["has_docstring"] is None
+
+    # module_map node rows carry it.
+    m = code_graph.module_map(REPO, "foo.py")
+    assert m["nodes"][0]["has_docstring"] == 1
+
+    # neighbors node rows carry it.
+    res = code_graph.neighbors(REPO, "foo:foo_main", depth=1)
+    by_id = {n["id"]: n for n in res["nodes"]}
+    assert by_id["foo:foo_main"]["has_docstring"] == 1
+    assert by_id["bar:bar_util"]["has_docstring"] is None
+
+    # callers / dependencies node rows carry it.
+    callers = code_graph.callers(REPO, "bar:bar_util")
+    assert callers[0]["has_docstring"] == 1  # foo_main is documented
+    deps = code_graph.dependencies(REPO, "foo:foo_main")
+    assert deps[0]["has_docstring"] is None  # bar_util target is unknown
+
+
 def test_repo_status_and_needs_update(bootstrapped_home):
     code_graph.ingest_graph(REPO, _graph(), built_at_commit="abc123")
     status = code_graph.repo_status(REPO)
