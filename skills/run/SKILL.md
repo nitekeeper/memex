@@ -1,5 +1,5 @@
 ---
-description: Use to invoke any Memex v2.0 operation. Routes user-facing intents (ingest, ask, capture, lint, synthesize) and agent-facing CRUD primitives to the right internal procedure. The only Claude-Code-visible Memex skill — internal procedures (28 total) are read on demand to stay under the 1% skill-description budget.
+description: Use to invoke any Memex v2.0 operation. Routes user-facing intents (ingest, ask, capture, lint, synthesize) and agent-facing CRUD primitives to the right internal procedure. The only Claude-Code-visible Memex skill — internal procedures (30 total) are read on demand to stay under the 1% skill-description budget.
 ---
 
 Memex v2 is a personal knowledge runtime and shared memory plane for the agent fleet. This skill is the public entry point — it maps natural-language intent (for users) or agent-named operations (for AI consumers) to the right internal procedure under `internal/<category>/<name>/SKILL.md`.
@@ -259,6 +259,20 @@ Memex maintains a federated Index (`~/.memex/index.db`) plus five internal agent
 | Re-embed all rows after a provider/model change | `internal/embed/reembed/SKILL.md` |
 
 The Librarian and Reference Librarian are themselves invoked as LLM subagents inside `index:write` and `index:search` respectively; they read their system prompts from `agents.db.agents.profile`. Archivist, DBA, and Data Steward are deterministic Python modules.
+
+## v2 Code-navigation graph routing (agent-facing)
+
+Memex stores + serves a code-navigation graph in a SEPARATE store
+(`~/.memex/code_graph.db`), keyed by repo identity (`owner/repo`). The EXTRACTOR
+is external — the consumer runs `graphify update <path> --no-cluster` (AST-only,
+no API key) and hands memex the resulting `graph.json`. memex never imports
+tree-sitter/networkx; it is the deterministic store + bounded-query layer.
+Consumers: kaizen (pre-cycle recon) and atelier subagents.
+
+| Agent intent | Internal procedure |
+|---|---|
+| Ingest a graphify `graph.json` for a repo into the code-navigation graph store (idempotent; per-file fragment upsert) | `internal/codegraph/ingest/SKILL.md` |
+| Query the code-navigation graph: where_is / callers / dependencies / neighbors / module_map (bounded, locations not bodies) | `internal/codegraph/query/SKILL.md` |
 
 ## Authority and override
 

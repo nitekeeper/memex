@@ -83,6 +83,31 @@ def test_install_registers_article_in_registry(tmp_memex_home):
     assert rec is not None
 
 
+def test_install_creates_code_graph_db(tmp_memex_home):
+    install.run()
+    assert (memex_home() / "code_graph.db").exists()
+
+
+def test_install_registers_code_graph_in_registry(tmp_memex_home):
+    install.run()
+    rec = registry.get_store("code_graph")
+    assert rec is not None
+    assert rec["path"] == str(memex_home() / "code_graph.db")
+
+
+def test_install_code_graph_schema_present_and_reapply_idempotent(tmp_memex_home):
+    """code_graph.db is provisioned with the schema and a second install run
+    (additive re-apply path) does not error."""
+    from scripts.db import get_connection
+
+    install.run()
+    install.run()  # hits _apply_code_graph_schema_additive on the existing DB
+    conn = get_connection(str(memex_home() / "code_graph.db"))
+    tables = {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    conn.close()
+    assert {"repos", "nodes", "edges"} <= tables
+
+
 def test_install_migrates_existing_index_db_to_unique_key(tmp_memex_home):
     """Spec §6.4: re-running install on a pre-existing index.db that was
     created before UNIQUE(key) landed must upgrade in place — drop the old

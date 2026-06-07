@@ -210,6 +210,23 @@ def run() -> None:
             conn.close()
         if registry.get_store("article") is None:
             registry.register_store("article", str(article_db_path), schema_version="v1")
+
+        # code_graph.db (v2.9.0): SEPARATE store for the code-navigation graph
+        # (graphify ingest target). Self-contained schema; no FK into index.db.
+        code_graph_db_path = home / "code_graph.db"
+        if not code_graph_db_path.exists():
+            conn = get_connection(str(code_graph_db_path))
+            conn.executescript((DB_DIR / "migrations_table.sql").read_text(encoding="utf-8"))
+            conn.executescript((DB_DIR / "code_graph.sql").read_text(encoding="utf-8"))
+            conn.execute("INSERT INTO migrations (filename) VALUES (?)", ("code_graph.sql",))
+            conn.commit()
+            conn.close()
+        else:
+            # Re-apply code_graph.sql so additive `CREATE TABLE/INDEX IF NOT
+            # EXISTS` statements land on pre-existing code_graph.db installs.
+            _apply_code_graph_schema_additive(str(code_graph_db_path))
+        if registry.get_store("code_graph") is None:
+            registry.register_store("code_graph", str(code_graph_db_path), schema_version="v1")
     finally:
         lock_fh.close()
 
@@ -260,6 +277,21 @@ def _apply_index_schema_additive(index_db_path: str) -> None:
     conn = get_connection(index_db_path)
     try:
         conn.executescript((DB_DIR / "index.sql").read_text(encoding="utf-8"))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _apply_code_graph_schema_additive(code_graph_db_path: str) -> None:
+    """Re-run db/code_graph.sql against an existing code_graph.db.
+
+    code_graph.sql is composed exclusively of re-entrant statements
+    (`CREATE TABLE/INDEX IF NOT EXISTS`), so re-applying it on an already-
+    provisioned store is a no-op for pre-existing objects and materializes any
+    objects added since that store was created. Idempotent."""
+    conn = get_connection(code_graph_db_path)
+    try:
+        conn.executescript((DB_DIR / "code_graph.sql").read_text(encoding="utf-8"))
         conn.commit()
     finally:
         conn.close()

@@ -164,3 +164,28 @@ def test_run_skill_routes_to_brain_skills():
         assert f"internal/brain/{s}/SKILL.md" in run_content, (
             f"memex:run missing routing entry for internal/brain/{s}"
         )
+
+
+# Code-navigation graph layer (v2.9.0): non-hyphenated dirs under
+# internal/codegraph/, so the standard frontmatter-name convention applies.
+CODEGRAPH_SKILLS = ["ingest", "query"]
+
+
+def test_codegraph_skills_present():
+    for s in CODEGRAPH_SKILLS:
+        p = Path(f"internal/codegraph/{s}/SKILL.md")
+        assert p.exists(), f"Missing: codegraph/{s}"
+
+
+def test_codegraph_skills_frontmatter():
+    for s in CODEGRAPH_SKILLS:
+        content = Path(f"internal/codegraph/{s}/SKILL.md").read_text(encoding="utf-8")
+        assert f"name: memex:codegraph:{s}" in content
+
+
+def test_run_skill_routes_to_codegraph_skills():
+    run_content = Path("skills/run/SKILL.md").read_text(encoding="utf-8")
+    for s in CODEGRAPH_SKILLS:
+        assert f"internal/codegraph/{s}/SKILL.md" in run_content, (
+            f"memex:run missing routing entry for internal/codegraph/{s}"
+        )

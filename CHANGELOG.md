@@ -14,6 +14,47 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.9.0 — 2026-06-07
+
+### Added — Code-navigation graph store
+
+memex becomes the **store + bounded-query** layer for a code-navigation graph.
+The EXTRACTOR is external (graphify, AST-only, run by the consumer with
+`graphify update <path> --no-cluster` — no API key, no LLM); memex never imports
+tree-sitter / networkx / graspologic. Consumers: kaizen (pre-cycle recon) and
+atelier subagents.
+
+- **Separate store, keyed by repo identity.** New SQLite DB at
+  `~/.memex/code_graph.db` (NOT part of `index.db`; no FK into `documents`).
+  Rows are keyed by the `owner/repo` IDENTITY string, never a clone path, so the
+  store survives ephemeral clones and repo moves across machines (WSL ↔ macOS).
+- **Schema (`db/code_graph.sql`, re-entrant additive).** Tables `repos`,
+  `nodes`, `edges` with the navigation indexes (callers, deps, by-file,
+  by-label). `install.run()` provisions + registers the store and re-applies the
+  schema on existing installs so it lands on upgrade.
+- **Idempotent ingest (`scripts/code_graph.py`).** `ingest_graph` /
+  `ingest_fragment` parse graphify's `graph.json` (stdlib `json`; accepts both
+  the new `links` and legacy `edges` edge-array keys) and upsert per-file
+  fragments. This FIXES graphify's non-idempotent edge merge (observed
+  1459→2765→4071→5377 over four runs): memex keeps node/edge counts constant
+  across repeated ingests of the same graph.
+- **Invalidation.** `invalidate_file` drops a file's nodes (cascade its owned
+  edges) AND inbound edges to the symbols it used to own (the rename/delete gap
+  graphify leaves); `prune_dangling_edges` is the integrity sweep;
+  `set_needs_update` / `built_at_commit` track freshness.
+- **Bounded query surface.** `where_is`, `callers`, `dependencies`, `neighbors`
+  (capped BFS — a token-budget analog), `module_map`. Returns rows /
+  source-locations only — never file bodies — in deterministic order, scoped by
+  repo. Parameterized SQL, fixed table names.
+- **Optional convenience.** `extract_and_ingest` shells out to graphify and
+  degrades gracefully (`GraphifyUnavailableError`) if it is not on PATH; not
+  required by any test.
+- **Procedures.** New `codegraph` category — `internal/codegraph/ingest` and
+  `internal/codegraph/query` — routed via `memex:run` (30 internal procedures
+  total).
+
+---
+
 ## v2.7.0 — 2026-06-06
 
 ### Added — GraphRAG knowledge layer

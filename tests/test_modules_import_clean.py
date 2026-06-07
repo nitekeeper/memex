@@ -14,6 +14,7 @@ from pathlib import Path
 
 _MODULES = [
     "scripts.brain",
+    "scripts.code_graph",
     "scripts.stores",
     "scripts.roles",
     "scripts.embeddings",
