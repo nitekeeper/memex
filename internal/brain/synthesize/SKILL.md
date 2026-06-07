@@ -39,6 +39,8 @@ If `prep["sources"]` is empty (none of the input_index_ids matched rows in artic
 
 Otherwise continue. The prep dict contains the pre-built Synthesizer prompt.
 
+`prep["truncated"]` is `True` when the combined source bodies exceeded `synthesize_prepare`'s `char_budget` (default 50000 chars) and the tail sources were budget-trimmed from the Synthesizer prompt so the dispatched Task prompt stays bounded; it is `False` for normal-sized inputs. This is informational only — no behavior change in this recipe.
+
 ### Step 2 — Dispatch the Synthesizer subagent
 
 Use the **Task tool** with:
@@ -46,6 +48,12 @@ Use the **Task tool** with:
 - `subagent_type`: `general-purpose`
 - `description`: `Synthesizer: produce cross-document synthesis`
 - `prompt`: `prep["synthesizer_prompt"]`
+- `model`: `claude-sonnet-4-6`
+
+> Cross-document prose synthesis is reasoning-heavy but bounded by the prep'd
+> source set — a deliberate downshift from the orchestrator Opus default to
+> sonnet; never silently inherit Opus. (Enforced by
+> `tests/test_model_tier_dispatch.py`.)
 
 The prompt (template at `prompts/synthesizer.md`) instructs the subagent to produce 2-6 paragraphs of prose with inline `[idx-...]` citations. The subagent's final message is the synthesis text (not JSON — just markdown prose).
 
@@ -76,6 +84,11 @@ Use the **Task tool** with:
 - `subagent_type`: `general-purpose`
 - `description`: `Librarian: classify synthesis`
 - `prompt`: `librarian_prompt`
+- `model`: `claude-sonnet-4-6`
+
+> Bounded classification of one synthesis document — a deliberate one-step
+> downshift from the Opus default to sonnet; never silently inherit Opus.
+> (Enforced by `tests/test_model_tier_dispatch.py`.)
 
 The subagent's final message: JSON with `index_id`, `key`, `domain` (probably `"synthesis"`), `searchable`, optional `metadata`, `relations`.
 

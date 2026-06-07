@@ -130,4 +130,57 @@ Internal procedures (`internal/<category>/<name>/SKILL.md`) inherit the orchestr
 
 If you maintain a fork that diverges from this posture, override per-skill via Claude Code's settings (`~/.claude/settings.json` → per-skill `model` field) or by branching this CLAUDE.md section. Recommendations are advisory, not enforced.
 
+### Dispatched-subagent tiers (ENFORCED)
+
+The orchestrator-session default above stays **advisory**. The per-dispatch
+cost floor for the bounded LLM subagents that memex SKILLs spawn via the Task
+tool is **ENFORCED**, not advisory: each dispatching `internal/.../SKILL.md`
+Task block carries an explicit `model:` line, and `tests/test_model_tier_dispatch.py`
+fails CI if any line is stripped, downgraded to Opus, or set to a stale
+model-id. No memex LLM subagent dispatch silently inherits the expensive Opus
+default.
+
+| Dispatch site (Task-tool spawn) | Enforced tier |
+|---|---|
+| Community Reporter (`brain/community-report`) | `claude-haiku-4-5` |
+| Reference Librarian query-plan (`brain/ask` flat + `index/search`) | `claude-haiku-4-5` |
+| Global-mode MAP (per-report relevance scoring) | `claude-haiku-4-5` |
+| Global-mode REDUCE (prose synthesis over ranked partials) | `claude-sonnet-4-6` |
+| Local-mode answer (prose over assembled context) | `claude-sonnet-4-6` |
+| Synthesizer (`brain/synthesize` Step 2) | `claude-sonnet-4-6` |
+| Librarian (`brain/ingest`, `brain/capture`, `index/write`, `brain/synthesize`-classify) | `claude-sonnet-4-6` |
+
+**Why the lever lives in the SKILL.md (not in Python).** Memex's LLM-using
+agent harnesses (`scripts/agents/community_reporter.py`, `librarian`,
+`reference_librarian`, `scripts/brain.py`) only BUILD a `subagent_prompt`
+string — they do NOT spawn the subagent. The actual dispatch is the
+orchestrating Claude reading the SKILL.md recipe and calling the Agent/Task
+tool. So the production caller for the model tier is the SKILL.md Task block,
+and that is exactly where the `model:` line is pinned. There is no Python
+dispatch wrapper to thread a `model=` argument through (unlike atelier's
+`scripts/dispatch.py`, which DOES spawn via `Agent(prompt=..., model=...)`); a
+model-id buried in a memex Python helper the skill ignores would be dead code.
+The Agent/Task tool's `model` parameter is the canonical Claude Code mechanism
+for per-dispatch tier selection — the same one atelier wires through
+`scripts/model_tier.py` into its `Agent(model=...)` call and the same field a
+`~/.claude/settings.json` per-skill `model` override targets. The anti-revert
+test guards the directive's *presence and tier* at the production caller; it
+deliberately does NOT execute a live LLM dispatch (pytest cannot spawn a real
+subagent nor assert which model an LLM ran on — that belongs to a live smoke
+run, not unit CI).
+
+**Reconciliation with the advisory rows above.** The Opus rows for
+**Librarian** / **Reference Librarian** / **Synthesizer** in the per-skill
+table (and the `internal/index/write`, `internal/brain/*` rows) describe the
+*recommended orchestrator posture and named-prompt-authoring context* — the
+judgement floor for the human/agent reasoning *about* those roles. The table
+in THIS subsection is the *per-dispatch execution cost floor* for the bounded
+Task-tool spawns those skills issue: mechanical extraction/format/index work
+runs on haiku, synthesis/report-writing/classification on sonnet. Both are
+correct at their own layer; the enforced cheaper tier is what the actual
+subagent dispatch requests, and it never inherits Opus. The single-write-path
+Librarian (`index/write`, M3 integrity bottleneck) stays at sonnet rather than
+haiku to respect the integrity-bottleneck guidance while still removing the
+silent-Opus inheritance.
+
 See `kaizen/CLAUDE.md` (model recommendations) and `atelier/CLAUDE.md` (per-role recommendations, when published) for plugin-specific equivalents.

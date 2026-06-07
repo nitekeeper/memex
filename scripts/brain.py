@@ -568,6 +568,7 @@ def synthesize_prepare(
     topic: str,
     input_index_ids: list[str],
     caller_agent_id: str,
+    char_budget: int = 50000,
 ) -> dict:
     """Phase 1 of brain synthesize: fetch source bodies, build Synthesizer prompt.
 
@@ -576,7 +577,16 @@ def synthesize_prepare(
              "input_index_ids": <list[str]>,
              "caller_agent_id": <id>,
              "sources": [{"index_id", "body", "title"}, ...],
+             "truncated": <bool>,
              "synthesizer_prompt": <full Task-tool prompt for the Synthesizer>}.
+
+    `char_budget` caps the concatenated SOURCES body so the Synthesizer Task
+    prompt can never grow unbounded over full article bodies — mirrors the
+    deterministic budget-fill loop in community_reporter.report_prepare /
+    global_ask_reduce_prepare. 50000 chars ~= 12.5k tokens, comfortably under
+    125k and consistent with the synthesizer's "2-6 paragraphs" scope. When the
+    sources exceed the budget the returned dict carries `"truncated": True`
+    (the first block is always kept regardless of budget).
 
     Skill markdown dispatches the Synthesizer subagent (subagent_type=
     general-purpose, prompt=synthesizer_prompt), receives the synthesis
@@ -585,12 +595,28 @@ def synthesize_prepare(
     """
     require_bootstrap()
     sources = _fetch_source_bodies(input_index_ids)
-    sources_md = "\n\n".join(
-        [f"### [{s['index_id']}] {s.get('title', '')}\n\n{s['body']}" for s in sources]
-    )
+
+    # Budget-fill the SOURCES body so a 200k-char input cannot produce a
+    # 200k-char prompt. Same loop shape as report_prepare /
+    # global_ask_reduce_prepare: keep at least the first block (the `and blocks`
+    # guard), stop once the next block would overflow char_budget.
+    blocks: list[str] = []
+    used = 0
+    truncated = False
+    for s in sources:
+        block = f"### [{s['index_id']}] {s.get('title', '')}\n\n{s['body']}"
+        if used + len(block) > char_budget and blocks:
+            truncated = True
+            break
+        blocks.append(block)
+        used += len(block)
+    sources_md = "\n\n".join(blocks)
 
     template = (PROMPTS_DIR / "synthesizer.md").read_text(encoding="utf-8")
-    synthesizer_prompt = template.replace("{{TOPIC}}", topic).replace("{{SOURCES}}", sources_md)
+    # Substitute the trusted SOURCES body FIRST and the user-controlled TOPIC
+    # LAST so a topic containing a literal "{{SOURCES}}" token can never be
+    # re-expanded.
+    synthesizer_prompt = template.replace("{{SOURCES}}", sources_md).replace("{{TOPIC}}", topic)
 
     return {
         "status": "ready",
@@ -598,6 +624,7 @@ def synthesize_prepare(
         "input_index_ids": list(input_index_ids),
         "caller_agent_id": caller_agent_id,
         "sources": sources,
+        "truncated": truncated,
         "synthesizer_prompt": synthesizer_prompt,
     }
 

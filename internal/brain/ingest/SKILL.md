@@ -46,6 +46,11 @@ Use the **Task tool** with:
 - `subagent_type`: `general-purpose`
 - `description`: `Librarian: classify document`
 - `prompt`: `prep["subagent_prompt"]`
+- `model`: `claude-sonnet-4-6`
+
+> Librarian classification is reasoning-heavy but operates on a bounded
+> payload — deliberate downshift from the Opus default to sonnet; never
+> silently inherit Opus. (Enforced by `tests/test_model_tier_dispatch.py`.)
 
 The prompt embedded in `prep["subagent_prompt"]` already contains:
 - The Librarian agent's full profile (Dr. Lakshmi Iyer-Ranganathan, faceted classification, etc.) — this becomes the subagent's operating context

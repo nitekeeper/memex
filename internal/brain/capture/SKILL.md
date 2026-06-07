@@ -37,6 +37,11 @@ Use the **Task tool**:
 - `subagent_type`: `general-purpose`
 - `description`: `Librarian: classify capture`
 - `prompt`: `prep["subagent_prompt"]`
+- `model`: `claude-sonnet-4-6`
+
+> Librarian classification is reasoning-heavy but operates on a bounded
+> payload — deliberate downshift from the Opus default to sonnet; never
+> silently inherit Opus. (Enforced by `tests/test_model_tier_dispatch.py`.)
 
 Same Librarian profile + classification policy as ingest; the subagent decides `domain="capture"` (or whatever fits — Librarian's judgment).
 

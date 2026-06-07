@@ -12,6 +12,7 @@ no_reports when empty, real map_units when present); local_ask MUST expand the
 relation neighborhood beyond the seeds.
 """
 
+import os
 import struct
 
 import pytest
@@ -154,6 +155,80 @@ def test_global_reduce_respects_budget(installed):
     out = brain.global_ask_reduce_prepare("q", scored, char_budget=6000)
     # Budget allows the first block; the rest are dropped from the prompt.
     assert out["reduce_prompt"].count("y" * 5000) == 1
+
+
+# ── prompt-cache prefix determinism (cache-reuse levers) ─────────────────────
+
+
+def test_global_map_stable_rubric_leads_and_is_byte_identical_across_units(installed):
+    """Anti-revert (AI-1): the stable scoring rubric + JSON schema must lead.
+
+    The harness auto-caches a request PREFIX. For the many per-report MAP
+    dispatches in one global ask to reuse that cache, every map_prompt MUST
+    open with a byte-identical stable instruction/rubric/schema block, with
+    the only divergence being the per-unit report body (and the query) which
+    TRAIL. If the template is reverted to rubric-trailing, the longest common
+    prefix shrinks below the schema and this test fails.
+    """
+    conn = get_connection(str(memex_home() / "index.db"))
+    # Distinct bodies so the prompts DO diverge in their variable region.
+    _report(conn, "c0-0001", 0, "Cats", "BODY-ALPHA about cats.", 8.0)
+    _report(conn, "c0-0002", 0, "Dogs", "BODY-BETA about dogs.", 5.0)
+    conn.commit()
+    conn.close()
+
+    out = brain.global_ask_prepare("WHAT-IS-THE-QUERY", level=0)
+    assert out["status"] == "ready"
+    p0 = out["map_units"][0]["map_prompt"]
+    p1 = out["map_units"][1]["map_prompt"]
+    assert p0 != p1  # they must diverge somewhere (per-unit body differs)
+
+    # (a) The byte-identical shared prefix contains the full stable rubric.
+    common = os.path.commonprefix([p0, p1])
+    assert "## Task" in common
+    assert '"score"' in common
+    assert '"partial_answer"' in common
+    assert "Output ONLY the JSON object" in common
+
+    # (b) The first divergence occurs AFTER the schema text — i.e. the variable
+    #     part is the per-unit report body, not the rubric. (commonprefix length
+    #     == the index of the first differing byte.)
+    divergence = len(common)
+    schema_end = p0.index("Output ONLY the JSON object")
+    assert schema_end < divergence, (
+        "schema must be inside the shared prefix; divergence must trail it"
+    )
+
+    # (c) The user-controlled QUERY trails the divergence point (injection-safe
+    #     AND cache-safe: variable user input is LAST).
+    assert "WHAT-IS-THE-QUERY" in p0
+    assert p0.index("WHAT-IS-THE-QUERY") > divergence
+
+
+def test_global_reduce_stable_rubric_leads(installed):
+    """Anti-revert (AI-2): the stable synthesis rubric must lead the REDUCE prompt.
+
+    The stable instructions + ## Task + output-format rule must appear BEFORE
+    the variable {{PARTIALS}} block and BEFORE the query. If reverted to
+    rubric-trailing, the rubric would land after the partials and this fails.
+    """
+    scored = [
+        {"community_id": "c0-0007", "score": 90, "partial_answer": "PARTIAL-MARKER"},
+    ]
+    out = brain.global_ask_reduce_prepare("REDUCE-QUERY-MARKER", scored)
+    assert out["status"] == "ready"
+    prompt = out["reduce_prompt"]
+
+    task_idx = prompt.index("## Task")
+    output_rule_idx = prompt.index("Output the answer as prose only")
+    partials_idx = prompt.index("c0-0007")  # a {{PARTIALS}}-derived marker
+    query_idx = prompt.index("REDUCE-QUERY-MARKER")
+
+    # Stable rubric leads the variable partials block...
+    assert task_idx < partials_idx
+    assert output_rule_idx < partials_idx
+    # ...and the partials lead the query (query trails, injection-safe).
+    assert partials_idx < query_idx
 
 
 # ── local ─────────────────────────────────────────────────────────────────

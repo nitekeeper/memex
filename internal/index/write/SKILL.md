@@ -59,6 +59,13 @@ Use the **Task tool**:
 - `subagent_type`: `general-purpose`
 - `description`: `Librarian: classify document`
 - `prompt`: the value from Step 1
+- `model`: `claude-sonnet-4-6`
+
+> This is the M3 single-write-path Librarian — the integrity bottleneck
+> guarding the one write path — so it stays at sonnet (NOT haiku) to respect
+> the integrity-bottleneck guidance while still killing the silent-Opus
+> inheritance; deliberate downshift from the Opus default, never inherited.
+> (Enforced by `tests/test_model_tier_dispatch.py`.)
 
 The subagent's final message: JSON with `index_id`, `key`, `domain`, `searchable`, plus optional `metadata`, `relations`.
 

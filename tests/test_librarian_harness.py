@@ -42,6 +42,53 @@ def test_build_prompt_includes_existing_index_snippet(tmp_memex_home):
     assert "prior-article" in prompt
 
 
+def test_build_prompt_default_char_budget_is_bounded():
+    """Anti-revert: the default char_budget MUST stay capped. A future edit
+    that removes the cap (or sets it unboundedly high) fails here."""
+    import inspect
+
+    sig = inspect.signature(librarian.build_prompt)
+    default = sig.parameters["char_budget"].default
+    assert isinstance(default, int)
+    assert default <= 100000
+
+
+def test_build_prompt_bounds_oversized_body(tmp_memex_home):
+    """An oversized dict body on the M3 write path must be truncated and
+    structurally marked so the Librarian classifies honestly. Reverting the
+    truncation branch (full 200000-char body embedded, no marker) fails this."""
+    from scripts import install
+
+    install.run()
+    prompt = librarian.build_prompt(
+        payload={"title": "t", "body": "x" * 200000},
+        target_store="article",
+        caller_agent_id="librarian-1",
+    )
+    char_budget = 80000  # the enforced default
+    # (1) prompt cannot embed the full 200000-char body untruncated.
+    assert len(prompt) <= char_budget * 1.5
+    # (2) the Librarian is structurally told the body was abbreviated.
+    assert "body_truncated" in prompt
+    assert "body_full_chars" in prompt
+
+
+def test_build_prompt_does_not_overtrim_small_body(tmp_memex_home):
+    """A normal-sized body is embedded verbatim and carries NO truncation
+    marker (proves the bound doesn't touch ordinary ingests)."""
+    from scripts import install
+
+    install.run()
+    prompt = librarian.build_prompt(
+        payload={"title": "t", "body": "hello world"},
+        target_store="article",
+        caller_agent_id="librarian-1",
+    )
+    assert "hello world" in prompt
+    assert "body_truncated" not in prompt
+    assert "body_full_chars" not in prompt
+
+
 def test_fetch_context_returns_profile_and_snippet(tmp_memex_home):
     from scripts import install
 

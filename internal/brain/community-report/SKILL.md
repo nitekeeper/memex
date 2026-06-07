@@ -48,6 +48,12 @@ Use the **Task tool** with:
 - `subagent_type`: `general-purpose`
 - `description`: `Community Reporter: summarize community`
 - `prompt`: `prep["subagent_prompt"]`
+- `model`: `claude-haiku-4-5`
+
+> The Community Reporter is mechanical JSON extraction over a
+> character-budget-bounded context; haiku suffices — do NOT inherit the
+> orchestrator Opus default. (Cost floor enforced by
+> `tests/test_model_tier_dispatch.py`.)
 
 The subagent's final message must be a JSON object:
 

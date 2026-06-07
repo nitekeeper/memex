@@ -30,6 +30,11 @@ Use the **Task tool**:
 - `subagent_type`: `general-purpose`
 - `description`: `Reference Librarian: build query plan`
 - `prompt`: `prep["subagent_prompt"]`
+- `model`: `claude-haiku-4-5`
+
+> Same lightweight query-plan extraction as `memex:brain:ask` flat mode
+> (question -> FTS5/vector plan JSON) — haiku suffices; do NOT inherit the
+> orchestrator Opus default. (Enforced by `tests/test_model_tier_dispatch.py`.)
 
 Subagent returns a JSON query plan with `fts_query`, `vector_query`, `filters`, `limit`.
 

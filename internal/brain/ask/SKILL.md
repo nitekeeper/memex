@@ -42,7 +42,9 @@ if prep["status"] == "no_reports":
 # MAP: dispatch one general-purpose subagent per unit; parse each:
 scored = []
 for unit in prep["map_units"]:
-    # Task tool: prompt = unit["map_prompt"]; capture <map_response>
+    # Task tool: prompt = unit["map_prompt"], model = claude-haiku-4-5;
+    #   capture <map_response>. 0-100 relevance scoring per community report
+    #   is mechanical extraction — dispatch haiku, never inherit Opus.
     m = brain.parse_map_response(map_response)
     scored.append({"community_id": unit["community_id"], **m})
 # REDUCE: drop zeros, sort desc, budget-fill -> reduce prompt
@@ -50,7 +52,9 @@ red = brain.global_ask_reduce_prepare(query, scored)
 if red["status"] == "no_signal":
     # report "no community is relevant to <query>" and STOP
     ...
-# Task tool: prompt = red["reduce_prompt"]; the response is the final answer.
+# Task tool: prompt = red["reduce_prompt"], model = claude-sonnet-4-6; the
+#   response is the final answer. Prose synthesis over ranked partials is
+#   reasoning work but bounded — sonnet, a deliberate downshift from Opus.
 ```
 
 ### Local mode recipe (neighborhood expansion)
@@ -71,7 +75,10 @@ ctx = brain.local_ask(query)
 # ctx = {seeds, neighborhood, documents:[{index_id, searchable}],
 #        community_reports:[{community_id, title, summary}]}
 # Assemble documents + community_reports into a single answering prompt and
-# dispatch ONE general-purpose subagent to answer the question over them.
+# dispatch ONE general-purpose subagent (Task tool, model = claude-sonnet-4-6)
+# to answer the question over them. Answer prose over an assembled, bounded
+# context is sonnet-grade — a deliberate downshift from the Opus default,
+# never silently inherited.
 ```
 
 ## Recipe (Option-B Task-tool dispatch) — flat mode
@@ -94,6 +101,11 @@ Use the **Task tool** with:
 - `subagent_type`: `general-purpose`
 - `description`: `Reference Librarian: build query plan`
 - `prompt`: `prep["subagent_prompt"]`
+- `model`: `claude-haiku-4-5`
+
+> Query-plan extraction is lightweight JSON mapping (question -> FTS5/vector
+> plan); haiku suffices — do NOT inherit the orchestrator Opus default. (Cost
+> floor enforced by `tests/test_model_tier_dispatch.py`.)
 
 The subagent's final message must be a JSON object with these fields:
 

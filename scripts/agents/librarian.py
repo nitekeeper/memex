@@ -109,20 +109,56 @@ def fetch_context(target_store: str, snippet_limit: int = 20) -> dict:
     }
 
 
+def _bound_payload_body(payload, char_budget: int):
+    """Truncate an oversized dict 'body' to char_budget, marking the truncation.
+
+    Returns the payload unchanged unless it is a dict carrying a str 'body'
+    longer than char_budget; in that case returns a new dict with the body
+    clipped to the first char_budget chars plus sibling markers
+    (body_truncated=True, body_full_chars=<original_len>) so the Librarian is
+    structurally told the body was abbreviated. Non-dict payloads, dicts
+    without a str 'body', and within-budget bodies are returned as-is. The
+    input is never mutated.
+    """
+    if not isinstance(payload, dict):
+        return payload
+    body = payload.get("body")
+    if not isinstance(body, str) or len(body) <= char_budget:
+        return payload
+    return {
+        **payload,
+        "body": body[:char_budget],
+        "body_truncated": True,
+        "body_full_chars": len(body),
+    }
+
+
 def build_prompt(
     payload,
     target_store: str,
     caller_agent_id: str,
     existing_index_snippet: list[dict] | None = None,
+    char_budget: int = 80000,
 ) -> str:
     """Build the Librarian subagent's full prompt by template substitution.
 
     The skill markdown calls this to construct the Task tool's `prompt`
     argument. Subagent_type=general-purpose; the system prompt is the
     Librarian profile embedded in the template.
+
+    `char_budget` bounds the single integrity-critical write path (M3): if
+    `payload` is a dict whose 'body' field exceeds the budget, the body is
+    truncated to the first `char_budget` chars and the payload is annotated
+    with `body_truncated=True` + `body_full_chars=<original_len>` so the
+    Librarian classifies honestly (structurally told the body was abbreviated)
+    rather than silently scoring a partial document. 80000 chars ~= 20k tokens,
+    leaving ample room for the ~3.3k profile + index snippet + template + the
+    subagent's own response budget, all far under 125k. Small payloads and
+    non-dict / non-str-body payloads are left untouched (backward compatible).
     """
     if existing_index_snippet is None:
         existing_index_snippet = _recent_index_snippet()
+    payload = _bound_payload_body(payload, char_budget)
     template = _load_template()
     profile = _get_profile("librarian-1")
     return (

@@ -55,6 +55,84 @@ def installed_with_two_sources(tmp_memex_home):
         conn.close()
 
 
+@pytest.fixture
+def installed_with_two_oversized_sources(tmp_memex_home):
+    """Two sources whose bodies together far exceed synthesize_prepare's
+    default char_budget (2 x 40000 = 80000 chars vs 50000 budget)."""
+    install.run()
+    onboarding.register_human("human-test", "Test", "User")
+
+    index_db = str(memex_home() / "index.db")
+    for idx, title, body in [
+        ("idx-big1", "Big First", "A" * 40000),
+        ("idx-big2", "Big Second", "B" * 40000),
+    ]:
+        stores.insert(
+            "article",
+            "articles",
+            {
+                "index_id": idx,
+                "title": title,
+                "body": body,
+                "source_url": f"https://example.com/{idx}",
+                "source_hash": f"hash-{idx}",
+                "raw_path": f"/tmp/{idx}.md",
+                "created_by": "human-test",
+            },
+        )
+        conn = get_connection(index_db)
+        conn.execute(
+            "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, "
+            "searchable, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (idx, idx, "article", "article", "articles", "1", body[:100], "librarian-1"),
+        )
+        conn.commit()
+        conn.close()
+
+
+def test_synthesize_prepare_default_char_budget_is_bounded():
+    """Anti-revert: the default char_budget MUST stay capped. A future edit
+    that removes the cap (or sets it unboundedly high) fails here."""
+    import inspect
+
+    sig = inspect.signature(brain.synthesize_prepare)
+    default = sig.parameters["char_budget"].default
+    assert isinstance(default, int)
+    assert default <= 60000
+
+
+def test_synthesize_prepare_bounds_oversized_sources(installed_with_two_oversized_sources):
+    """A 200k-char-class input must NOT produce a 200k-char prompt: the budget
+    loop caps the concatenated SOURCES body. Reverting to the unconditional
+    join (both 40000-char bodies embedded) fails the size and truncated asserts."""
+    prep = brain.synthesize_prepare(
+        topic="bodies",
+        input_index_ids=["idx-big1", "idx-big2"],
+        caller_agent_id="human-test",
+    )
+    char_budget = 50000  # the enforced default
+    # (1) prompt cannot balloon to the full ~80000-char concatenation.
+    assert len(prep["synthesizer_prompt"]) <= char_budget * 1.5
+    # (2) the oversized case is flagged truncated.
+    assert prep["truncated"] is True
+    # First (kept) block's body is present; the dropped tail body is absent.
+    assert "A" * 40000 in prep["synthesizer_prompt"]
+    assert "B" * 40000 not in prep["synthesizer_prompt"]
+
+
+def test_synthesize_prepare_does_not_overtrim_small_inputs(installed_with_two_sources):
+    """Normal-sized inputs are never truncated and both bodies appear verbatim
+    (proves the budget loop doesn't over-trim ordinary synthesis inputs)."""
+    prep = brain.synthesize_prepare(
+        topic="bodies",
+        input_index_ids=["idx-s1", "idx-s2"],
+        caller_agent_id="human-test",
+    )
+    assert prep["truncated"] is False
+    assert "first source body" in prep["synthesizer_prompt"]
+    assert "second source body" in prep["synthesizer_prompt"]
+
+
 def test_synthesize_prepare_returns_synthesizer_prompt(installed_with_two_sources):
     prep = brain.synthesize_prepare(
         topic="bodies",
