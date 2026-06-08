@@ -1,21 +1,21 @@
 {
-  "version": "2.10.0",
-  "built_at": "2026-06-07T05:23:57.750549+00:00",
-  "file_count": 74,
+  "version": "2.11.0",
+  "built_at": "2026-06-07T22:58:31.241833+00:00",
+  "file_count": 76,
   "files": [
     {
       "path": ".claude-plugin/plugin.json",
-      "sha256": "441564ba8b72c0f446e6421583ce3f949e05bb059edb30ce91295cbb5b03595e",
+      "sha256": "cde447715b11b5e9b39ea4d92c73efb369dc48ee78e0323ad7d9cbc7d12430c0",
       "bytes": 691
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "90945bb5d48093844a0704e2b898a331a1ce447d122a94dde2cf8d28f4a11a73",
-      "bytes": 30003
+      "sha256": "815006e30ac18d8d7fbec9f72d4d4c2b0051c22091c33f8ccae822219283143e",
+      "bytes": 34653
     },
     {
       "path": "INSTALL.md",
-      "sha256": "db781e533950b0493e55a1d514be97b053327b8fff959d9760ca2bb3e7c24001",
+      "sha256": "7befe4b2ec894e15104c7ac0d711259f0ca696b75c0810aabb700d91b60d1416",
       "bytes": 3015
     },
     {
@@ -60,18 +60,18 @@
     },
     {
       "path": "internal/brain/ask/SKILL.md",
-      "sha256": "449c3db0c8b28bace4eb026fb578749d53ca17155f8803c0ee7c20ad40dd755d",
-      "bytes": 7502
+      "sha256": "68ba1150b81c2aedaf558c9d1407604f0a00ddeb7af5bc10753018ac3a12b31c",
+      "bytes": 8234
     },
     {
       "path": "internal/brain/capture/SKILL.md",
-      "sha256": "646d29a25c23a7c58ac0ed17f1641947614eb678dbec60ed5a25006ea6a3728f",
-      "bytes": 2586
+      "sha256": "b0e56634bae0d3b113bbbcd663f1a745725aec11e80079013d281d2259a953a6",
+      "bytes": 2840
     },
     {
       "path": "internal/brain/community-report/SKILL.md",
-      "sha256": "4266a11066e1e42d40c05f0f48dda27d7b679b66d395e60a7e4bd767bc39262b",
-      "bytes": 3714
+      "sha256": "36fa8cb67d06b05924e086f4be3e509572e804102eac00db77ece43b167c15f1",
+      "bytes": 3974
     },
     {
       "path": "internal/brain/graph-rebuild/SKILL.md",
@@ -80,8 +80,8 @@
     },
     {
       "path": "internal/brain/ingest/SKILL.md",
-      "sha256": "ebdc908b41ba88651912587e38d388e56a0b5ee2e23fb79e7f6e87f6b23e87ba",
-      "bytes": 4654
+      "sha256": "bdeea038e6a7625d1e50382adec4c815a543d645426e57abda4ef25722fedf10",
+      "bytes": 4908
     },
     {
       "path": "internal/brain/lint/SKILL.md",
@@ -90,8 +90,8 @@
     },
     {
       "path": "internal/brain/synthesize/SKILL.md",
-      "sha256": "153cd3d8651692e9fb77548e1871d88c00b2b60ab435b4500ac9da37ca1f6e01",
-      "bytes": 5154
+      "sha256": "9187efde7de32ae6e68065e14d9b0228bb9dc44fa67a32c2aa57abda48965cf2",
+      "bytes": 6020
     },
     {
       "path": "internal/codegraph/ingest/SKILL.md",
@@ -149,6 +149,11 @@
       "bytes": 487
     },
     {
+      "path": "internal/core/settings-recommendation/SKILL.md",
+      "sha256": "246adcb5f317d55c9c5f3edb3ff578315b1cdbc4d38cfbe24ec919fa5f31d967",
+      "bytes": 3693
+    },
+    {
       "path": "internal/core/update/SKILL.md",
       "sha256": "e534545c15f5a99a7b950ad2686a9f6a7bcd10752c9994a7568e23ce47709984",
       "bytes": 384
@@ -185,13 +190,13 @@
     },
     {
       "path": "internal/index/search/SKILL.md",
-      "sha256": "537bc658a5380e0e7b30dfdcb88728a0759e57da06c11d43c11a69fed29b952a",
-      "bytes": 3249
+      "sha256": "4909a5e279e1a9751330389286a9b482a6223a43974da019373fbfbe7b9b44f9",
+      "bytes": 3509
     },
     {
       "path": "internal/index/write/SKILL.md",
-      "sha256": "9994dbecb8e02e3ef3cdc8c2563cb067f174800e48e0a2dc879847ca43ea66ae",
-      "bytes": 7734
+      "sha256": "dbf574472a477a503afe696295a72d755b1a9e5b33d28b6e421d15049f0cde40",
+      "bytes": 8120
     },
     {
       "path": "internal/steward/audit-store/SKILL.md",
@@ -215,12 +220,12 @@
     },
     {
       "path": "prompts/global_map.md",
-      "sha256": "f75c44be38f3c7d18ed52365eb3179073751354d8eb894d44edac479712e38f6",
+      "sha256": "f4a8236c6b1927a7d0ad816b62f05dde30fb6971eb45ff0d26b874b2123037ee",
       "bytes": 860
     },
     {
       "path": "prompts/global_reduce.md",
-      "sha256": "65083629521e25ebbbe7a1989883e4d370bba1f24a96a4bdcf1ecfd734c6ec62",
+      "sha256": "d46654bbacfba6598a7216c67796e9284ed245652c11e642f0aa867e3f209ee6",
       "bytes": 735
     },
     {
@@ -240,7 +245,7 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "7b4fba61a00b82e293d071d4ed3e42059143179390a78104a30f7449a508fa26",
+      "sha256": "af1f1a54cc1af9fa8114487edf0559d60338cb153a6dfdde47c0562ec1a500a2",
       "bytes": 2715
     },
     {
@@ -280,8 +285,8 @@
     },
     {
       "path": "scripts/agents/librarian.py",
-      "sha256": "62bd09245f16ca03cade0eecb4d27a72cff3a6e96f93a247b8501047da1a800a",
-      "bytes": 10529
+      "sha256": "368f534bc48fdabd5f220a4f21463b4b966636f42f38cb4f1d19f31bd59c7ea1",
+      "bytes": 12240
     },
     {
       "path": "scripts/agents/reference_librarian.py",
@@ -290,8 +295,8 @@
     },
     {
       "path": "scripts/brain.py",
-      "sha256": "2a4f35e33aa0030e6dfb59e6bd3814d53e3fc3820b960ae3d2abe5cc20249bc0",
-      "bytes": 25501
+      "sha256": "0730f3aeab768a6dfb909a021581ac0e258f9ab84731aab5f4cc31526fa89a90",
+      "bytes": 26806
     },
     {
       "path": "scripts/bump.py",
@@ -339,6 +344,11 @@
       "bytes": 906
     },
     {
+      "path": "scripts/recommended_settings.py",
+      "sha256": "719e65e0f7fdd338da1575c6f2522b3825110fea01c118953997165cf1ee431b",
+      "bytes": 9134
+    },
+    {
       "path": "scripts/registry.py",
       "sha256": "6ec00bcec567a74f16baa8d6de60a1f6f2082e3ca95b5c7292da317c1ab77891",
       "bytes": 2993
@@ -370,8 +380,8 @@
     },
     {
       "path": "skills/run/SKILL.md",
-      "sha256": "742ce1571a3b606b032af22ea14b91a525657aa813b0326c7954a13414e7013b",
-      "bytes": 15075
+      "sha256": "43acebb96c01dba83d3ff0de5d9cb88d31bc7b2ba2a680138987c9077094f5a2",
+      "bytes": 16487
     }
   ]
 }

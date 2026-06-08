@@ -35,6 +35,20 @@ def bootstrapped_home(tmp_memex_home):
 
 
 @pytest.fixture
+def tmp_settings_path(monkeypatch, tmp_path):
+    """Hermetic ~/.claude/settings.json for the settings-recommendation feature.
+
+    Points $CLAUDE_SETTINGS_PATH at tmp_path/.claude/settings.json. The parent
+    .claude/ directory is deliberately NOT pre-created so tests exercise the
+    mkdir-parent path in apply_recommended / _atomic_write_json. Never touches
+    the real ~/.claude.
+    """
+    target = tmp_path / ".claude" / "settings.json"
+    monkeypatch.setenv("CLAUDE_SETTINGS_PATH", str(target))
+    return target
+
+
+@pytest.fixture
 def tmp_store_path(tmp_path):
     """Disposable SQLite store path."""
     return tmp_path / "store.db"

@@ -14,6 +14,45 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.11.0 — 2026-06-07
+
+### Added — settings-recommendation-on-upgrade (consent-gated)
+
+When the memex plugin version is bumped, the first `memex:run` on the new
+version OFFERS the user (y/N, **default No**, once per version) to apply the
+cost-optimized recommended settings to `~/.claude/settings.json`. On consent the
+settings are MERGED in — merge-safe, never clobbering existing keys, never
+touching `managed-settings.json`. Mirror of atelier PR #109, adapted to memex.
+
+- **`scripts/recommended_settings.py`** — the canonical single source of truth.
+  `RECOMMENDED = {model: "sonnet", effortLevel: "high", autoCompactEnabled: true}`
+  with `model` as the **family alias** `sonnet` (NOT a pinned `claude-sonnet-*`
+  id). Read-only compute paths (`settings_path`, `state_path`,
+  `current_plugin_version`, `load_settings`, `compute_changes`, `read_state`,
+  `eligibility`) never write; only `apply_recommended` (merge-safe, atomic
+  temp-file + `os.replace`, mkdir-parent) and `write_state` (per-version
+  marker under memex home) mutate. Every path is a graceful no-op on error so
+  it can never crash a memex invocation. A `status` / `apply` CLI guard mirrors
+  `onboarding.py` / `install.py` for manual recovery.
+- **`internal/core/settings-recommendation/SKILL.md`** — the human-facing
+  consent surface: the y/N (default No) prompt + the managed-settings caveat.
+  Python computes/applies; the SKILL asks.
+- **`skills/run/SKILL.md` Step 0.3** — a read-only post-bootstrap eligibility
+  check wired into the real startup path BEFORE routing, plus a Core CRUD
+  routing row so the procedure is discoverable. Detection is read-only; only the
+  consent path writes.
+- **M3 distinction.** `~/.claude/settings.json` is a LOCAL Claude Code config
+  file, NOT a memex-managed store, so M3 (all writes through the Librarian) does
+  NOT apply — the write goes directly, never via the Librarian / Archivist /
+  Memex Core. Documented in `CLAUDE.md` § Model recommendations.
+- **Tests** — `tests/test_recommended_settings.py` (hermetic; conftest
+  `tmp_settings_path` fixture + env overrides) covers constant-pin (sonnet
+  alias), merge-safety, idempotency, version-gating, missing/malformed graceful,
+  read-only-compute-never-writes, atomic-no-debris, startup-wiring, consent-SKILL
+  presence/frontmatter, CLAUDE.md doc-pin, and version-agreement.
+
+---
+
 ## v2.10.0 — 2026-06-07
 
 ### Added — code_graph docstring-presence signal (memex#34)

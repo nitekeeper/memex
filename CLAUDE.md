@@ -183,4 +183,40 @@ Librarian (`index/write`, M3 integrity bottleneck) stays at sonnet rather than
 haiku to respect the integrity-bottleneck guidance while still removing the
 silent-Opus inheritance.
 
+### Settings-recommendation-on-upgrade (consent-gated)
+
+On the first `memex:run` after a plugin version bump, Step 0.3 of
+`skills/run/SKILL.md` runs a **read-only** eligibility check and, if an offer is
+due, presents a consent prompt (y/N, **default No**, once per version) to MERGE
+the cost-optimized recommended settings into `~/.claude/settings.json`:
+
+- `model: sonnet` (the **family alias**, NOT a pinned `claude-sonnet-*` id — the
+  alias tracks the latest Sonnet so installers inherit the cost posture without
+  a stale pin),
+- `effortLevel: high`,
+- `autoCompactEnabled: true`.
+
+The apply is **merge-safe**: every pre-existing top-level settings key (`env`,
+`enabledPlugins`, `permissions`, `statusLine`, `hooks`, a user-chosen `model`,
+…) is preserved and only those three keys are written. It is consent-gated and
+**never enforced** — declining is the default and is recorded so the offer fires
+at most once per version. It NEVER writes `managed-settings.json`.
+
+**Honest safety framing.** Safety here is **advisory-presentation + merge-safety
++ consent**, NOT a code-enforced lockout. The feature offers and merges; it does
+not police what model a session ultimately runs on.
+
+**M3 distinction (load-bearing).** `~/.claude/settings.json` is a LOCAL Claude
+Code config file, NOT a memex-managed store, so **M3 (all writes through the
+Librarian) does NOT apply** — this write goes DIRECTLY (atomic temp-file +
+`os.replace`), never through the Librarian / Archivist / Memex Core. M3 governs
+writes that land in a Memex-managed store (`agents.db` / `index.db` /
+`article.db` via `internal/index/write`); a local config file is outside that
+scope.
+
+Implementation: `scripts/recommended_settings.py` (the canonical RECOMMENDED
+constant + version/settings/state mechanics) and the consent procedure
+`internal/core/settings-recommendation/SKILL.md` (the y/N surface; Python
+computes/applies, the SKILL asks).
+
 See `kaizen/CLAUDE.md` (model recommendations) and `atelier/CLAUDE.md` (per-role recommendations, when published) for plugin-specific equivalents.

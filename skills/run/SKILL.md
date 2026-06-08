@@ -111,7 +111,7 @@ Then check that all five paths exist:
 - `<RESOLVED_HOME>/index.db`
 - `<RESOLVED_HOME>/article.db`
 
-If all exist → proceed to routing.
+If all exist → proceed to Step 0.3.
 
 If ANY missing, build the missing list with EXACTLY these line shapes:
 - If `<RESOLVED_HOME>/` does not exist: emit one line, exactly: `  - <RESOLVED_HOME>/ (directory does not exist)`. Do NOT add per-file lines in this case.
@@ -206,6 +206,30 @@ End the turn. No routing. No summary.
    ```
    End the turn.
 
+### Step 0.3 — Offer recommended settings on a version upgrade (read-only detection)
+
+After Step 0.2 confirms bootstrap (the "all exist" path OR a successful `EXIT=0`
+bootstrap), run this **read-only** eligibility check BEFORE routing. It NEVER
+writes — only the consent path in the procedure below writes.
+
+```bash
+PYTHONPATH="<RESOLVED_PLUGIN_ROOT>" MEMEX_HOME="<RESOLVED_HOME>" python3 -c \
+  'import json,sys; from scripts.recommended_settings import eligibility; e=eligibility(); print(json.dumps(e) if e else "")'
+```
+
+- **Empty output** → no offer is due (version already handled, or no recommended
+  changes pending). Proceed to routing **silently** — no prompt, no interruption,
+  no write.
+- **Non-empty output** (eligible) → Read `internal/core/settings-recommendation/SKILL.md`
+  and follow it inline. It presents the y/N (default **No**) consent and, on yes,
+  applies the cost-optimized recommended settings to `~/.claude/settings.json`
+  (merge-safe; never touches `managed-settings.json`). Whether the user accepts
+  or declines, the version is recorded so the offer fires **at most once per
+  version**. Then proceed to routing regardless of the answer.
+
+Detection is read-only; only the consent procedure writes. Any error here is a
+graceful no-op — proceed to routing.
+
 ## v2 Brain user-facing intent routing
 
 Brain operations are the daily-use second-brain verbs. The user expresses one of these intents in natural language — there is no `memex:brain:*` top-level skill because the 1% budget would be exceeded; instead, this skill reads the matching procedure and follows it.
@@ -237,6 +261,7 @@ Memex Core is the CRUD substrate that agents — not the human user — invoke d
 | Register a new role in `agents.db.roles` | `internal/core/register-role/SKILL.md` |
 | Register a new agent in `agents.db.agents` | `internal/core/register-agent/SKILL.md` |
 | Fetch an agent's full profile by id | `internal/core/get-agent/SKILL.md` |
+| Offer cost-optimized settings on memex version upgrade | `internal/core/settings-recommendation/SKILL.md` |
 
 The Python implementations live under `scripts/` (`db.py`, `roles.py`, `agents/`, `registry.py`, `stores.py`, `install.py`). Each SKILL.md is a short documentation wrapper; the agent reads it for the API contract, then calls the implementation.
 
