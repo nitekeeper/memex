@@ -1,21 +1,21 @@
 {
-  "version": "2.11.0",
-  "built_at": "2026-06-07T22:58:31.241833+00:00",
-  "file_count": 76,
+  "version": "2.12.0",
+  "built_at": "2026-06-13T02:03:18.873662+00:00",
+  "file_count": 74,
   "files": [
     {
       "path": ".claude-plugin/plugin.json",
-      "sha256": "cde447715b11b5e9b39ea4d92c73efb369dc48ee78e0323ad7d9cbc7d12430c0",
+      "sha256": "8577c523edbff9bd078d22544cc69913d880183f6473ac88ca0a0782fc196e32",
       "bytes": 691
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "815006e30ac18d8d7fbec9f72d4d4c2b0051c22091c33f8ccae822219283143e",
-      "bytes": 34653
+      "sha256": "a2f383f6c3bcc2297b818be40171aae6ac3b7a0780d1081a9d61b964688be7f2",
+      "bytes": 36145
     },
     {
       "path": "INSTALL.md",
-      "sha256": "7befe4b2ec894e15104c7ac0d711259f0ca696b75c0810aabb700d91b60d1416",
+      "sha256": "d62a5fc7e4f7b4ed058b732fce449a00682342e5b5244e0ce6c74f7988c3cf71",
       "bytes": 3015
     },
     {
@@ -105,58 +105,53 @@
     },
     {
       "path": "internal/core/create-store/SKILL.md",
-      "sha256": "82efd3bb6e53f56333a2653f6758409d64e6dd85b5ad7523707dc429bdd1c1bd",
-      "bytes": 1112
+      "sha256": "2c612ed435ad800941f2bfe5cd94521a15d576b1c3a7fb67b9233dbec84b7154",
+      "bytes": 1140
     },
     {
       "path": "internal/core/delete/SKILL.md",
-      "sha256": "009c3fe3bff7cca76211ce5371249b04161fa4f2f3fc67512c5a5f368f8ef6d7",
-      "bytes": 355
+      "sha256": "9736e141fd264daf4f69905e3e4a093a8dd7c87113de61cb994e54713d07d639",
+      "bytes": 367
     },
     {
       "path": "internal/core/get-agent/SKILL.md",
-      "sha256": "adcd0da9314b68ef842f50eb54753bfe5af048f4d727d01c91dd6569a2084076",
-      "bytes": 388
+      "sha256": "98eed56b5169d2b8cfea37dd9e1dd9d2d99f8a1bf345d1c3576b0c5c19a1b623",
+      "bytes": 400
     },
     {
       "path": "internal/core/insert/SKILL.md",
-      "sha256": "3704a8adc9c035109aa137e41fbf07aaf5be43144149eb6f0ed31da7ceca9c0b",
-      "bytes": 431
+      "sha256": "d2bdb1f29fcf38f6be377a7dc823f52593dafffc327fa23ae3dc5f563f9c92af",
+      "bytes": 443
     },
     {
       "path": "internal/core/list-stores/SKILL.md",
-      "sha256": "ae01640c9214b0e429675fa37dce3ced8708de8e9f6e18bb49e08eb22c87eff8",
-      "bytes": 237
+      "sha256": "f23fdd936c5f606331b8f11f04db0d7cec911b638de9dba1117ce3d7fd7c6e71",
+      "bytes": 246
     },
     {
       "path": "internal/core/migrate/SKILL.md",
-      "sha256": "7e384b1340334f077c627d8f9afe4b841490dfed6cbfede931c8c319372f9dae",
-      "bytes": 597
+      "sha256": "52f93e1832b16ee9ff1768470098d739028ef406608bed9f2dd056d3d6a8daac",
+      "bytes": 613
     },
     {
       "path": "internal/core/query/SKILL.md",
-      "sha256": "f4e470703c68c6ff329bf65826cafc9690029f30dd4c64bbe8f9ffbe5b99f2db",
-      "bytes": 430
+      "sha256": "6d5555299c64c1dd723aa893e2619ef92c7b6ac6a40abce9c9cb19e37efc1f2a",
+      "bytes": 444
     },
     {
       "path": "internal/core/register-agent/SKILL.md",
-      "sha256": "ad9ad679b725a81a893fda824f2455153c3d5090e4a1398d5bce76271bf2aeb9",
-      "bytes": 547
+      "sha256": "70fd7b82a5a30d7c358760655c9d16a6c0d4dacd84679440774d463c2c387064",
+      "bytes": 562
     },
     {
       "path": "internal/core/register-role/SKILL.md",
-      "sha256": "d6a85c003d137da04a22c63030ac25a45722310bbdbfa05f0ea881a283e4346c",
-      "bytes": 487
-    },
-    {
-      "path": "internal/core/settings-recommendation/SKILL.md",
-      "sha256": "246adcb5f317d55c9c5f3edb3ff578315b1cdbc4d38cfbe24ec919fa5f31d967",
-      "bytes": 3693
+      "sha256": "bad4121bed9859d3626d1d7fb4661b26023d23bf7d01891288d48954d221d321",
+      "bytes": 500
     },
     {
       "path": "internal/core/update/SKILL.md",
-      "sha256": "e534545c15f5a99a7b950ad2686a9f6a7bcd10752c9994a7568e23ce47709984",
-      "bytes": 384
+      "sha256": "37149b0e3ae969b9b81f4c52315c9989ec9f18ff365a8c1382a815c29e59e5fa",
+      "bytes": 396
     },
     {
       "path": "internal/dba/checkpoint/SKILL.md",
@@ -210,8 +205,8 @@
     },
     {
       "path": "internal/steward/reconcile-orphan/SKILL.md",
-      "sha256": "2f98a39ca9cf284b8ba31f1228e65f4c03c1cc4eeb38822d0f5a0ba988629e7b",
-      "bytes": 2475
+      "sha256": "19dcd0f55b32d47736f02ce7f07a56bea4e44d46c1ba705c4efb89d3a14a894f",
+      "bytes": 2519
     },
     {
       "path": "prompts/community_reporter.md",
@@ -245,7 +240,7 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "af1f1a54cc1af9fa8114487edf0559d60338cb153a6dfdde47c0562ec1a500a2",
+      "sha256": "48db54e290e87dd2d344fcbd82f357dab244d5488d4860cb09a25b69f25c84dc",
       "bytes": 2715
     },
     {
@@ -260,8 +255,8 @@
     },
     {
       "path": "scripts/agents/__init__.py",
-      "sha256": "57efc0352ba0aa421271b5b313292ff2b0a32fe927f610ad6e2734a8ed88b312",
-      "bytes": 3663
+      "sha256": "5f89a4b9d977717ba2b92879e059519eb7f6de87bfa687e5741e2f70bc6d2c3d",
+      "bytes": 3777
     },
     {
       "path": "scripts/agents/archivist.py",
@@ -275,13 +270,13 @@
     },
     {
       "path": "scripts/agents/data_steward.py",
-      "sha256": "7b4aef7009fdc29634c528922dbdc9a69f781c63fb57f92f7d4725baa11b9b1e",
-      "bytes": 10636
+      "sha256": "7567aa7a2ca26ad85f85ffe612f1f3ffb8d3b61b667a31e44e09c2d3c2163952",
+      "bytes": 10933
     },
     {
       "path": "scripts/agents/dba.py",
-      "sha256": "e906cfecfcb7f25b1d81a464b153f4dee1cb6e2d8757105e448ba4281a0acc58",
-      "bytes": 2035
+      "sha256": "21a12477d8c716044c71e784bceeede6f83f258be696107d8bebd89489cfa842",
+      "bytes": 2105
     },
     {
       "path": "scripts/agents/librarian.py",
@@ -300,8 +295,8 @@
     },
     {
       "path": "scripts/bump.py",
-      "sha256": "a1d51cef6fb9a70149abba4582ac98202b7c86386f3f0e07d0a5534adae1f759",
-      "bytes": 5156
+      "sha256": "a6ee64e66d2c15dc9e247bc39c77d3bd8d9f421e5b031a172e2bc391f3a61cb9",
+      "bytes": 5308
     },
     {
       "path": "scripts/code_graph.py",
@@ -335,18 +330,13 @@
     },
     {
       "path": "scripts/onboarding.py",
-      "sha256": "4f45b5e65e022d369d7de511cf4f9064d866cd8eab015c5248535595ed3407f1",
-      "bytes": 2254
+      "sha256": "ed4bb1fee937558bd804dcc20e182b24e18f82bc14d8826d82c8f7f74b262750",
+      "bytes": 2327
     },
     {
       "path": "scripts/paths.py",
       "sha256": "26a941a0956ae9f53e29b69731272eff117e317a8f247cbc286d3d8493b75518",
       "bytes": 906
-    },
-    {
-      "path": "scripts/recommended_settings.py",
-      "sha256": "719e65e0f7fdd338da1575c6f2522b3825110fea01c118953997165cf1ee431b",
-      "bytes": 9134
     },
     {
       "path": "scripts/registry.py",
@@ -360,8 +350,8 @@
     },
     {
       "path": "scripts/roles.py",
-      "sha256": "f1f18b2f2c11f79ac4194432801f4982c5f5c3b9226ed350a844e3773b6309f6",
-      "bytes": 3083
+      "sha256": "dace152ef1c8f41d0aeabf75aaa65aff92a2a0e9f8fe0c586d759b1e73833e3b",
+      "bytes": 3186
     },
     {
       "path": "scripts/stores.py",
@@ -380,8 +370,8 @@
     },
     {
       "path": "skills/run/SKILL.md",
-      "sha256": "43acebb96c01dba83d3ff0de5d9cb88d31bc7b2ba2a680138987c9077094f5a2",
-      "bytes": 16487
+      "sha256": "742ce1571a3b606b032af22ea14b91a525657aa813b0326c7954a13414e7013b",
+      "bytes": 15075
     }
   ]
 }

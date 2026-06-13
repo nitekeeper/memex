@@ -8,7 +8,7 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
-## Unreleased
+## v2.12.0 — 2026-06-12
 
 ### Removed — settings-recommendation-on-upgrade (consent-gated)
 
