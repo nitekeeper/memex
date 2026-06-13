@@ -8,6 +8,27 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.12.1 — 2026-06-13
+
+### Fixed — `python -m scripts.agents` CLI regression + stale doc paths
+
+The `python -m scripts.agents` command-line entrypoint is restored. It had
+silently regressed when `scripts/agents.py` was refactored into the
+`scripts/agents/` package: the package had no `__main__`, so `python -m
+scripts.agents` no longer ran. The invocation works again, and a regression
+test now guards it.
+
+- **`scripts/agents/__main__.py`** — new module so `python -m scripts.agents`
+  works again; it delegates to an extracted `main()` in
+  `scripts/agents/__init__.py`.
+- **`internal/core/get-agent/SKILL.md`**, **`internal/core/register-agent/SKILL.md`**
+  — corrected stale `scripts/agents.py` invocation paths to
+  `scripts/agents/__init__.py` to match the package layout.
+- **`tests/test_agents_cli_smoke.py`** — new smoke test covering the
+  `python -m scripts.agents` CLI so the regression cannot recur.
+
+---
+
 ## v2.12.0 — 2026-06-12
 
 ### Removed — settings-recommendation-on-upgrade (consent-gated)
