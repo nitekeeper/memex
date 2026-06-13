@@ -9,4 +9,4 @@ description: Fetch an agent's full profile (including markdown profile body) by 
 - `agent_id` — TEXT PK
 
 ## Invocation
-`scripts/agents.py:get_agent(db_path, agent_id)`
+`scripts/agents/__init__.py:get_agent(db_path, agent_id)`

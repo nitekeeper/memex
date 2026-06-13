@@ -12,4 +12,4 @@ description: Register a new agent in the global agents.db agents table. Every Me
 - `profile` — markdown persona/system-prompt-fragment
 
 ## Invocation
-`scripts/agents.py:create_agent(db_path, agent_id, name, role_id, profile)`
+`scripts/agents/__init__.py:create_agent(db_path, agent_id, name, role_id, profile)`

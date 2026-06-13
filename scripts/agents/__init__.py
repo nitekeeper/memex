@@ -86,14 +86,20 @@ def delete_agent(db_path: str, agent_id: str) -> bool:
     return deleted
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """CLI dispatch for `python -m scripts.agents <cmd> ...`.
+
+    Mirrors the sibling CLIs in scripts/roles.py and scripts/registry.py.
+    Invoked from scripts/agents/__main__.py (a package needs __main__.py for
+    `python -m` to reach it); also runnable directly via the guard below.
+    """
     import json
     import sys
 
     from scripts.db import memex_home
 
     db_path = str(memex_home() / "agents.db")
-    cmd = sys.argv[1]
+    cmd = sys.argv[1] if len(sys.argv) > 1 else None
 
     if cmd == "create":
         print(
@@ -109,6 +115,20 @@ if __name__ == "__main__":
         print(json.dumps(list_agents(db_path), indent=2))
     elif cmd == "delete":
         print("Deleted" if delete_agent(db_path, sys.argv[2]) else "Not found")
+    elif cmd in (None, "-h", "--help", "help"):
+        print(
+            "usage: python -m scripts.agents <command> [args]\n"
+            "commands:\n"
+            "  create <id> <name> <role_id> <profile>   create an agent\n"
+            "  get <id>                                  fetch an agent by id\n"
+            "  list                                      list all agents\n"
+            "  delete <id>                               delete an agent by id"
+        )
+        sys.exit(0 if cmd is not None else 1)
     else:
         print(f"Unknown command: {cmd}")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
