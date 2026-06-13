@@ -10,7 +10,31 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ## Unreleased
 
-(no in-progress work)
+### Removed — settings-recommendation-on-upgrade (consent-gated)
+
+The version-upgrade settings recommendation shipped in v2.11.0 is removed:
+recommending Claude Code model/cost settings is out of memex's
+persistent-memory scope. The canonical implementation lives in the **atelier**
+plugin (`scripts/recommended_settings.py` +
+`internal/settings-recommendation/SKILL.md`, surfaced via `startup_check()`'s
+`settings_rec_offer`; atelier PR #109), which fully covers the same behavior
+(same `RECOMMENDED` keys/values, y/N default-No consent, merge-safe atomic
+apply, once-per-version state).
+
+- Deleted `scripts/recommended_settings.py`,
+  `internal/core/settings-recommendation/SKILL.md`, and
+  `tests/test_recommended_settings.py` (plus the conftest `tmp_settings_path`
+  fixture).
+- `skills/run/SKILL.md`: Step 0.3 removed — Step 0.2's success path proceeds
+  straight to routing; the Core CRUD routing row for the offer is gone.
+- `CLAUDE.md`: the "Settings-recommendation-on-upgrade" section removed, and
+  the pre-existing advisory "Model recommendations" section (Opus-high default
+  posture + per-skill/agent override table) removed for the same reason —
+  memex does not recommend model/cost settings, advisory docs included. The
+  CI-guarded "Dispatched-subagent tiers (ENFORCED)" per-dispatch cost floor is
+  unchanged (it is an enforced dispatch policy, not a settings recommendation).
+- A leftover `~/.memex/settings_rec_state.json` marker on upgraded installs is
+  inert debris; nothing reads it.
 
 ---
 
