@@ -8,6 +8,28 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.12.2 — 2026-06-19
+
+### Fixed — migration runner self-heals a ledger/schema desync
+
+The Memex Core-store migration runner (`scripts/stores.py`) no longer crashes
+with `duplicate column name` / `table already exists` when a store's
+`migrations` ledger has fallen behind its actual schema. This was the sibling
+defect to the atelier `migrate.py` fix — atelier runs in Memex mode and shares
+the migration set into `~/.memex/atelier.db` through this runner, so a ledger
+desync here broke `/atelier:save`.
+
+Each migration is now applied **per-statement** (split via stdlib
+`sqlite3.complete_statement()` — tokenizer-aware over string literals, comments,
+and trigger `BEGIN…END`/`CASE…END` bodies) inside a SAVEPOINT. An already-exists
+`OperationalError` (anchored classifier) is treated as already-applied and the
+file is recorded so the ledger self-heals; every other error rolls the file back
+(no half-applied-then-recorded hazard) and propagates. File body + ledger INSERT
+commit together on `RELEASE` (schema/ledger lock-step, no desync window), and the
+connection is always closed on the error path.
+
+---
+
 ## v2.12.1 — 2026-06-13
 
 ### Fixed — `python -m scripts.agents` CLI regression + stale doc paths
