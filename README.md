@@ -16,7 +16,12 @@ Three layers, one plugin:
 2. **Memex Index + 5 internal agents** — Librarian, Reference Librarian, Archivist, Database Administrator, Data Steward. Mandatory write-path gateway. Federated metadata, FTS5 full-text search, vector embeddings, and cross-store relationships.
 3. **Memex Core** — CRUD substrate. Provisions and hosts arbitrary SQLite stores from consumer-supplied SQL migration files. Schema-agnostic; any consumer plugin can declare its own tables and let Memex own the storage and federated search.
 
-24 internal procedures are routed via a single Claude-Code-visible skill, `memex:run`, which dispatches natural-language user intents and agent-facing CRUD operations to the matching procedure on demand. This keeps the plugin's skill-description footprint well under Claude Code's 1% budget.
+Two further subsystems build on top of these layers:
+
+- **Code graph** — a separate code-navigation store (`code_graph.db`) for consumer recon (kaizen, atelier). An external extractor (`graphify`) produces a graph; Memex ingests it (`internal/codegraph/ingest`, `scripts/code_graph.py`, `db/code_graph.sql`) and serves bounded, deterministic queries — `where_is`, `callers`, `dependencies`, `neighbors`, `module_map` (`internal/codegraph/query`). Pure SQL; no LLM and no extraction inside Memex.
+- **GraphRAG community summarization** — a derived knowledge layer over already-indexed documents: a key-free lexical similarity graph, hierarchical community detection (`scripts/communities.py`), and bottom-up per-community reports persisted to `index.db` (`internal/brain/community-report`, `scripts/agents/community_reporter.py`) that power `global`-mode ask. Rebuilt on demand via `internal/brain/graph-rebuild`, never on the write path.
+
+30 internal procedures are routed via a single Claude-Code-visible skill, `memex:run`, which dispatches natural-language user intents and agent-facing CRUD operations to the matching procedure on demand. This keeps the plugin's skill-description footprint well under Claude Code's 1% budget.
 
 ## Installation
 
@@ -29,7 +34,7 @@ You want to install Memex alongside your other Claude Code plugins and use it to
 1. **Install via your Claude Code marketplace.** Claude Code unpacks the bundle to `~/.claude/plugins/cache/<marketplace>/memex/<version>/` (it manages this path — do not place files manually). Each release ships an `INSTALL.md` inside the bundle.
 2. **Restart Claude Code**, or invoke `/plugin reload memex` if your version supports it.
 3. **Invoke `memex:run`** and express an intent in natural language (e.g., *"ingest this article"*, *"what do I know about X?"*, *"capture this thought"*).
-   - On the very first invocation, `memex:run` Step 0 detects the missing `~/.memex/`, prints a consent block listing what will be created, and prompts `(y/n)`. Answer `y` and Memex bootstraps `~/.memex/` (seeds the 5 internal agents, creates `article.db`, writes `registry.json` and `config.json`). No separate install command is required.
+   - On the very first invocation, `memex:run` Step 0 detects the missing `~/.memex/`, prints a consent block listing what will be created, and prompts `(y/n)`. Answer `y` and Memex bootstraps `~/.memex/` (seeds the 5 internal agents, creates `article.db`, writes `registry.json`). No separate install command is required. (`config.json`, which records the resolved Memex path, is written separately by the `memex:run` router during path resolution, not by the bootstrap step.)
    - On first use of any Brain operation you'll be prompted to register yourself as a human agent — one-time setup.
 
 If you ever need to bootstrap manually (Step 0 is unreachable, broken `~/.memex/`, automated deployment), run:
@@ -75,7 +80,7 @@ PRs run a CI gate (lint, security, tests) — see `.github/workflows/ci.yml`. Br
 
 Read these to get oriented as a contributor:
 
-- `docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md` — per-layer acceptance docs (the tracked v2.0 contract).
+- `docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md` — per-layer acceptance docs (the tracked layer contract).
 - Locked architecture spec: see git history pre-2026-05-26 for the v2.0 design body, or query the dogfooded copy via `memex:run ask` (untracked in memex#22 — canonical store is Memex).
 - `USER_GUIDE.md` — user-facing operations reference.
 - `CHANGELOG.md` — version history.
@@ -100,8 +105,9 @@ Full design rationale: see git history pre-2026-05-26 for the v2.0 design body, 
 ├── article.db      # Brain's default store (articles + captures + syntheses)
 ├── registry.json   # registered stores
 ├── raw/            # Archivist's content-addressable raw archive
+├── backups/        # database backups
 ├── audits/         # Data Steward reports
-└── legacy/         # v1 install (archived, not migrated)
+└── templates/      # store/migration templates
 ```
 
 ## Status

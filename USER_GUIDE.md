@@ -6,7 +6,7 @@ A practical guide to using Memex day-to-day after it's installed. For install in
 
 1. Install Memex into your Claude Code (see the **For consumers** section of `README.md`, or the `INSTALL.md` inside the dist bundle).
 2. Restart Claude Code.
-3. Invoke `memex:run` for the first time. Step 0 detects the missing `~/.memex/`, prints a consent block listing what will be created, and prompts `(y/n)`. Answer `y` and Memex auto-bootstraps: seeds the 5 internal agents, creates `article.db`, writes `registry.json` and `config.json`. (If you need to bootstrap manually — e.g., automated deployment — run `python3 -m scripts.install`.)
+3. Invoke `memex:run` for the first time. Step 0 detects the missing `~/.memex/`, prints a consent block listing what will be created, and prompts `(y/n)`. Answer `y` and Memex auto-bootstraps: seeds the 5 internal agents, creates `article.db`, writes `registry.json`. (`config.json`, which records the resolved Memex path, is written separately by the `memex:run` router during path resolution, not by the bootstrap step. If you need to bootstrap manually — e.g., automated deployment — run `python3 -m scripts.install`.)
 4. (Optional) Configure embeddings — see "Embeddings & retrieval" below. Memex works fine without an embedding provider; FTS5 alone retrieves results, and you can add a provider any time.
 
 ## How to invoke Memex
