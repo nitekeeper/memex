@@ -8,6 +8,40 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.14.0 — 2026-06-26
+
+### Added — interactive 3D knowledge-graph view (`/graph`)
+
+The dashboard gains an **Obsidian-style knowledge graph, orbitable in 3D**,
+reached from a "◉ 3D graph" link on the dashboard or directly at `/graph`.
+Documents are nodes, relations are edges, colored by GraphRAG community; drag to
+orbit, scroll/pinch to zoom, hover for a tooltip, click a node to focus its
+neighborhood, search to filter.
+
+`build_graph()` (in `scripts/dashboard.py`) opens `index.db` **read-only** and
+returns `{nodes, links, truncated}`: links are kept only when both endpoints are
+in the node set (dangling and self-loops dropped), community color comes from
+`community_members`, truncation is deterministic (`ORDER BY created_at, index_id`)
+and capped at 900 nodes (surfaced via the `truncated` flag). New routes
+`GET /graph` and `GET /api/graph`, plus a `_send_json()` handler helper backing
+both JSON endpoints.
+
+The viewer is a **self-contained vanilla-JS 3D force simulation rendered to a 2D
+canvas** with perspective projection + camera orbit — no Three.js / WebGL / CDN,
+so it stays under the page's `default-src 'none'` CSP and ships no vendored
+blobs. Physics work is bounded by a fixed pair-op budget so load and settling
+stay smooth up to the node cap. Every DB-derived string (label, domain,
+community, tooltip, legend) renders via `textContent` / canvas `fillText`, so an
+ingested title containing markup can never become script. Read-only throughout —
+the viewer writes nothing, so it is not a Librarian/M3 write-path bypass.
+
+11 new tests in `tests/test_dashboard.py` cover the projection (structure,
+dangling/self-loop drop, truncation boundary, community color, corrupt-index
+degradation, bootstrap guard, `_node_label` fallbacks), a data-as-data
+(no-XSS) guard over the viewer, and the two new routes.
+
+---
+
 ## v2.13.0 — 2026-06-26
 
 ### Added — Memex dashboard: a local, read-only overview of everything stored
