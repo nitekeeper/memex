@@ -400,7 +400,111 @@ def build_summary() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# HTTP layer — loopback-only, three fixed routes, no filesystem serving.
+# Knowledge-graph projection — documents as nodes, relations as edges, colored
+# by community. This is the Obsidian-graph analog (the federated index), served
+# to the 3D viewer at /graph. Read-only and defensive like build_summary.
+# ---------------------------------------------------------------------------
+# Capped low because the viewer's force layout is O(n²) on the browser main
+# thread (no WebGL/worker). ~900 keeps both the pre-layout burst and per-frame
+# settling smooth; larger graphs are truncated (surfaced via the `truncated`
+# flag). A personal knowledge index is typically in the hundreds.
+_GRAPH_MAX_NODES = 900
+
+
+def _node_label(row: sqlite3.Row) -> str:
+    """A short human label for a document node: prefer the explicit key, then a
+    title-ish field from JSON metadata, then domain:row_id. Capped in length."""
+    key = row["key"]
+    if key:
+        return str(key)[:80]
+    md = row["metadata"]
+    if md:
+        try:
+            data = json.loads(md)
+            if isinstance(data, dict):
+                for field in ("title", "name", "topic"):
+                    val = data.get(field)
+                    if val:
+                        return str(val)[:80]
+        except (ValueError, TypeError):
+            pass
+    base = row["domain"] or row["table_name"] or "node"
+    return f"{base}:{row['row_id']}"[:80]
+
+
+def build_graph(max_nodes: int = _GRAPH_MAX_NODES) -> dict:
+    """Build the federated-index knowledge graph as ``{nodes, links, truncated}``.
+
+    Nodes are `documents`; links are `relations` whose BOTH endpoints are in the
+    returned node set (dangling/self-referential edges are dropped). Read-only;
+    degrades to an empty graph if the index store or a table is missing.
+    """
+    require_bootstrap()
+    records = {r["name"]: r for r in registry.list_stores()}
+    empty = {"nodes": [], "links": [], "truncated": False}
+    if "index" not in records:
+        return empty
+    con = _ro_connect(records["index"]["path"])
+    if con is None:
+        return empty
+    try:
+        # Community membership at the base level → node color groups.
+        community: dict[str, str] = {}
+        try:
+            for r in con.execute(
+                "SELECT index_id, community_id FROM community_members WHERE level = 0"
+            ):
+                community[r["index_id"]] = r["community_id"]
+        except sqlite3.Error:
+            community = {}
+
+        try:
+            rows = con.execute(
+                "SELECT index_id, key, domain, table_name, row_id, metadata "
+                "FROM documents ORDER BY created_at, index_id LIMIT ?",  # index_id tiebreaker → stable truncation
+                (max_nodes + 1,),
+            ).fetchall()
+        except sqlite3.Error:
+            return empty
+
+        truncated = len(rows) > max_nodes
+        rows = rows[:max_nodes]
+        ids = {r["index_id"] for r in rows}
+        nodes = [
+            {
+                "id": r["index_id"],
+                "label": _node_label(r),
+                "domain": r["domain"],
+                "community": community.get(r["index_id"]),
+            }
+            for r in rows
+        ]
+
+        links = []
+        try:
+            for r in con.execute(
+                "SELECT from_index_id, to_index_id, rel_type, confidence FROM relations"
+            ):
+                src, dst = r["from_index_id"], r["to_index_id"]
+                if src != dst and src in ids and dst in ids:
+                    links.append(
+                        {
+                            "source": src,
+                            "target": dst,
+                            "type": r["rel_type"],
+                            "confidence": r["confidence"],
+                        }
+                    )
+        except sqlite3.Error:
+            links = []
+
+        return {"nodes": nodes, "links": links, "truncated": truncated}
+    finally:
+        con.close()
+
+
+# ---------------------------------------------------------------------------
+# HTTP layer — loopback-only, fixed routes, no filesystem serving.
 # ---------------------------------------------------------------------------
 class _Handler(BaseHTTPRequestHandler):
     server_version = "MemexDashboard"
@@ -422,17 +526,26 @@ class _Handler(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(body)
 
+    def _send_json(self, builder) -> None:
+        """Serialize ``builder()`` to JSON; emit a clean 500 JSON on any error
+        (never a stack-trace page)."""
+        try:
+            payload = json.dumps(builder(), ensure_ascii=False, default=str)
+            self._send(200, payload.encode("utf-8"), "application/json; charset=utf-8")
+        except Exception as exc:
+            body = json.dumps({"error": str(exc)}).encode("utf-8")
+            self._send(500, body, "application/json; charset=utf-8")
+
     def do_GET(self) -> None:  # http.server dispatch hook
         route = urlparse(self.path).path
         if route in ("/", "/index.html"):
             self._send(200, INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
+        elif route == "/graph":
+            self._send(200, GRAPH_HTML.encode("utf-8"), "text/html; charset=utf-8")
         elif route == "/api/summary":
-            try:
-                payload = json.dumps(build_summary(), ensure_ascii=False, default=str)
-                self._send(200, payload.encode("utf-8"), "application/json; charset=utf-8")
-            except Exception as exc:  # surface a clean JSON error, never a stack trace page
-                body = json.dumps({"error": str(exc)}).encode("utf-8")
-                self._send(500, body, "application/json; charset=utf-8")
+            self._send_json(build_summary)
+        elif route == "/api/graph":
+            self._send_json(build_graph)
         elif route == "/healthz":
             self._send(200, b'{"ok":true}', "application/json; charset=utf-8")
         else:
@@ -596,6 +709,11 @@ INDEX_HTML = r"""<!DOCTYPE html>
     border-radius:6px; padding:6px 12px; cursor:pointer; font-size:13px;
   }
   button:hover { border-color:var(--accent); }
+  .btn-link {
+    background:var(--panel2); color:var(--fg); border:1px solid var(--border);
+    border-radius:6px; padding:6px 12px; font-size:13px; text-decoration:none;
+  }
+  .btn-link:hover { border-color:var(--accent2); color:var(--accent2); }
   label.toggle { color:var(--muted); font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer; }
   main { padding:24px; max-width:1280px; margin:0 auto; }
   .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px; }
@@ -637,6 +755,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
   <span class="spacer"></span>
   <label class="toggle"><input type="checkbox" id="auto"> auto-refresh (30s)</label>
   <span class="meta" id="gen"></span>
+  <a class="btn-link" href="/graph">◉ 3D graph</a>
   <button id="refresh">Refresh</button>
 </header>
 <main>
@@ -838,6 +957,404 @@ $("auto").addEventListener("change", (e) => {
   if (e.target.checked) timer = setInterval(load, 30000);
 });
 load();
+</script>
+</body>
+</html>
+"""
+
+
+# ---------------------------------------------------------------------------
+# The 3D knowledge-graph viewer (/graph). Self-contained: a vanilla-JS force
+# simulation in 3D rendered to a 2D canvas with perspective projection + camera
+# orbit — no Three.js / WebGL / CDN, so it stays under the default-src 'none'
+# CSP and ships no vendored blobs. Data via fetch('/api/graph').
+# ---------------------------------------------------------------------------
+GRAPH_HTML = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memex — knowledge graph (3D)</title>
+<style>
+  :root { --bg:#0a0d12; --fg:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#bc8cff; --border:#2b3340; --panel:rgba(22,27,34,.82); }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--fg);
+    font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  #c { position:fixed; inset:0; display:block; cursor:grab; touch-action:none; }
+  #c.drag { cursor:grabbing; }
+  .panel { position:fixed; background:var(--panel); backdrop-filter:blur(8px);
+    border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+  .top-left { top:14px; left:14px; }
+  .top-right { top:14px; right:14px; display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+  .bottom-left { bottom:14px; left:14px; max-width:240px; max-height:46vh; overflow:auto; }
+  .title { font-size:15px; font-weight:650; }
+  .title .dim, .dim { color:var(--muted); font-weight:400; }
+  .back { color:var(--accent); text-decoration:none; font-size:12px; }
+  .back:hover { text-decoration:underline; }
+  #stats { font-size:12px; margin-top:2px; }
+  .top-right input[type=text], .top-right input:not([type]) { background:#0d1117; color:var(--fg);
+    border:1px solid var(--border); border-radius:6px; padding:5px 8px; font-size:12px; width:180px; }
+  .top-right label { display:flex; gap:6px; align-items:center; color:var(--muted); font-size:12px; cursor:pointer; }
+  .top-right button { background:#1c2330; color:var(--fg); border:1px solid var(--border);
+    border-radius:6px; padding:5px 8px; font-size:12px; cursor:pointer; }
+  .top-right button:hover { border-color:var(--accent); }
+  #legend .row { display:flex; align-items:center; gap:7px; margin:3px 0; font-size:12px; }
+  #legend .sw { width:11px; height:11px; border-radius:3px; flex:0 0 auto; }
+  #legend .name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #legend h4 { margin:0 0 6px; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+  .tip { position:fixed; pointer-events:none; background:#000d; border:1px solid var(--border);
+    border-radius:6px; padding:6px 9px; font-size:12px; max-width:300px; display:none; z-index:9; }
+  .tip .l { font-weight:600; } .tip .m { color:var(--muted); font-size:11px; }
+  .err { position:fixed; top:14px; left:50%; transform:translateX(-50%); background:#3d1418;
+    border:1px solid #f85149; color:#ffa198; padding:10px 14px; border-radius:8px; display:none; }
+  .loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); }
+  .hint { position:fixed; bottom:14px; right:14px; color:var(--muted); font-size:11px; opacity:.8; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="panel top-left">
+  <a href="/" class="back">&larr; dashboard</a>
+  <div class="title">Knowledge graph <span class="dim">&middot; 3D</span></div>
+  <div id="stats" class="dim"></div>
+</div>
+<div class="panel top-right">
+  <input id="search" type="text" placeholder="search nodes…" autocomplete="off" spellcheck="false">
+  <div id="matchinfo" class="dim" style="font-size:11px;min-height:14px"></div>
+  <label><input type="checkbox" id="spin" checked> auto-rotate</label>
+  <label><input type="checkbox" id="labels"> node labels</label>
+  <button id="reset">reset view</button>
+</div>
+<div class="panel bottom-left" id="legend"></div>
+<div class="tip" id="tip"></div>
+<div class="err" id="err"></div>
+<div class="loading" id="loading">loading graph…</div>
+<div class="hint">drag to orbit · scroll to zoom · click a node to focus</div>
+<script>
+"use strict";
+const PALETTE = ["#58a6ff","#bc8cff","#3fb950","#d29922","#f0883e","#ff7b72","#39c5cf",
+  "#db61a2","#a5d6ff","#ffab70","#7ee787","#e3b341"];
+const GREY = "#5a6472";
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const tip = document.getElementById("tip");
+let W = 0, H = 0, DPR = 1;
+let nodes = [], links = [], byId = new Map(), adj = new Map();
+let alpha = 1, settled = false;
+let hovered = null, selected = null, matched = null;
+const cam = { theta: 0.6, phi: 0.35, dist: 600, tx: 0, ty: 0, tz: 0 };
+let radius = 200;
+
+function colorFor(community) {
+  if (!community) return GREY;
+  let h = 0;
+  for (let i = 0; i < community.length; i++) h = (h * 31 + community.charCodeAt(i)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}
+function focal() { return Math.min(W, H) || 800; }
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + "px"; canvas.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener("resize", resize);
+
+function project(p) {
+  const x = p.x - cam.tx, y = p.y - cam.ty, z = p.z - cam.tz;
+  const ct = Math.cos(cam.theta), st = Math.sin(cam.theta);
+  const x1 = x * ct + z * st;
+  const z1 = -x * st + z * ct;
+  const cp = Math.cos(cam.phi), sp = Math.sin(cam.phi);
+  const y1 = y * cp - z1 * sp;
+  const z2 = y * sp + z1 * cp;
+  const zc = z2 + cam.dist;
+  if (zc < 1) return null;
+  const f = focal();
+  return { sx: W / 2 + (x1 * f) / zc, sy: H / 2 - (y1 * f) / zc, depth: zc, scale: f / zc };
+}
+
+function step() {
+  const n = nodes.length;
+  const REP = 26000, SPRING = 0.015, REST = 42, CENTER = 0.018, DAMP = 0.84;
+  for (let i = 0; i < n; i++) {
+    const a = nodes[i];
+    for (let j = i + 1; j < n; j++) {
+      const b = nodes[j];
+      let dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+      let d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < 0.01) { dx = (Math.random() - 0.5); dy = (Math.random() - 0.5); dz = (Math.random() - 0.5); d2 = 0.5; }
+      const f = (REP * alpha) / d2;
+      const inv = 1 / Math.sqrt(d2);
+      const fx = dx * inv * f, fy = dy * inv * f, fz = dz * inv * f;
+      a.vx += fx; a.vy += fy; a.vz += fz;
+      b.vx -= fx; b.vy -= fy; b.vz -= fz;
+    }
+  }
+  for (const l of links) {
+    const a = l.s, b = l.t;
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 0.01;
+    const f = ((dist - REST) * SPRING * alpha) / dist;
+    a.vx += dx * f; a.vy += dy * f; a.vz += dz * f;
+    b.vx -= dx * f; b.vy -= dy * f; b.vz -= dz * f;
+  }
+  let maxr = 1;
+  for (const a of nodes) {
+    a.vx -= a.x * CENTER * alpha; a.vy -= a.y * CENTER * alpha; a.vz -= a.z * CENTER * alpha;
+    a.vx *= DAMP; a.vy *= DAMP; a.vz *= DAMP;
+    if (!a.fixed) { a.x += a.vx; a.y += a.vy; a.z += a.vz; }
+    const r = Math.hypot(a.x, a.y, a.z); if (r > maxr) maxr = r;
+  }
+  radius = maxr;
+  alpha *= 0.985;
+  if (alpha < 0.004) { alpha = 0; settled = true; }
+}
+
+function fit() {
+  cam.dist = Math.max(radius * 2.5, 60);
+  cam.tx = cam.ty = cam.tz = 0;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  for (const a of nodes) { const pr = project(a); a._p = pr; }
+  // links
+  ctx.lineWidth = 1;
+  for (const l of links) {
+    const pa = l.s._p, pb = l.t._p;
+    if (!pa || !pb) continue;
+    const hot = selected ? (l.s === selected || l.t === selected)
+              : hovered ? (l.s === hovered || l.t === hovered) : false;
+    const depth = (pa.depth + pb.depth) / 2;
+    let al = Math.max(0.05, Math.min(0.5, 220 / depth));
+    if (selected || hovered) al = hot ? 0.85 : al * 0.25;
+    ctx.strokeStyle = hot ? "rgba(188,140,255," + al + ")" : "rgba(140,150,165," + al + ")";
+    ctx.beginPath(); ctx.moveTo(pa.sx, pa.sy); ctx.lineTo(pb.sx, pb.sy); ctx.stroke();
+  }
+  // nodes back-to-front
+  const order = nodes.filter(a => a._p).sort((u, v) => v._p.depth - u._p.depth);
+  const labelOn = document.getElementById("labels").checked;
+  const selAdj = selected ? adj.get(selected.id) : null;  // hoist once per frame (avoid per-node Map.get)
+  const hovAdj = hovered ? adj.get(hovered.id) : null;
+  for (const a of order) {
+    const p = a._p;
+    const r = Math.max(1.5, Math.min(40, (3 + 2.5 * Math.log2(a.deg + 1)) * p.scale));
+    let dim = 1;
+    if (selected) dim = (a === selected || selAdj.has(a.id)) ? 1 : 0.18;
+    else if (hovered) dim = (a === hovered || hovAdj.has(a.id)) ? 1 : 0.28;
+    if (matched && !matched.has(a.id)) dim = Math.min(dim, 0.12);
+    const da = Math.max(0.25, Math.min(1, 260 / p.depth)) * dim;
+    ctx.globalAlpha = da;
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 6.2832);
+    ctx.fillStyle = a.color; ctx.fill();
+    ctx.globalAlpha = Math.min(1, da + 0.2);
+    ctx.lineWidth = (a === hovered || a === selected) ? 2 : 1;
+    ctx.strokeStyle = (a === hovered || a === selected) ? "#fff" : "rgba(0,0,0,.55)";
+    ctx.stroke();
+    a._r = r;
+  }
+  ctx.globalAlpha = 1;
+  // labels
+  ctx.font = "12px -apple-system,Segoe UI,Roboto,sans-serif";
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  const labelSet = new Set();
+  if (hovered) { labelSet.add(hovered); for (const id of adj.get(hovered.id)) labelSet.add(byId.get(id)); }
+  if (selected) { labelSet.add(selected); for (const id of adj.get(selected.id)) labelSet.add(byId.get(id)); }
+  if (labelOn) {
+    const small = nodes.length <= 120;  // small graphs: genuinely label every node
+    let budget = small ? nodes.length : 70;
+    for (const a of order) { if (budget <= 0) break; if (a._p && (small || a._p.scale > 0.5)) { labelSet.add(a); budget--; } }
+  }
+  for (const a of labelSet) {
+    if (!a._p) continue;
+    const x = a._p.sx + (a._r || 4) + 4, y = a._p.sy;
+    ctx.fillStyle = "rgba(0,0,0,.65)";
+    const w = ctx.measureText(a.label).width;
+    ctx.fillRect(x - 2, y - 8, w + 4, 16);
+    ctx.fillStyle = (a === hovered || a === selected) ? "#fff" : "#c9d1d9";
+    ctx.fillText(a.label, x, y);
+  }
+}
+
+let raf = 0;
+function pairCount() { const n = nodes.length; return n > 1 ? (n * (n - 1)) / 2 : 1; }
+// Bound per-frame physics by a fixed pair-op budget (each step() is O(n²/2)) so
+// settling stays ~60fps-safe regardless of node count, not a fixed node threshold.
+function stepsPerFrame() { return Math.max(1, Math.min(4, Math.floor(300000 / pairCount()))); }
+function loop() {
+  if (!settled) { const s = stepsPerFrame(); for (let k = 0; k < s; k++) step(); }
+  if (document.getElementById("spin").checked && !dragging && !hovered) cam.theta += 0.0023;
+  if (selected) { cam.tx = selected.x; cam.ty = selected.y; cam.tz = selected.z; }  // keep focus centered as the node drifts
+  // Constant inner floor (not radius*k): orphan nodes inflate `radius`, so a
+  // radius-tied floor would block zooming into the connected cluster.
+  cam.dist = Math.max(20, Math.min(radius * 12, cam.dist));
+  draw();
+  raf = requestAnimationFrame(loop);
+}
+
+// ---- interaction ----
+let dragging = false, dragStart = null, moved = false;
+const pointers = new Map();
+let pinchDist = 0;
+function twoPointerDist() {
+  const p = [...pointers.values()];
+  return p.length < 2 ? 0 : Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+}
+canvas.addEventListener("pointerdown", (e) => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  canvas.setPointerCapture(e.pointerId);
+  if (pointers.size === 1) {
+    dragging = true; moved = false; dragStart = { x: e.clientX, y: e.clientY };
+    canvas.classList.add("drag");
+  } else if (pointers.size === 2) { dragging = false; pinchDist = twoPointerDist(); }
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size >= 2) {  // two-finger pinch-to-zoom
+    const d = twoPointerDist();
+    if (pinchDist > 0 && d > 0) cam.dist *= pinchDist / d;
+    pinchDist = d;
+    return;
+  }
+  if (dragging) {
+    const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    cam.theta += dx * 0.006;
+    cam.phi = Math.max(-1.45, Math.min(1.45, cam.phi + dy * 0.006));
+    dragStart = { x: e.clientX, y: e.clientY };
+    return;
+  }
+  const hit = pick(e.clientX, e.clientY);
+  hovered = hit;
+  if (hit) {
+    tip.style.display = "block";
+    tip.style.left = Math.min(e.clientX + 14, W - 280) + "px";
+    tip.style.top = (e.clientY + 14) + "px";
+    tip.innerHTML = "";
+    const l = document.createElement("div"); l.className = "l"; l.textContent = hit.label;
+    const m = document.createElement("div"); m.className = "m";
+    m.textContent = (hit.domain || "—") + " · degree " + hit.deg + (hit.community ? " · " + hit.community : "");
+    tip.appendChild(l); tip.appendChild(m);
+    canvas.style.cursor = "pointer";
+  } else { tip.style.display = "none"; canvas.style.cursor = "grab"; }
+});
+function endPointer(e, canceled) {
+  const wasDragging = dragging, didMove = moved;
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinchDist = 0;
+  if (pointers.size === 1) {
+    // Dropped from a two-finger pinch back to one finger — resume single-pointer
+    // orbit from the remaining finger (moved=true so it isn't mistaken for a tap).
+    const p = [...pointers.values()][0];
+    dragging = true; moved = true; dragStart = { x: p.x, y: p.y };
+    return;
+  }
+  if (pointers.size === 0) {
+    // Only a genuine pointerup (not a browser-canceled gesture) is a tap-select.
+    if (!canceled && wasDragging && !didMove) {
+      const hit = pick(e.clientX, e.clientY);
+      if (hit) {
+        selected = hit; cam.tx = hit.x; cam.ty = hit.y; cam.tz = hit.z;
+        cam.dist = Math.min(cam.dist, Math.max(60, radius * 0.6));  // pull camera in toward the focused node
+      } else selected = null;
+    }
+    dragging = false; canvas.classList.remove("drag");
+  }
+}
+canvas.addEventListener("pointerup", (e) => endPointer(e, false));
+canvas.addEventListener("pointercancel", (e) => endPointer(e, true));
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  cam.dist *= (1 + Math.sign(e.deltaY) * 0.12);
+}, { passive: false });
+
+function pick(px, py) {
+  let best = null, bd = 18 * 18;
+  for (const a of nodes) {
+    if (!a._p) continue;
+    const dx = a._p.sx - px, dy = a._p.sy - py;
+    const rr = Math.max(a._r || 3, 6);
+    const d2 = dx * dx + dy * dy;
+    if (d2 < Math.max(bd, rr * rr) && d2 < (best ? bd : 1e9)) { best = a; bd = d2; }
+  }
+  return best;
+}
+
+document.getElementById("reset").addEventListener("click", () => {
+  cam.theta = 0.6; cam.phi = 0.35; selected = null; matched = null;
+  document.getElementById("search").value = "";
+  document.getElementById("matchinfo").textContent = "";
+  fit(); alpha = Math.max(alpha, 0.3); settled = false;
+});
+document.getElementById("search").addEventListener("input", (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  const info = document.getElementById("matchinfo");
+  if (!q) { matched = null; info.textContent = ""; return; }
+  const hits = new Set();
+  for (const a of nodes) if (a.label.toLowerCase().includes(q)) hits.add(a.id);
+  if (hits.size) { matched = hits; info.textContent = hits.size + " match" + (hits.size === 1 ? "" : "es"); }
+  else { matched = null; info.textContent = "no matches"; }  // don't dim everything on zero matches
+});
+
+function showErr(msg) { const el = document.getElementById("err"); el.style.display = "block"; el.textContent = msg; }
+
+function buildLegend() {
+  const counts = new Map();
+  for (const a of nodes) { const k = a.community || "(none)"; counts.set(k, (counts.get(k) || 0) + 1); }
+  const top = [...counts.entries()].sort((u, v) => v[1] - u[1]).slice(0, 12);
+  const el = document.getElementById("legend");
+  el.innerHTML = "";
+  const h = document.createElement("h4"); h.textContent = "Communities"; el.appendChild(h);
+  for (const [k, c] of top) {
+    const row = document.createElement("div"); row.className = "row";
+    const sw = document.createElement("span"); sw.className = "sw";
+    sw.style.background = k === "(none)" ? GREY : colorFor(k);
+    const nm = document.createElement("span"); nm.className = "name"; nm.textContent = k + " (" + c + ")";
+    row.appendChild(sw); row.appendChild(nm); el.appendChild(row);
+  }
+}
+
+async function init() {
+  resize();
+  let data;
+  try {
+    const r = await fetch("/api/graph", { cache: "no-store" });
+    data = await r.json();
+    if (data.error) throw new Error(data.error);
+    if (!Array.isArray(data.nodes) || !Array.isArray(data.links)) throw new Error("malformed graph payload");
+  } catch (e) { document.getElementById("loading").style.display = "none"; showErr("Could not load graph: " + e.message); return; }
+  document.getElementById("loading").style.display = "none";
+  nodes = data.nodes.map((d) => ({
+    id: d.id, label: d.label || d.id, domain: d.domain, community: d.community,
+    color: colorFor(d.community), deg: 0,
+    x: (Math.random() - 0.5) * 300, y: (Math.random() - 0.5) * 300, z: (Math.random() - 0.5) * 300,
+    vx: 0, vy: 0, vz: 0,
+  }));
+  byId = new Map(nodes.map((n) => [n.id, n]));
+  adj = new Map(nodes.map((n) => [n.id, new Set()]));
+  links = [];
+  for (const l of data.links) {
+    const s = byId.get(l.source), t = byId.get(l.target);
+    if (!s || !t) continue;
+    links.push({ s, t, type: l.type });
+    s.deg++; t.deg++; adj.get(s.id).add(t.id); adj.get(t.id).add(s.id);
+  }
+  const stats = document.getElementById("stats");
+  stats.textContent = nodes.length + " nodes · " + links.length + " links" + (data.truncated ? " (truncated)" : "");
+  if (!nodes.length) { showErr("No documents in the index yet — ingest or capture something first."); return; }
+  buildLegend();
+  // Pre-layout burst bounded by a fixed PAIR-OP budget (each step() is O(n²/2)),
+  // so the synchronous on-load cost stays ~3M pair-ops regardless of node count.
+  // A node-count floor would reintroduce a multi-second freeze near the cap.
+  const burst = Math.max(8, Math.min(300, Math.round(3.0e6 / pairCount())));
+  for (let k = 0; k < burst && !settled; k++) step();
+  fit();
+  loop();
+}
+init();
 </script>
 </body>
 </html>
