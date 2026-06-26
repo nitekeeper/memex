@@ -1,6 +1,6 @@
 ---
 name: memex:steward:dashboard
-description: Launch a local, read-only web dashboard summarizing everything stored in Memex — per-store row counts, the federated index (documents by domain/store/author, relations, embedding coverage, ingestion timeline), knowledge communities, Brain captures, the code-navigation graph, and the agent registry — plus an interactive 3D knowledge-graph view (Obsidian-style) at /graph. Stdlib HTTP server, binds 127.0.0.1, never writes to any store.
+description: Launch a local, read-only web dashboard summarizing everything stored in Memex — per-store row counts, the federated index (documents by domain/store/author, relations, embedding coverage, ingestion timeline), knowledge communities, Brain captures, the code-navigation graph, and the agent registry — plus keyword document search, a click-to-read content overlay, and an interactive 3D knowledge-graph view (Obsidian-style) at /graph. Stdlib HTTP server, binds 127.0.0.1, never writes to any store.
 ---
 
 # memex:steward:dashboard
@@ -56,11 +56,17 @@ PYTHONPATH="<PLUGIN_ROOT>" python3 -m scripts.dashboard --once
 
 | Route | Returns |
 |---|---|
-| `GET /` | the self-contained dashboard page (has a **◉ 3D graph** link) |
-| `GET /graph` | an interactive **3D knowledge-graph** viewer (Obsidian-style) — documents as nodes, relations as edges, colored by community; orbit / zoom / search / click-to-focus. Dependency-free vanilla JS + canvas (no Three.js/CDN, under the same CSP). |
+| `GET /` | the self-contained dashboard page (keyword **search box** + a **◉ 3D graph** link). Deep links: `?q=<keyword>` prefills+runs the search, `?doc=<index_id>` opens a document. |
+| `GET /graph` | an interactive **3D knowledge-graph** viewer (Obsidian-style) — documents as nodes, relations as edges, colored by community; orbit / zoom / search / **click a node to open its content**. Dependency-free vanilla JS + canvas (no Three.js/CDN, under the same CSP). |
 | `GET /api/summary` | the cross-store summary as JSON (recomputed live each request) |
 | `GET /api/graph` | the index knowledge graph as JSON `{nodes, links, truncated}` (read-only; dangling/self edges dropped; capped at 900 nodes) |
+| `GET /api/search?q=` | keyword search over the federated index (FTS5, LIKE fallback) → `{results, count, truncated, query}` |
+| `GET /api/doc?id=` | one document's full record + best-effort content fetched from its source store by `index_id` → `{title, domain, store, content, content_source, content_truncated, …}` |
 | `GET /healthz` | `{"ok":true}` liveness probe |
+
+Both the dashboard search list and a 3D-graph node click open a shared, read-only
+**content overlay** that renders the document body via `textContent` only (no
+HTML injection from stored/ingested text).
 
 ## Safety contract
 

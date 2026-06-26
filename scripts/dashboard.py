@@ -31,12 +31,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sqlite3
 import sys
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from scripts import registry
 from scripts.db import memex_home, require_bootstrap, safe_identifier
@@ -504,6 +505,188 @@ def build_graph(max_nodes: int = _GRAPH_MAX_NODES) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Keyword search + document content. Search runs over the federated index
+# (FTS5 over `documents.searchable`, with a LIKE fallback). Content is fetched
+# from the SOURCE store by `index_id` (the universal join key) since
+# `searchable` is tokenized, not the original body. All read-only.
+# ---------------------------------------------------------------------------
+_SEARCH_LIMIT = 50
+_MAX_CONTENT = 500_000  # cap on content CHARACTERS shipped to the browser per document
+# Source columns that hold human-readable content, in display priority.
+_CONTENT_COLS = ["body", "content", "text", "summary", "decisions", "description", "notes", "topic"]
+
+
+def _search_result(r: sqlite3.Row) -> dict:
+    return {
+        "id": r["index_id"],
+        "title": _node_label(r),
+        "domain": r["domain"],
+        "store": r["store"],
+        "snippet": (r["snip"] or "").strip() if r["snip"] is not None else "",
+    }
+
+
+def _fts_search(con: sqlite3.Connection, q: str, limit: int) -> list | None:
+    """FTS5 prefix search. Returns rows, or None if FTS is unavailable (caller
+    falls back to LIKE). Tokens are reduced to word chars, so the bound MATCH
+    string can never carry FTS5 query-syntax metacharacters."""
+    tokens = re.findall(r"\w+", q.lower())
+    if not tokens:
+        return None  # nothing tokenizable → let build_search fall through to LIKE
+    match = " ".join(f"{t}*" for t in tokens)
+    try:
+        return con.execute(
+            "SELECT d.index_id AS index_id, d.key AS key, d.domain AS domain, d.store AS store, "
+            "d.table_name AS table_name, d.row_id AS row_id, d.metadata AS metadata, "
+            "snippet(documents_fts, 0, '[', ']', '…', 12) AS snip "
+            "FROM documents_fts JOIN documents d ON d.rowid = documents_fts.rowid "
+            "WHERE documents_fts MATCH ? ORDER BY rank LIMIT ?",
+            (match, limit),
+        ).fetchall()
+    except sqlite3.Error:
+        return None
+
+
+def _like_search(con: sqlite3.Connection, q: str, limit: int) -> list:
+    esc = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    pat = f"%{esc}%"
+    try:
+        return con.execute(
+            "SELECT index_id, key, domain, store, table_name, row_id, metadata, "
+            "substr(searchable, 1, 180) AS snip FROM documents "
+            "WHERE searchable LIKE ? ESCAPE '\\' OR key LIKE ? ESCAPE '\\' "
+            "ORDER BY created_at DESC LIMIT ?",
+            (pat, pat, limit),
+        ).fetchall()
+    except sqlite3.Error:
+        return []
+
+
+def build_search(q: str, limit: int = _SEARCH_LIMIT) -> dict:
+    """Keyword search across the federated index. Read-only."""
+    require_bootstrap()
+    q = (q or "").strip()
+    base = {"results": [], "count": 0, "truncated": False, "query": q}
+    if not q:
+        return base
+    records = {r["name"]: r for r in registry.list_stores()}
+    if "index" not in records:
+        return base
+    con = _ro_connect(records["index"]["path"])
+    if con is None:
+        return base
+    try:
+        rows = _fts_search(con, q, limit + 1)
+        if rows is None:
+            rows = _like_search(con, q, limit + 1)
+        truncated = len(rows) > limit
+        results = [_search_result(r) for r in rows[:limit]]
+        return {"results": results, "count": len(results), "truncated": truncated, "query": q}
+    finally:
+        con.close()
+
+
+def _extract_content(srow: sqlite3.Row) -> list[tuple[str, str]]:
+    keys = set(srow.keys())
+    parts = []
+    for col in _CONTENT_COLS:
+        if col in keys:
+            val = srow[col]
+            if isinstance(val, str) and val.strip():
+                parts.append((col, val))
+    return parts
+
+
+def _capped(text: str) -> tuple[str, bool]:
+    """Truncate to _MAX_CONTENT characters; report whether truncation happened."""
+    return (text[:_MAX_CONTENT], True) if len(text) > _MAX_CONTENT else (text, False)
+
+
+def _fetch_content(records: dict, d: sqlite3.Row) -> tuple[str, str, bool]:
+    """Best-effort document body from the source store, joined by index_id.
+    Returns (text, source, truncated) where source is 'source'|'searchable'|'none'."""
+    store, table, index_id = d["store"], d["table_name"], d["index_id"]
+    if store in records:
+        try:
+            tname = safe_identifier(table)
+        except ValueError:
+            tname = None
+        scon = _ro_connect(records[store]["path"]) if tname else None
+        if scon is not None:
+            try:
+                cols = [r[1] for r in scon.execute(f'PRAGMA table_info("{tname}")')]  # nosec B608 - identifier validated
+                srow = None
+                if "index_id" in cols:
+                    srow = _row(scon, f'SELECT * FROM "{tname}" WHERE index_id = ?', (index_id,))  # nosec B608 - identifier validated
+                elif "id" in cols:
+                    srow = _row(scon, f'SELECT * FROM "{tname}" WHERE id = ?', (d["row_id"],))  # nosec B608 - identifier validated
+                if srow is not None:
+                    parts = _extract_content(srow)
+                    if parts:
+                        text = (
+                            parts[0][1]
+                            if len(parts) == 1
+                            else "\n\n".join(f"## {label}\n{body}" for label, body in parts)
+                        )
+                        capped, truncated = _capped(text)
+                        return capped, "source", truncated
+            except sqlite3.Error:
+                pass
+            finally:
+                scon.close()
+    sval = d["searchable"]
+    if sval:
+        capped, truncated = _capped(str(sval))
+        return capped, "searchable", truncated
+    return "(no stored content for this document)", "none", False
+
+
+def build_doc(index_id: str) -> dict:
+    """Full record + best-effort content for one document. Read-only."""
+    require_bootstrap()
+    index_id = (index_id or "").strip()
+    if not index_id:
+        return {"error": "missing document id"}
+    records = {r["name"]: r for r in registry.list_stores()}
+    if "index" not in records:
+        return {"error": "index store not available"}
+    con = _ro_connect(records["index"]["path"])
+    if con is None:
+        return {"error": "index store not available"}
+    try:
+        d = _row(
+            con,
+            "SELECT index_id, key, domain, store, table_name, row_id, created_by, created_at, "
+            "metadata, searchable FROM documents WHERE index_id = ?",
+            (index_id,),
+        )
+        if d is None:
+            return {"error": "document not found"}
+        meta = None
+        if d["metadata"]:
+            try:
+                meta = json.loads(d["metadata"])
+            except (ValueError, TypeError):
+                meta = d["metadata"]
+        content, source, truncated = _fetch_content(records, d)
+        return {
+            "id": d["index_id"],
+            "title": _node_label(d),
+            "domain": d["domain"],
+            "store": d["store"],
+            "table_name": d["table_name"],
+            "created_by": d["created_by"],
+            "created_at": d["created_at"],
+            "metadata": meta,
+            "content": content,
+            "content_source": source,
+            "content_truncated": truncated,
+        }
+    finally:
+        con.close()
+
+
+# ---------------------------------------------------------------------------
 # HTTP layer — loopback-only, fixed routes, no filesystem serving.
 # ---------------------------------------------------------------------------
 class _Handler(BaseHTTPRequestHandler):
@@ -533,11 +716,15 @@ class _Handler(BaseHTTPRequestHandler):
             payload = json.dumps(builder(), ensure_ascii=False, default=str)
             self._send(200, payload.encode("utf-8"), "application/json; charset=utf-8")
         except Exception as exc:
-            body = json.dumps({"error": str(exc)}).encode("utf-8")
+            # Detail goes to the operator's stderr only; the response stays generic
+            # so a --allow-non-local bind can't echo internal paths to the network.
+            print(f"[dashboard] request failed: {exc}", file=sys.stderr)
+            body = json.dumps({"error": "internal error"}).encode("utf-8")
             self._send(500, body, "application/json; charset=utf-8")
 
     def do_GET(self) -> None:  # http.server dispatch hook
-        route = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        route = parsed.path
         if route in ("/", "/index.html"):
             self._send(200, INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
         elif route == "/graph":
@@ -546,6 +733,12 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(build_summary)
         elif route == "/api/graph":
             self._send_json(build_graph)
+        elif route == "/api/search":
+            q = parse_qs(parsed.query).get("q", [""])[0]
+            self._send_json(lambda: build_search(q))
+        elif route == "/api/doc":
+            doc_id = parse_qs(parsed.query).get("id", [""])[0]
+            self._send_json(lambda: build_doc(doc_id))
         elif route == "/healthz":
             self._send(200, b'{"ok":true}', "application/json; charset=utf-8")
         else:
@@ -674,6 +867,83 @@ def main(argv: list[str] | None = None) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Shared document-content overlay — injected into BOTH the dashboard and the 3D
+# graph at the OVERLAY_* placeholders. openDoc(id) fetches /api/doc and renders
+# the body via textContent only (no innerHTML of data → no XSS from stored text).
+# ---------------------------------------------------------------------------
+_OVERLAY_CSS = r"""
+  .doc-backdrop { position:fixed; inset:0; background:rgba(2,5,10,.66); display:none; z-index:60; }
+  .doc-backdrop.open { display:flex; align-items:flex-start; justify-content:center; }
+  .doc-modal { margin-top:5vh; width:min(840px,92vw); max-height:88vh; background:#0d1117; color:#e6edf3;
+    border:1px solid #2b3340; border-radius:12px; box-shadow:0 16px 60px #000c; display:flex; flex-direction:column; overflow:hidden; }
+  .doc-head { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-bottom:1px solid #2b3340; }
+  .doc-title { font-size:16px; font-weight:650; word-break:break-word; }
+  .doc-meta { color:#8b949e; font-size:12px; margin-top:3px; font-family:ui-monospace,Menlo,monospace; word-break:break-word; }
+  .doc-close { margin-left:auto; background:#1c2330; color:#e6edf3; border:1px solid #2b3340; border-radius:6px;
+    width:30px; height:30px; font-size:18px; line-height:1; cursor:pointer; flex:0 0 auto; }
+  .doc-close:hover { border-color:#58a6ff; }
+  .doc-srcnote { color:#8b949e; font-size:11px; padding:8px 16px 0; font-style:italic; }
+  .doc-body { overflow:auto; padding:12px 16px 16px; }
+  .doc-body pre { margin:0; white-space:pre-wrap; word-break:break-word; font:13px/1.55 ui-monospace,Menlo,Consolas,monospace; color:#c9d1d9; }
+"""
+
+_OVERLAY_MARKUP = r"""
+<div class="doc-backdrop" id="docOverlay">
+  <div class="doc-modal" role="dialog" aria-modal="true" aria-labelledby="docTitle">
+    <div class="doc-head">
+      <div>
+        <div class="doc-title" id="docTitle"></div>
+        <div class="doc-meta" id="docMeta"></div>
+      </div>
+      <button class="doc-close" id="docClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="doc-srcnote" id="docSrcNote"></div>
+    <div class="doc-body"><pre id="docContent"></pre></div>
+  </div>
+</div>
+"""
+
+_OVERLAY_JS = r"""
+let _docPrevFocus = null;
+async function openDoc(id) {
+  const ov = document.getElementById("docOverlay");
+  const title = document.getElementById("docTitle");
+  const meta = document.getElementById("docMeta");
+  const note = document.getElementById("docSrcNote");
+  const body = document.getElementById("docContent");
+  _docPrevFocus = document.activeElement;  // restore focus on close (a11y)
+  title.textContent = "Loading…"; meta.textContent = ""; note.textContent = ""; body.textContent = "";
+  ov.classList.add("open");
+  document.getElementById("docClose").focus();
+  try {
+    const r = await fetch("/api/doc?id=" + encodeURIComponent(id), { cache: "no-store" });
+    const d = await r.json();
+    if (d.error) { title.textContent = "Not available"; body.textContent = d.error; return; }
+    title.textContent = d.title || d.id;
+    meta.textContent = [d.domain, d.store, d.created_at, d.created_by].filter(Boolean).join("  ·  ");
+    note.textContent = d.content_source === "searchable"
+      ? "showing indexed text — original source body unavailable"
+      : d.content_source === "none" ? "no stored content for this document"
+      : d.content_truncated ? "showing the first part — document exceeds the display limit" : "";
+    body.textContent = d.content || "(empty)";
+    document.querySelector("#docOverlay .doc-body").scrollTop = 0;
+  } catch (e) { title.textContent = "Error"; body.textContent = "Could not load document: " + e.message; }
+}
+function closeDoc() {
+  document.getElementById("docOverlay").classList.remove("open");
+  if (_docPrevFocus && _docPrevFocus.focus) _docPrevFocus.focus();
+}
+document.getElementById("docClose").addEventListener("click", closeDoc);
+document.getElementById("docOverlay").addEventListener("click", (e) => { if (e.target.id === "docOverlay") closeDoc(); });
+document.addEventListener("keydown", (e) => {
+  if (!document.getElementById("docOverlay").classList.contains("open")) return;
+  if (e.key === "Escape") closeDoc();
+  else if (e.key === "Tab") { e.preventDefault(); document.getElementById("docClose").focus(); }  // trap focus in the dialog
+});
+"""
+
+
+# ---------------------------------------------------------------------------
 # The single-page dashboard. Static asset, no server-side interpolation — all
 # data arrives via fetch('/api/summary') and is rendered with textContent.
 # ---------------------------------------------------------------------------
@@ -746,6 +1016,19 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .empty { color:var(--muted); font-style:italic; padding:8px 0; }
   #err { display:none; background:#3d1418; border:1px solid #f85149; color:#ffa198; padding:10px 14px; border-radius:8px; margin-bottom:16px; }
   footer { color:var(--muted); font-size:12px; text-align:center; padding:24px 0; }
+  .searchwrap { margin-bottom:20px; }
+  #docsearch { width:100%; background:var(--panel); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:11px 13px; font-size:14px; }
+  #docsearch:focus { outline:none; border-color:var(--accent); }
+  #docresults.open { margin-top:8px; background:var(--panel); border:1px solid var(--border); border-radius:8px; max-height:52vh; overflow:auto; }
+  .dres-head { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; padding:8px 12px; border-bottom:1px solid var(--border); }
+  .dres-empty { color:var(--muted); padding:12px; font-style:italic; }
+  .dres-row { padding:9px 12px; border-bottom:1px solid var(--border); cursor:pointer; }
+  .dres-row:last-child { border-bottom:none; }
+  .dres-row:hover { background:var(--panel2); }
+  .dres-title { font-size:13px; font-weight:600; }
+  .dres-sub { color:var(--muted); font-size:11px; margin-top:1px; }
+  .dres-snip { color:#aab2bd; font-size:12px; margin-top:3px; max-height:34px; overflow:hidden; }
+  /*OVERLAY_CSS*/
 </style>
 </head>
 <body>
@@ -759,11 +1042,16 @@ INDEX_HTML = r"""<!DOCTYPE html>
   <button id="refresh">Refresh</button>
 </header>
 <main>
+  <div class="searchwrap">
+    <input id="docsearch" type="text" placeholder="🔍  search documents by keyword…" autocomplete="off" spellcheck="false">
+    <div id="docresults"></div>
+  </div>
   <div id="err"></div>
   <div class="kpis" id="kpis"></div>
   <div id="sections"></div>
   <footer>Memex read-only overview · served from <code id="hostf"></code></footer>
 </main>
+<!--OVERLAY_MARKUP-->
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
@@ -956,6 +1244,40 @@ $("auto").addEventListener("change", (e) => {
   if (timer) { clearInterval(timer); timer = null; }
   if (e.target.checked) timer = setInterval(load, 30000);
 });
+
+// ---- document keyword search ----
+const dsi = $("docsearch"), dres = $("docresults");
+let dsTimer = null;
+dsi.addEventListener("input", () => { clearTimeout(dsTimer); dsTimer = setTimeout(runSearch, 180); });
+async function runSearch() {
+  const q = dsi.value.trim();
+  if (!q) { dres.textContent = ""; dres.classList.remove("open"); return; }
+  try {
+    const r = await fetch("/api/search?q=" + encodeURIComponent(q), { cache: "no-store" });
+    renderResults(await r.json());
+  } catch (e) { dres.classList.add("open"); dres.textContent = ""; dres.appendChild(el("div", { class: "dres-empty" }, ["search failed: " + e.message])); }
+}
+function renderResults(d) {
+  if (d.query !== undefined && d.query !== dsi.value.trim()) return;  // stale response — input moved on
+  dres.textContent = ""; dres.classList.add("open");
+  if (d.error) { dres.appendChild(el("div", { class: "dres-empty" }, [d.error])); return; }
+  if (!d.results || !d.results.length) { dres.appendChild(el("div", { class: "dres-empty" }, ["no matches for “" + d.query + "”"])); return; }
+  dres.appendChild(el("div", { class: "dres-head" }, [d.count + (d.truncated ? "+" : "") + " result" + (d.count === 1 ? "" : "s")]));
+  d.results.forEach((x) => {
+    const row = el("div", { class: "dres-row" }, [
+      el("div", { class: "dres-title" }, [x.title || x.id]),
+      el("div", { class: "dres-sub" }, [(x.domain || "—") + " · " + (x.store || "")]),
+    ]);
+    if (x.snippet) row.appendChild(el("div", { class: "dres-snip" }, [x.snippet]));
+    row.addEventListener("click", () => openDoc(x.id));
+    dres.appendChild(row);
+  });
+}
+/*OVERLAY_JS*/
+// Deep links: ?q=<keyword> prefills + runs the search; ?doc=<index_id> opens a document.
+const _params = new URLSearchParams(location.search);
+if (_params.get("q")) { dsi.value = _params.get("q"); runSearch(); }
+if (_params.get("doc")) openDoc(_params.get("doc"));
 load();
 </script>
 </body>
@@ -1009,6 +1331,7 @@ GRAPH_HTML = r"""<!DOCTYPE html>
     border:1px solid #f85149; color:#ffa198; padding:10px 14px; border-radius:8px; display:none; }
   .loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); }
   .hint { position:fixed; bottom:14px; right:14px; color:var(--muted); font-size:11px; opacity:.8; }
+  /*OVERLAY_CSS*/
 </style>
 </head>
 <body>
@@ -1029,7 +1352,8 @@ GRAPH_HTML = r"""<!DOCTYPE html>
 <div class="tip" id="tip"></div>
 <div class="err" id="err"></div>
 <div class="loading" id="loading">loading graph…</div>
-<div class="hint">drag to orbit · scroll to zoom · click a node to focus</div>
+<div class="hint">drag to orbit · scroll to zoom · click a node to open it</div>
+<!--OVERLAY_MARKUP-->
 <script>
 "use strict";
 const PALETTE = ["#58a6ff","#bc8cff","#3fb950","#d29922","#f0883e","#ff7b72","#39c5cf",
@@ -1259,6 +1583,7 @@ function endPointer(e, canceled) {
       if (hit) {
         selected = hit; cam.tx = hit.x; cam.ty = hit.y; cam.tz = hit.z;
         cam.dist = Math.min(cam.dist, Math.max(60, radius * 0.6));  // pull camera in toward the focused node
+        openDoc(hit.id);  // show the document's content in the overlay
       } else selected = null;
     }
     dragging = false; canvas.classList.remove("drag");
@@ -1354,11 +1679,27 @@ async function init() {
   fit();
   loop();
 }
+/*OVERLAY_JS*/
 init();
 </script>
 </body>
 </html>
 """
+
+
+# Inject the shared document-content overlay (CSS / markup / JS) into both pages
+# at their placeholders — defined once above, used by the dashboard search list
+# and the 3D graph's click-to-open.
+def _inject_overlay(html: str) -> str:
+    return (
+        html.replace("/*OVERLAY_CSS*/", _OVERLAY_CSS)
+        .replace("<!--OVERLAY_MARKUP-->", _OVERLAY_MARKUP)
+        .replace("/*OVERLAY_JS*/", _OVERLAY_JS)
+    )
+
+
+INDEX_HTML = _inject_overlay(INDEX_HTML)
+GRAPH_HTML = _inject_overlay(GRAPH_HTML)
 
 
 if __name__ == "__main__":
