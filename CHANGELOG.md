@@ -8,6 +8,42 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.15.0 — 2026-06-26
+
+### Added — keyword document search + click-to-read content overlay
+
+The dashboard gains a **keyword search box**: type a term and see the matching
+documents (FTS5-ranked over the federated index, with highlighted snippets and a
+`LIKE` fallback). Click a result — or **click a node in the 3D graph** — to read
+that document's full content in a shared overlay.
+
+`build_search(q)` searches `documents_fts` with a prefix-tokenized, bound MATCH
+(no FTS5 query-syntax injection) and an escaped `LIKE` fallback. `build_doc(id)`
+returns a document's full record plus best-effort content fetched from its
+**source store**, joined by `index_id` (the universal join key; falls back to
+`id=row_id`, then to the indexed `searchable` text), capped at 500k characters
+with a `content_truncated` flag. Two new read-only routes back these:
+`GET /api/search?q=` and `GET /api/doc?id=`. The shared `_send_json` helper now
+returns a generic `{"error":"internal error"}` and logs detail to stderr only, so
+a `--allow-non-local` bind can't echo internal paths to the network.
+
+The content overlay (CSS/markup/JS) is injected into **both** the dashboard and
+the 3D graph. `openDoc(id)` renders title/meta/body via `textContent` only — an
+ingested document title or body containing markup can never become script — with
+focus management, Tab/Escape handling, and a truncation note. The dashboard adds
+a debounced search box + results list (rendered via `el()`); the 3D graph opens
+the same overlay on node click. Deep links: `?q=<keyword>` prefills and runs the
+search, `?doc=<index_id>` opens a document. Read-only throughout — the search and
+viewer write nothing, so they are not a Librarian/M3 write-path bypass.
+
+21 new/updated tests in `tests/test_dashboard.py` cover search matching,
+wildcard-escaping and the forced `LIKE` fallback, injection-safety, content
+fetch via `index_id`-join / `id`-join fallback / multi-column assembly /
+`searchable` fallback / no-content / the size cap, the two routes, and a
+regression guard that the overlay markup precedes the inline script on both pages.
+
+---
+
 ## v2.14.0 — 2026-06-26
 
 ### Added — interactive 3D knowledge-graph view (`/graph`)
