@@ -1,21 +1,21 @@
 {
-  "version": "2.14.0",
-  "built_at": "2026-06-26T21:56:28.803744+00:00",
+  "version": "2.15.0",
+  "built_at": "2026-06-26T23:12:46.674870+00:00",
   "file_count": 77,
   "files": [
     {
       "path": ".claude-plugin/plugin.json",
-      "sha256": "f9712a0608fab7f5aaff1f803e59af56801f3efb58e2cf3b4d4636419c02d5a1",
+      "sha256": "56c92c015378512ad94684a064c658ff706d169523eaf88a19a6a23b9b456a2b",
       "bytes": 691
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "5f03ab0212a1c806cb623db84cc599ec3d1200ec0a626da2def7644e6bef564b",
-      "bytes": 42044
+      "sha256": "6beef0fc26fc7aba9e9095c62f8518139a90c35a84ef278d2aae10b585a4e130",
+      "bytes": 44161
     },
     {
       "path": "INSTALL.md",
-      "sha256": "fecab2731afd850c092085951d54c88d6d91afbbaa87fc3d7e2e4e3bd78a388b",
+      "sha256": "9b9bf5f27e926284c7f1a2b3fcc573db406a5f3908b7a513ae0b5adc5ef180ce",
       "bytes": 3015
     },
     {
@@ -205,8 +205,8 @@
     },
     {
       "path": "internal/steward/dashboard/SKILL.md",
-      "sha256": "7936e527f9deda346b482ffc9320bdfe19f50c976a259d03173253ed3b2ef51c",
-      "bytes": 3932
+      "sha256": "8eac5de21eec17b9356fed5678e2478762957dd72a9eb89c0825affdf0698d47",
+      "bytes": 4657
     },
     {
       "path": "internal/steward/reconcile-orphan/SKILL.md",
@@ -245,7 +245,7 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "502b79bac2d172eb7b7b6a666bf9e82ddf748f72fad9f357ca08104a4f106fb2",
+      "sha256": "b8cfcde1af2389158487bd5fa800cac40babb0e6fd0dc1c68fad3678ad58e075",
       "bytes": 2715
     },
     {
@@ -320,8 +320,8 @@
     },
     {
       "path": "scripts/dashboard.py",
-      "sha256": "be44e4b839b271114b97b1ed3ef680c3d23eda9d953494b968e4e72227689fc5",
-      "bytes": 57998
+      "sha256": "0aa64140b7aaa8556159d8bd545dce3fa2df1509722e394c16e799e1e9ec81af",
+      "bytes": 74120
     },
     {
       "path": "scripts/db.py",
