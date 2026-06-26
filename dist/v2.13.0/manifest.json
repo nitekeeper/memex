@@ -1,0 +1,392 @@
+{
+  "version": "2.13.0",
+  "built_at": "2026-06-26T21:00:23.129794+00:00",
+  "file_count": 77,
+  "files": [
+    {
+      "path": ".claude-plugin/plugin.json",
+      "sha256": "eda7214a14de56a71405a64ec604672a4da37144f954913b3d21c7fac11a900d",
+      "bytes": 691
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "1fd93efbd0a3bce2eddf7f20ed2c2f3efc407dc4e8e638919b2798118e1930b6",
+      "bytes": 40203
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "2d1950af02e5aab31386de2ba0f0c55670887b5b2e9b5f8341634ade7d1e8078",
+      "bytes": 3015
+    },
+    {
+      "path": "README.md",
+      "sha256": "d7e264195866feafe7308724bc73225f0a391c0a4d6733509383ee1af9db64bd",
+      "bytes": 8224
+    },
+    {
+      "path": "USER_GUIDE.md",
+      "sha256": "5cac1d9576024954210ad05910b37e69744dec3c4624f6ba73c486858a304319",
+      "bytes": 11049
+    },
+    {
+      "path": "db/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "db/agents.sql",
+      "sha256": "b6714ad00b927ccd05d70b987930de8bdb20901825f1dabc006c7e89a7edad27",
+      "bytes": 815
+    },
+    {
+      "path": "db/brain.sql",
+      "sha256": "21f9532906ce934c429bd00c6f38ba6c6f88de6b67d9fa881bc35f6a962ebeb3",
+      "bytes": 1318
+    },
+    {
+      "path": "db/code_graph.sql",
+      "sha256": "cb4f27052bc17c2070b08e11c9b97baba23beeeb0d9b2e7a9a5b4f8954ce6798",
+      "bytes": 4429
+    },
+    {
+      "path": "db/index.sql",
+      "sha256": "6a4627ac9e7bb0481b97d197266478e76c1f781b404088735f1116ff4d90c816",
+      "bytes": 4708
+    },
+    {
+      "path": "db/migrations_table.sql",
+      "sha256": "0bc4cb4c123701db5e6d552ce858736a214f4f1dd322bec91cb58a9e4adecc56",
+      "bytes": 450
+    },
+    {
+      "path": "internal/brain/ask/SKILL.md",
+      "sha256": "68ba1150b81c2aedaf558c9d1407604f0a00ddeb7af5bc10753018ac3a12b31c",
+      "bytes": 8234
+    },
+    {
+      "path": "internal/brain/capture/SKILL.md",
+      "sha256": "b0e56634bae0d3b113bbbcd663f1a745725aec11e80079013d281d2259a953a6",
+      "bytes": 2840
+    },
+    {
+      "path": "internal/brain/community-report/SKILL.md",
+      "sha256": "36fa8cb67d06b05924e086f4be3e509572e804102eac00db77ece43b167c15f1",
+      "bytes": 3974
+    },
+    {
+      "path": "internal/brain/graph-rebuild/SKILL.md",
+      "sha256": "ab69a09769d5a2f1dd4c68ec5a16e7e2f2e090ee86d3153c092ce269e8deded0",
+      "bytes": 3786
+    },
+    {
+      "path": "internal/brain/ingest/SKILL.md",
+      "sha256": "bdeea038e6a7625d1e50382adec4c815a543d645426e57abda4ef25722fedf10",
+      "bytes": 4908
+    },
+    {
+      "path": "internal/brain/lint/SKILL.md",
+      "sha256": "96db9a6fa57a2cc663c144fee79a74d79a8ffcdf48de3a3be09b26dfb0b5f71d",
+      "bytes": 547
+    },
+    {
+      "path": "internal/brain/synthesize/SKILL.md",
+      "sha256": "9187efde7de32ae6e68065e14d9b0228bb9dc44fa67a32c2aa57abda48965cf2",
+      "bytes": 6020
+    },
+    {
+      "path": "internal/codegraph/ingest/SKILL.md",
+      "sha256": "8d23eea912bbd34b3cb77890e6af438fd3dd5b1b6437cc1c871107684596e02c",
+      "bytes": 5200
+    },
+    {
+      "path": "internal/codegraph/query/SKILL.md",
+      "sha256": "f389b8436610b58ac853cbf321ba2d4ecf33ec6c49afe587ac21427813c0117e",
+      "bytes": 4206
+    },
+    {
+      "path": "internal/core/create-store/SKILL.md",
+      "sha256": "82efd3bb6e53f56333a2653f6758409d64e6dd85b5ad7523707dc429bdd1c1bd",
+      "bytes": 1112
+    },
+    {
+      "path": "internal/core/delete/SKILL.md",
+      "sha256": "009c3fe3bff7cca76211ce5371249b04161fa4f2f3fc67512c5a5f368f8ef6d7",
+      "bytes": 355
+    },
+    {
+      "path": "internal/core/get-agent/SKILL.md",
+      "sha256": "d2a2d1a9f3cab64a47cd7bdbd99be2e4fce43232f1d68efadd2094ca95401f7e",
+      "bytes": 397
+    },
+    {
+      "path": "internal/core/insert/SKILL.md",
+      "sha256": "3704a8adc9c035109aa137e41fbf07aaf5be43144149eb6f0ed31da7ceca9c0b",
+      "bytes": 431
+    },
+    {
+      "path": "internal/core/list-stores/SKILL.md",
+      "sha256": "ae01640c9214b0e429675fa37dce3ced8708de8e9f6e18bb49e08eb22c87eff8",
+      "bytes": 237
+    },
+    {
+      "path": "internal/core/migrate/SKILL.md",
+      "sha256": "7e384b1340334f077c627d8f9afe4b841490dfed6cbfede931c8c319372f9dae",
+      "bytes": 597
+    },
+    {
+      "path": "internal/core/query/SKILL.md",
+      "sha256": "f4e470703c68c6ff329bf65826cafc9690029f30dd4c64bbe8f9ffbe5b99f2db",
+      "bytes": 430
+    },
+    {
+      "path": "internal/core/register-agent/SKILL.md",
+      "sha256": "aa47a564c335dd444ced888b40959c9d8675384dfbfb7bf434599fbfeb94f7a6",
+      "bytes": 554
+    },
+    {
+      "path": "internal/core/register-role/SKILL.md",
+      "sha256": "d6a85c003d137da04a22c63030ac25a45722310bbdbfa05f0ea881a283e4346c",
+      "bytes": 487
+    },
+    {
+      "path": "internal/core/update/SKILL.md",
+      "sha256": "e534545c15f5a99a7b950ad2686a9f6a7bcd10752c9994a7568e23ce47709984",
+      "bytes": 384
+    },
+    {
+      "path": "internal/dba/checkpoint/SKILL.md",
+      "sha256": "7a2ff5a916c41026ef9079f9f6c9d00a4cf68822c2489091687a349e2a683d7f",
+      "bytes": 323
+    },
+    {
+      "path": "internal/dba/integrity-check/SKILL.md",
+      "sha256": "b49ad063eb785344f337c356555111fa0c4db08cf58c9e13889c9a3f1a466b56",
+      "bytes": 285
+    },
+    {
+      "path": "internal/dba/vacuum/SKILL.md",
+      "sha256": "79d471057da0f73bd7b91f971531d794d7587d8c5ebd2628640bd46375f86c5a",
+      "bytes": 276
+    },
+    {
+      "path": "internal/embed/backfill/SKILL.md",
+      "sha256": "671c35cb1236a9324af0bed6b52343ee89f81984d61ee54f6421b878dbe1b62e",
+      "bytes": 3135
+    },
+    {
+      "path": "internal/embed/reembed/SKILL.md",
+      "sha256": "ecc551cfbe81a3e74cd5136cab506a57dc593e8937e4408bb55ad7e7c167fee2",
+      "bytes": 3842
+    },
+    {
+      "path": "internal/index/archive/SKILL.md",
+      "sha256": "e61c41387cabc92ad9ce65aca00a13cc5cd5847f51761d14e9e136cd974b3a2c",
+      "bytes": 1024
+    },
+    {
+      "path": "internal/index/search/SKILL.md",
+      "sha256": "4909a5e279e1a9751330389286a9b482a6223a43974da019373fbfbe7b9b44f9",
+      "bytes": 3509
+    },
+    {
+      "path": "internal/index/write/SKILL.md",
+      "sha256": "dbf574472a477a503afe696295a72d755b1a9e5b33d28b6e421d15049f0cde40",
+      "bytes": 8120
+    },
+    {
+      "path": "internal/steward/audit-store/SKILL.md",
+      "sha256": "0dcd4406877158d27ccd749dcdf95f74eff9916c0a68dc80cd3895b9ebb0a76e",
+      "bytes": 426
+    },
+    {
+      "path": "internal/steward/audit/SKILL.md",
+      "sha256": "adcc76520cc620b9776082122948f25899feb130af0ec890d27222ef184ee14c",
+      "bytes": 812
+    },
+    {
+      "path": "internal/steward/dashboard/SKILL.md",
+      "sha256": "e16c8b8ffc46770b9731f117b6902006c8692267afb33f7bb5174898cf869d81",
+      "bytes": 3418
+    },
+    {
+      "path": "internal/steward/reconcile-orphan/SKILL.md",
+      "sha256": "2f98a39ca9cf284b8ba31f1228e65f4c03c1cc4eeb38822d0f5a0ba988629e7b",
+      "bytes": 2475
+    },
+    {
+      "path": "prompts/community_reporter.md",
+      "sha256": "114dc0c54dde6c27dfa3eeccf5a6158b20fcd3a132adfbe23ea8b5ba8afdf9a6",
+      "bytes": 1532
+    },
+    {
+      "path": "prompts/global_map.md",
+      "sha256": "f4a8236c6b1927a7d0ad816b62f05dde30fb6971eb45ff0d26b874b2123037ee",
+      "bytes": 860
+    },
+    {
+      "path": "prompts/global_reduce.md",
+      "sha256": "d46654bbacfba6598a7216c67796e9284ed245652c11e642f0aa867e3f209ee6",
+      "bytes": 735
+    },
+    {
+      "path": "prompts/librarian.md",
+      "sha256": "7d5efe503da539c83aa5870dc4480ea9693ab215705f7f44063f0b366c63fb65",
+      "bytes": 1935
+    },
+    {
+      "path": "prompts/reference_librarian.md",
+      "sha256": "42bbf370bbb14ad96ecee17a72f72e4902324479252cf2ef5b9d4e08d73eaba0",
+      "bytes": 795
+    },
+    {
+      "path": "prompts/synthesizer.md",
+      "sha256": "951ed2635bfa4d1d73cdff793b78214edcb9be9d65b815e0097dee88e30ca5a4",
+      "bytes": 619
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "6061f351411f4cb3af3c79a4bfc608cc316c2877c02e78e8109b8755a75d8734",
+      "bytes": 2715
+    },
+    {
+      "path": "scripts/__init__.py",
+      "sha256": "19bcd6be0665e144eba5fe2307a2df826f186738912e00dd24e4629f88bc4dac",
+      "bytes": 56
+    },
+    {
+      "path": "scripts/_internal_agents_seed.py",
+      "sha256": "2fc4dcbc9ff7edfd93dfc3f53cc758105e4785ec0dfb14ee7d082bc5e8039613",
+      "bytes": 17018
+    },
+    {
+      "path": "scripts/agents/__init__.py",
+      "sha256": "d760617071b6acac333df2771ff1e789908555555875ca37d885108ba810398b",
+      "bytes": 4545
+    },
+    {
+      "path": "scripts/agents/__main__.py",
+      "sha256": "2e9d448a436c4ee406546b9b6605ca3aa77c24a2095ec2dc1f38d733d373a7cc",
+      "bytes": 550
+    },
+    {
+      "path": "scripts/agents/archivist.py",
+      "sha256": "fc2701adbd5b32b8a83b150d6cb2bcd08f9bac8b28f2b8239be8b9f885054d4b",
+      "bytes": 1850
+    },
+    {
+      "path": "scripts/agents/community_reporter.py",
+      "sha256": "a0879ac2ff7bccfd0cc63f3cb8ec64838162b30d4ef961e142fa9b6b0b6641ca",
+      "bytes": 10259
+    },
+    {
+      "path": "scripts/agents/data_steward.py",
+      "sha256": "7b4aef7009fdc29634c528922dbdc9a69f781c63fb57f92f7d4725baa11b9b1e",
+      "bytes": 10636
+    },
+    {
+      "path": "scripts/agents/dba.py",
+      "sha256": "e906cfecfcb7f25b1d81a464b153f4dee1cb6e2d8757105e448ba4281a0acc58",
+      "bytes": 2035
+    },
+    {
+      "path": "scripts/agents/librarian.py",
+      "sha256": "368f534bc48fdabd5f220a4f21463b4b966636f42f38cb4f1d19f31bd59c7ea1",
+      "bytes": 12240
+    },
+    {
+      "path": "scripts/agents/reference_librarian.py",
+      "sha256": "9007e83d1669cc988737de02164a2af447f1018440d2a085f8e45ae27702751b",
+      "bytes": 9607
+    },
+    {
+      "path": "scripts/brain.py",
+      "sha256": "0730f3aeab768a6dfb909a021581ac0e258f9ab84731aab5f4cc31526fa89a90",
+      "bytes": 26806
+    },
+    {
+      "path": "scripts/bump.py",
+      "sha256": "a1d51cef6fb9a70149abba4582ac98202b7c86386f3f0e07d0a5534adae1f759",
+      "bytes": 5156
+    },
+    {
+      "path": "scripts/code_graph.py",
+      "sha256": "fb7576735c46ad794483b1a0695d53a261d7efe73c2e1fe49d7966b9e91e7ee7",
+      "bytes": 31218
+    },
+    {
+      "path": "scripts/communities.py",
+      "sha256": "69209e354bf37c4156614800738e2d85e46a6881ff90f9cc1198bcb43441ac90",
+      "bytes": 13571
+    },
+    {
+      "path": "scripts/dashboard.py",
+      "sha256": "61807a7d814b9216c23afe123ca44c20e1d007df9d01940c4e9a86486fa8accb",
+      "bytes": 34915
+    },
+    {
+      "path": "scripts/db.py",
+      "sha256": "90bac572fb81aba6c3cc297371f98bab73811c7b8b42235de4a29739f6b1a34c",
+      "bytes": 5738
+    },
+    {
+      "path": "scripts/embeddings.py",
+      "sha256": "c4aeb6301a5e1eceaf2a9c725c1721871601745db7d97a2d420c0f1e69c268d0",
+      "bytes": 22184
+    },
+    {
+      "path": "scripts/graph_build.py",
+      "sha256": "8d3ae71fcafb334742dafa132c7ba13adcbc44b24f217b6e675fb38e5816d1fd",
+      "bytes": 8965
+    },
+    {
+      "path": "scripts/install.py",
+      "sha256": "cfc287c89c68d1ca3a0bfbdf047570f63bfc5817d35b6622f4c420f56244701e",
+      "bytes": 16442
+    },
+    {
+      "path": "scripts/onboarding.py",
+      "sha256": "4f45b5e65e022d369d7de511cf4f9064d866cd8eab015c5248535595ed3407f1",
+      "bytes": 2254
+    },
+    {
+      "path": "scripts/paths.py",
+      "sha256": "26a941a0956ae9f53e29b69731272eff117e317a8f247cbc286d3d8493b75518",
+      "bytes": 906
+    },
+    {
+      "path": "scripts/registry.py",
+      "sha256": "6ec00bcec567a74f16baa8d6de60a1f6f2082e3ca95b5c7292da317c1ab77891",
+      "bytes": 2993
+    },
+    {
+      "path": "scripts/release.py",
+      "sha256": "eb21ceab42293a5785efdc4abf7b8d32f83244d8e72a59b2b340d6cb84abf4eb",
+      "bytes": 6142
+    },
+    {
+      "path": "scripts/roles.py",
+      "sha256": "f1f18b2f2c11f79ac4194432801f4982c5f5c3b9226ed350a844e3773b6309f6",
+      "bytes": 3083
+    },
+    {
+      "path": "scripts/stores.py",
+      "sha256": "1c6f719aa1436b911ce0ca01c559cd94fa5bf9380dce17d219caf9ccad2957e2",
+      "bytes": 14723
+    },
+    {
+      "path": "scripts/upgrade_from_v1.py",
+      "sha256": "c681e9c86fef8d787e2c7539ad208fb4375e785a932444a894470a24d2fc0f7a",
+      "bytes": 3795
+    },
+    {
+      "path": "skills/README.md",
+      "sha256": "5b06f7d68d3a1ae74d5a9ea336d8a85f874d868f5323e3d6773b0b48d7416936",
+      "bytes": 516
+    },
+    {
+      "path": "skills/run/SKILL.md",
+      "sha256": "68095705790a4e98f2ad8e71631dee3afd56b00a7949c16d9120609c73701e2a",
+      "bytes": 15573
+    }
+  ]
+}

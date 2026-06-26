@@ -8,6 +8,41 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.13.0 — 2026-06-26
+
+### Added — Memex dashboard: a local, read-only overview of everything stored
+
+New `memex:run` intent — *"show me a dashboard of what's in Memex"* — routed to
+`internal/steward/dashboard/SKILL.md` (`memex:steward:dashboard`). It launches a
+self-contained web dashboard summarizing every Memex store at a glance.
+
+`scripts/dashboard.py` is the deterministic backing (stdlib only: `http.server`,
+`sqlite3`, and `json` — no third-party deps). It opens every registered store
+plus the fixed-path `code_graph.db` **read-only** (SQLite `mode=ro`) and aggregates a
+cross-store summary: per-store row counts, the federated index (documents by
+domain / source store / author, relations by type, embedding coverage, an
+ingestion timeline), GraphRAG knowledge communities with ratings, Brain captures,
+the code-navigation graph (per-repo nodes/edges + freshness), and the agent
+registry. It is served as a single HTML page plus a live `/api/summary` JSON
+endpoint and a `/healthz` probe.
+
+It writes to nothing, so it is **not** a Librarian write-path bypass (spec §6 /
+M3 govern document writes; this is pure read-side reporting). Safety contract:
+binds `127.0.0.1` only and refuses a non-local bind without `--allow-non-local`
+(a blank `--host` normalizes to loopback, never `0.0.0.0`); serves only three
+fixed routes (no filesystem handler, so no path-traversal surface); renders all
+DB-derived strings client-side via `textContent` under a `default-src 'none'`
+CSP (no XSS from ingested titles); and degrades gracefully when a store, table,
+or column is missing or a store file is corrupt. A `--once` flag prints the
+summary as JSON for headless/SSH use.
+
+The internal-procedure count rises 30 → 31; routing, README, USER_GUIDE, and the
+procedure-count tests are updated to match. 20 new tests in
+`tests/test_dashboard.py` cover the aggregator's defensive degradation, the
+read-only guarantee, the loopback-bind guard, the port-scan, and the HTTP routes.
+
+---
+
 ## v2.12.2 — 2026-06-19
 
 ### Fixed — migration runner self-heals a ledger/schema desync

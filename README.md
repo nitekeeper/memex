@@ -21,7 +21,7 @@ Two further subsystems build on top of these layers:
 - **Code graph** — a separate code-navigation store (`code_graph.db`) for consumer recon (kaizen, atelier). An external extractor (`graphify`) produces a graph; Memex ingests it (`internal/codegraph/ingest`, `scripts/code_graph.py`, `db/code_graph.sql`) and serves bounded, deterministic queries — `where_is`, `callers`, `dependencies`, `neighbors`, `module_map` (`internal/codegraph/query`). Pure SQL; no LLM and no extraction inside Memex.
 - **GraphRAG community summarization** — a derived knowledge layer over already-indexed documents: a key-free lexical similarity graph, hierarchical community detection (`scripts/communities.py`), and bottom-up per-community reports persisted to `index.db` (`internal/brain/community-report`, `scripts/agents/community_reporter.py`) that power `global`-mode ask. Rebuilt on demand via `internal/brain/graph-rebuild`, never on the write path.
 
-30 internal procedures are routed via a single Claude-Code-visible skill, `memex:run`, which dispatches natural-language user intents and agent-facing CRUD operations to the matching procedure on demand. This keeps the plugin's skill-description footprint well under Claude Code's 1% budget.
+31 internal procedures are routed via a single Claude-Code-visible skill, `memex:run`, which dispatches natural-language user intents and agent-facing CRUD operations to the matching procedure on demand. This keeps the plugin's skill-description footprint well under Claude Code's 1% budget.
 
 ## Installation
 

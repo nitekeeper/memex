@@ -94,6 +94,25 @@ def test_run_skill_routes_to_index_steward_dba_skills():
         )
 
 
+# Read-only overview dashboard — a 4th steward procedure (non-hyphenated dir,
+# so the standard memex:steward:<name> frontmatter convention applies).
+def test_steward_dashboard_skill_present():
+    assert Path("internal/steward/dashboard/SKILL.md").exists(), "Missing: steward/dashboard"
+
+
+def test_steward_dashboard_skill_frontmatter():
+    content = Path("internal/steward/dashboard/SKILL.md").read_text(encoding="utf-8")
+    assert "name: memex:steward:dashboard" in content
+    assert "description:" in content
+
+
+def test_run_skill_routes_to_steward_dashboard():
+    run_content = Path("skills/run/SKILL.md").read_text(encoding="utf-8")
+    assert "internal/steward/dashboard/SKILL.md" in run_content, (
+        "memex:run missing routing entry for internal/steward/dashboard"
+    )
+
+
 BRAIN_SKILLS = ["ingest", "ask", "capture", "lint", "synthesize"]
 
 
