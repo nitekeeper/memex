@@ -65,8 +65,11 @@ PYTHONPATH="<PLUGIN_ROOT>" python3 -m scripts.dashboard --once
 | `GET /healthz` | `{"ok":true}` liveness probe |
 
 Both the dashboard search list and a 3D-graph node click open a shared, read-only
-**content overlay** that renders the document body via `textContent` only (no
-HTML injection from stored/ingested text).
+**content overlay**. The document body is **rendered as Markdown** (headings,
+lists, tables, code, blockquotes, links, bold/italic) by a dependency-free
+renderer that builds DOM nodes directly — `createElement` + `textContent` +
+sanitized link hrefs, no `innerHTML` of document text — so adversarial ingested
+markup renders as inert text, never script. A raw/rendered toggle is available.
 
 ## Safety contract
 

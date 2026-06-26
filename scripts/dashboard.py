@@ -879,12 +879,38 @@ _OVERLAY_CSS = r"""
   .doc-head { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-bottom:1px solid #2b3340; }
   .doc-title { font-size:16px; font-weight:650; word-break:break-word; }
   .doc-meta { color:#8b949e; font-size:12px; margin-top:3px; font-family:ui-monospace,Menlo,monospace; word-break:break-word; }
-  .doc-close { margin-left:auto; background:#1c2330; color:#e6edf3; border:1px solid #2b3340; border-radius:6px;
-    width:30px; height:30px; font-size:18px; line-height:1; cursor:pointer; flex:0 0 auto; }
-  .doc-close:hover { border-color:#58a6ff; }
+  .doc-head-btns { margin-left:auto; display:flex; gap:6px; flex:0 0 auto; }
+  .doc-close, .doc-toggle { background:#1c2330; color:#e6edf3; border:1px solid #2b3340; border-radius:6px;
+    height:30px; line-height:1; cursor:pointer; }
+  .doc-close { width:30px; font-size:18px; }
+  .doc-toggle { padding:0 10px; font-size:12px; }
+  .doc-close:hover, .doc-toggle:hover { border-color:#58a6ff; }
   .doc-srcnote { color:#8b949e; font-size:11px; padding:8px 16px 0; font-style:italic; }
   .doc-body { overflow:auto; padding:12px 16px 16px; }
-  .doc-body pre { margin:0; white-space:pre-wrap; word-break:break-word; font:13px/1.55 ui-monospace,Menlo,Consolas,monospace; color:#c9d1d9; }
+  /* raw view (<pre class=doc-raw>) */
+  .doc-raw { margin:0; white-space:pre-wrap; word-break:break-word; font:13px/1.55 ui-monospace,Menlo,Consolas,monospace; color:#c9d1d9; }
+  /* rendered markdown */
+  .doc-md { font:14px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#d6dde5; }
+  .doc-md h1,.doc-md h2,.doc-md h3,.doc-md h4,.doc-md h5,.doc-md h6 { line-height:1.3; margin:1.1em 0 .5em; color:#e6edf3; }
+  .doc-md h1 { font-size:1.55em; border-bottom:1px solid #2b3340; padding-bottom:.25em; }
+  .doc-md h2 { font-size:1.32em; border-bottom:1px solid #2b3340; padding-bottom:.2em; }
+  .doc-md h3 { font-size:1.15em; } .doc-md h4 { font-size:1.02em; }
+  .doc-md p { margin:.6em 0; } .doc-md *:first-child { margin-top:0; }
+  .doc-md ul,.doc-md ol { margin:.5em 0; padding-left:1.5em; } .doc-md li { margin:.2em 0; }
+  .doc-md a { color:#58a6ff; text-decoration:none; } .doc-md a:hover { text-decoration:underline; }
+  .doc-md code { background:#161b22; border:1px solid #2b3340; border-radius:4px; padding:.08em .35em;
+    font:.88em ui-monospace,Menlo,Consolas,monospace; color:#e6edf3; }
+  .doc-md pre.md-pre, .doc-md pre.md-frontmatter { background:#161b22; border:1px solid #2b3340; border-radius:8px;
+    padding:10px 12px; overflow:auto; margin:.7em 0; }
+  .doc-md pre code { background:none; border:none; padding:0; font-size:.86em; color:#c9d1d9;
+    white-space:pre; display:block; line-height:1.5; }
+  .doc-md pre.md-frontmatter { color:#8b949e; font:.82em ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; }
+  .doc-md blockquote { margin:.6em 0; padding:.1em .9em; border-left:3px solid #2b3340; color:#9aa4af; }
+  .doc-md hr { border:none; border-top:1px solid #2b3340; margin:1em 0; }
+  .doc-md strong { color:#e6edf3; } .doc-md em { font-style:italic; }
+  .doc-md table { border-collapse:collapse; margin:.7em 0; display:block; overflow:auto; max-width:100%; }
+  .doc-md th,.doc-md td { border:1px solid #2b3340; padding:5px 10px; text-align:left; vertical-align:top; }
+  .doc-md th { background:#161b22; font-weight:650; color:#e6edf3; }
 """
 
 _OVERLAY_MARKUP = r"""
@@ -895,44 +921,161 @@ _OVERLAY_MARKUP = r"""
         <div class="doc-title" id="docTitle"></div>
         <div class="doc-meta" id="docMeta"></div>
       </div>
-      <button class="doc-close" id="docClose" aria-label="Close">&times;</button>
+      <div class="doc-head-btns">
+        <button class="doc-toggle" id="docToggle" title="Toggle rendered / raw">raw</button>
+        <button class="doc-close" id="docClose" aria-label="Close">&times;</button>
+      </div>
     </div>
     <div class="doc-srcnote" id="docSrcNote"></div>
-    <div class="doc-body"><pre id="docContent"></pre></div>
+    <div class="doc-body"><div id="docContent" class="doc-md"></div></div>
   </div>
 </div>
 """
 
 _OVERLAY_JS = r"""
-let _docPrevFocus = null;
+// --- safe Markdown renderer: builds DOM nodes (textContent / createElement /
+// sanitized hrefs / whitelisted elements). Raw HTML in the source is NEVER
+// parsed — it lands as inert text — so an adversarial ingested body cannot XSS.
+function _mdSanitizeHref(url) {
+  const u = String(url).trim();
+  if (/^(https?:|mailto:)/i.test(u)) return u;          // safe schemes
+  if (/^[/#]/.test(u) || /^\.{1,2}\//.test(u)) return u; // relative / anchor
+  return null;                                           // reject javascript:, data:, etc.
+}
+function _mdInline(parent, text) {
+  text = String(text);
+  // Bound inline parsing: the regex can backtrack quadratically on a pathological
+  // single run (e.g. a 500k-char body of '['), so very long buffers render as
+  // plain text instead of freezing the tab.
+  if (text.length > 20000) { parent.appendChild(document.createTextNode(text)); return; }
+  // Code spans first (their contents are literal), then bold, italic, links.
+  const re = /(`+)([^`]+?)\1|\*\*([^*]+?)\*\*|\*([^*\s][^*]*?)\*|\[([^\]]+)\]\(([^)\s]+)\)/;
+  let rest = text;
+  while (rest.length) {
+    const m = re.exec(rest);
+    if (!m) { parent.appendChild(document.createTextNode(rest)); break; }
+    if (m.index > 0) parent.appendChild(document.createTextNode(rest.slice(0, m.index)));
+    if (m[1] !== undefined) { const c = document.createElement("code"); c.textContent = m[2]; parent.appendChild(c); }
+    else if (m[3] !== undefined) { const s = document.createElement("strong"); _mdInline(s, m[3]); parent.appendChild(s); }
+    else if (m[4] !== undefined) { const e = document.createElement("em"); _mdInline(e, m[4]); parent.appendChild(e); }
+    else { const href = _mdSanitizeHref(m[6]);
+      if (href) { const a = document.createElement("a"); a.textContent = m[5]; a.href = href; a.target = "_blank"; a.rel = "noopener noreferrer"; parent.appendChild(a); }
+      else { parent.appendChild(document.createTextNode(m[0])); } }
+    rest = rest.slice(m.index + m[0].length);
+  }
+}
+function renderMarkdown(container, text, depth) {
+  depth = depth || 0;
+  container.textContent = "";
+  if (depth > 8) {  // cap blockquote nesting so an adversarial `>>>>…` body can't overflow the stack
+    const p = document.createElement("p"); p.textContent = String(text); container.appendChild(p); return;
+  }
+  const lines = String(text).replace(/\r\n?/g, "\n").split("\n");
+  let i = 0;
+  // leading YAML frontmatter → muted block
+  if (/^---\s*$/.test(lines[0] || "")) {
+    let j = 1;
+    while (j < lines.length && !/^---\s*$/.test(lines[j])) j++;
+    if (j < lines.length) {
+      const fm = document.createElement("pre"); fm.className = "md-frontmatter";
+      fm.textContent = lines.slice(1, j).join("\n"); container.appendChild(fm); i = j + 1;
+    }
+  }
+  while (i < lines.length) {
+    const line = lines[i];
+    const fence = line.match(/^\s{0,3}(```+|~~~+)/);
+    if (fence) {
+      const mark = fence[1][0]; i++; const buf = [];
+      while (i < lines.length && !(new RegExp("^\\s{0,3}[" + mark + "]{3,}\\s*$").test(lines[i]))) { buf.push(lines[i]); i++; }
+      i++;
+      const pre = document.createElement("pre"); pre.className = "md-pre";
+      const code = document.createElement("code"); code.textContent = buf.join("\n");
+      pre.appendChild(code); container.appendChild(pre); continue;
+    }
+    if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(line)) { container.appendChild(document.createElement("hr")); i++; continue; }
+    const h = line.match(/^\s{0,3}(#{1,6})\s+(.*)$/);
+    if (h) { const el = document.createElement("h" + h[1].length); _mdInline(el, h[2].replace(/\s+#+\s*$/, "")); container.appendChild(el); i++; continue; }
+    if (/^\s{0,3}>/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^\s{0,3}>/.test(lines[i])) { buf.push(lines[i].replace(/^\s{0,3}>\s?/, "")); i++; }
+      const bq = document.createElement("blockquote"); renderMarkdown(bq, buf.join("\n"), depth + 1); container.appendChild(bq); continue;
+    }
+    if (/^\s{0,3}([-*+]|\d+[.)])\s+/.test(line)) {
+      const ordered = /^\s{0,3}\d+[.)]\s+/.test(line);
+      const itemRe = ordered ? /^\s{0,3}\d+[.)]\s+/ : /^\s{0,3}[-*+]\s+/;  // a marker-family switch ends the list
+      const list = document.createElement(ordered ? "ol" : "ul");
+      while (i < lines.length && itemRe.test(lines[i])) {
+        const li = document.createElement("li"); _mdInline(li, lines[i].replace(itemRe, "")); list.appendChild(li); i++;
+      }
+      container.appendChild(list); continue;
+    }
+    // GFM pipe table: a header row containing a pipe, then a |---|---| delimiter row.
+    if (line.indexOf("|") !== -1 && i + 1 < lines.length
+        && /^\s{0,3}\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/.test(lines[i + 1])) {
+      const splitRow = (s) => s.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+      const table = document.createElement("table");
+      const thead = document.createElement("thead"); const htr = document.createElement("tr");
+      splitRow(line).forEach((c) => { const th = document.createElement("th"); _mdInline(th, c); htr.appendChild(th); });
+      thead.appendChild(htr); table.appendChild(thead);
+      i += 2;
+      const tbody = document.createElement("tbody");
+      while (i < lines.length && lines[i].indexOf("|") !== -1 && !/^\s*$/.test(lines[i])) {
+        const tr = document.createElement("tr");
+        splitRow(lines[i]).forEach((c) => { const td = document.createElement("td"); _mdInline(td, c); tr.appendChild(td); });
+        tbody.appendChild(tr); i++;
+      }
+      table.appendChild(tbody); container.appendChild(table); continue;
+    }
+    if (/^\s*$/.test(line)) { i++; continue; }
+    const buf = [line]; i++;
+    while (i < lines.length && !/^\s*$/.test(lines[i])
+        && !/^\s{0,3}(#{1,6}\s|>|([-*+]|\d+[.)])\s|```|~~~)/.test(lines[i])
+        && !/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(lines[i])) { buf.push(lines[i]); i++; }
+    const p = document.createElement("p"); _mdInline(p, buf.join("\n")); container.appendChild(p);
+  }
+}
+
+let _docPrevFocus = null, _docRaw = "", _docRawMode = false;
+function _docRenderBody() {
+  const body = document.getElementById("docContent");
+  body.textContent = "";
+  if (_docRawMode) {
+    body.classList.remove("doc-md");
+    const pre = document.createElement("pre"); pre.className = "doc-raw"; pre.textContent = _docRaw; body.appendChild(pre);
+  } else { body.classList.add("doc-md"); renderMarkdown(body, _docRaw); }
+  document.getElementById("docToggle").textContent = _docRawMode ? "rendered" : "raw";
+}
 async function openDoc(id) {
   const ov = document.getElementById("docOverlay");
   const title = document.getElementById("docTitle");
   const meta = document.getElementById("docMeta");
   const note = document.getElementById("docSrcNote");
-  const body = document.getElementById("docContent");
   _docPrevFocus = document.activeElement;  // restore focus on close (a11y)
-  title.textContent = "Loading…"; meta.textContent = ""; note.textContent = ""; body.textContent = "";
+  _docRawMode = false;
+  title.textContent = "Loading…"; meta.textContent = ""; note.textContent = "";
+  document.getElementById("docContent").textContent = "";
   ov.classList.add("open");
   document.getElementById("docClose").focus();
   try {
     const r = await fetch("/api/doc?id=" + encodeURIComponent(id), { cache: "no-store" });
     const d = await r.json();
-    if (d.error) { title.textContent = "Not available"; body.textContent = d.error; return; }
+    if (d.error) { title.textContent = "Not available"; _docRaw = d.error; _docRenderBody(); return; }
     title.textContent = d.title || d.id;
     meta.textContent = [d.domain, d.store, d.created_at, d.created_by].filter(Boolean).join("  ·  ");
     note.textContent = d.content_source === "searchable"
       ? "showing indexed text — original source body unavailable"
       : d.content_source === "none" ? "no stored content for this document"
       : d.content_truncated ? "showing the first part — document exceeds the display limit" : "";
-    body.textContent = d.content || "(empty)";
+    _docRaw = d.content || "(empty)";
+    _docRenderBody();
     document.querySelector("#docOverlay .doc-body").scrollTop = 0;
-  } catch (e) { title.textContent = "Error"; body.textContent = "Could not load document: " + e.message; }
+  } catch (e) { title.textContent = "Error"; _docRaw = "Could not load document: " + e.message; _docRenderBody(); }
 }
 function closeDoc() {
   document.getElementById("docOverlay").classList.remove("open");
   if (_docPrevFocus && _docPrevFocus.focus) _docPrevFocus.focus();
 }
+document.getElementById("docToggle").addEventListener("click", () => { _docRawMode = !_docRawMode; _docRenderBody(); });
 document.getElementById("docClose").addEventListener("click", closeDoc);
 document.getElementById("docOverlay").addEventListener("click", (e) => { if (e.target.id === "docOverlay") closeDoc(); });
 document.addEventListener("keydown", (e) => {
@@ -1019,7 +1162,8 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .searchwrap { margin-bottom:20px; }
   #docsearch { width:100%; background:var(--panel); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:11px 13px; font-size:14px; }
   #docsearch:focus { outline:none; border-color:var(--accent); }
-  #docresults.open { margin-top:8px; background:var(--panel); border:1px solid var(--border); border-radius:8px; max-height:52vh; overflow:auto; }
+  #docresults { display:none; }
+  #docresults.open { display:block; margin-top:8px; background:var(--panel); border:1px solid var(--border); border-radius:8px; max-height:52vh; overflow:auto; }
   .dres-head { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; padding:8px 12px; border-bottom:1px solid var(--border); }
   .dres-empty { color:var(--muted); padding:12px; font-style:italic; }
   .dres-row { padding:9px 12px; border-bottom:1px solid var(--border); cursor:pointer; }
@@ -1249,6 +1393,13 @@ $("auto").addEventListener("change", (e) => {
 const dsi = $("docsearch"), dres = $("docresults");
 let dsTimer = null;
 dsi.addEventListener("input", () => { clearTimeout(dsTimer); dsTimer = setTimeout(runSearch, 180); });
+// Collapse the results when clicking anywhere outside the search box/list, or on
+// Escape (when no document overlay is open); re-open on focus if a query remains.
+document.addEventListener("click", (e) => { if (!e.target.closest(".searchwrap")) dres.classList.remove("open"); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !document.getElementById("docOverlay").classList.contains("open")) dres.classList.remove("open");
+});
+dsi.addEventListener("focus", () => { if (dsi.value.trim() && dres.children.length) dres.classList.add("open"); });
 async function runSearch() {
   const q = dsi.value.trim();
   if (!q) { dres.textContent = ""; dres.classList.remove("open"); return; }
