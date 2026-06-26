@@ -4,7 +4,7 @@ You are operating inside the **Memex product repo**. Memex is Product 1 of Skill
 
 ## Architecture in one paragraph
 
-Memex registers a single Claude-Code-visible skill — `memex:run` — which routes natural-language intent (for users) and named operations (for agents) to one of 30 internal procedures at `internal/<category>/<name>/SKILL.md` (categories: `core`, `index`, `brain`, `steward`, `dba`, `embed`, `codegraph`). This keeps the plugin under Claude Code's 1% skill-description budget while exposing the full Memex surface on demand. The v2.0 visibility model is described in the canonical v2-redesign design — see git history pre-2026-05-26 for the spec body (recoverable via `git show <pre-rm-sha>:docs/specs/2026-05-16-memex-v2-redesign-design.md`) or query the dogfooded copy via `memex:run ask`.
+Memex registers a single Claude-Code-visible skill — `memex:run` — which routes natural-language intent (for users) and named operations (for agents) to one of 31 internal procedures at `internal/<category>/<name>/SKILL.md` (categories: `core`, `index`, `brain`, `steward`, `dba`, `embed`, `codegraph`). This keeps the plugin under Claude Code's 1% skill-description budget while exposing the full Memex surface on demand. The v2.0 visibility model is described in the canonical v2-redesign design — see git history pre-2026-05-26 for the spec body (recoverable via `git show <pre-rm-sha>:docs/specs/2026-05-16-memex-v2-redesign-design.md`) or query the dogfooded copy via `memex:run ask`.
 
 ## Read at session start (only if you're working ON Memex itself, not USING it)
 

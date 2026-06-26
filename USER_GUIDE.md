@@ -20,6 +20,7 @@ Examples:
 - *"capture this thought: ..."* → `internal/brain/capture/SKILL.md`
 - *"lint my brain"* or *"audit my brain"* → `internal/brain/lint/SKILL.md`
 - *"synthesize across these sources: ..."* → `internal/brain/synthesize/SKILL.md`
+- *"show me a dashboard / overview of what's stored in Memex"* → `internal/steward/dashboard/SKILL.md`
 
 The operations below are named by their logical identifier (`memex:brain:ingest`, etc.) for clarity, but you invoke them via natural language through `memex:run`.
 
@@ -114,6 +115,10 @@ The Reference Librarian queries the Index, finds matches across your articles, a
 If you're a plugin author and want to participate, see `internal/core/create-store/SKILL.md` and `internal/index/write/SKILL.md` for the registration and write contracts.
 
 ## Maintenance
+
+### Dashboard / overview
+
+Invoke `memex:run` and say *"show me a dashboard of what's in Memex"*. Routes to `internal/steward/dashboard/SKILL.md`, which launches a **local, read-only** web overview (binds `127.0.0.1` only) summarizing every store: per-store row counts, the federated index (documents by domain/source/author, relations, embedding coverage, ingestion timeline), knowledge communities, Brain captures, the code-navigation graph, and the agent registry. It writes to nothing. For a quick textual snapshot without a browser (e.g. over SSH), run `python3 -m scripts.dashboard --once` for the same summary as JSON. For deep integrity checking (orphans, schema drift) use the audit below instead.
 
 ### Periodic audit
 
