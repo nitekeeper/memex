@@ -1,6 +1,6 @@
 ---
 name: memex:steward:dashboard
-description: Launch a local, read-only web dashboard summarizing everything stored in Memex — per-store row counts, the federated index (documents by domain/store/author, relations, embedding coverage, ingestion timeline), knowledge communities, Brain captures, the code-navigation graph, and the agent registry. Stdlib HTTP server, binds 127.0.0.1, never writes to any store.
+description: Launch a local, read-only web dashboard summarizing everything stored in Memex — per-store row counts, the federated index (documents by domain/store/author, relations, embedding coverage, ingestion timeline), knowledge communities, Brain captures, the code-navigation graph, and the agent registry — plus an interactive 3D knowledge-graph view (Obsidian-style) at /graph. Stdlib HTTP server, binds 127.0.0.1, never writes to any store.
 ---
 
 # memex:steward:dashboard
@@ -56,8 +56,10 @@ PYTHONPATH="<PLUGIN_ROOT>" python3 -m scripts.dashboard --once
 
 | Route | Returns |
 |---|---|
-| `GET /` | the self-contained dashboard page |
+| `GET /` | the self-contained dashboard page (has a **◉ 3D graph** link) |
+| `GET /graph` | an interactive **3D knowledge-graph** viewer (Obsidian-style) — documents as nodes, relations as edges, colored by community; orbit / zoom / search / click-to-focus. Dependency-free vanilla JS + canvas (no Three.js/CDN, under the same CSP). |
 | `GET /api/summary` | the cross-store summary as JSON (recomputed live each request) |
+| `GET /api/graph` | the index knowledge graph as JSON `{nodes, links, truncated}` (read-only; dangling/self edges dropped; capped at 900 nodes) |
 | `GET /healthz` | `{"ok":true}` liveness probe |
 
 ## Safety contract

@@ -112,6 +112,197 @@ def test_build_summary_requires_bootstrap(tmp_memex_home):
 
 
 # ---------------------------------------------------------------------------
+# build_graph — the 3D knowledge-graph projection
+# ---------------------------------------------------------------------------
+def _index_conn(bootstrapped_home):
+    from scripts import registry
+
+    path = {r["name"]: r for r in registry.list_stores()}["index"]["path"]
+    return sqlite3.connect(path)  # plain connect: FK off, so we can seed dangling rows
+
+
+def _insert_doc(con, index_id, *, domain="design", key=None, metadata=None):
+    con.execute(
+        "INSERT INTO documents (index_id, key, domain, store, table_name, row_id, metadata, created_by) "
+        "VALUES (?,?,?,?,?,?,?,?)",
+        (index_id, key, domain, "article", "captures", index_id, metadata, "tester"),
+    )
+
+
+def test_node_label_prefers_key_then_metadata_then_domain():
+    assert (
+        dashboard._node_label(
+            {"key": "my-key", "metadata": None, "domain": "d", "table_name": "t", "row_id": "1"}
+        )
+        == "my-key"
+    )
+    assert (
+        dashboard._node_label(
+            {
+                "key": None,
+                "metadata": '{"title": "Hello"}',
+                "domain": "d",
+                "table_name": "t",
+                "row_id": "1",
+            }
+        )
+        == "Hello"
+    )
+    assert (
+        dashboard._node_label(
+            {"key": None, "metadata": "not json", "domain": "dom", "table_name": "t", "row_id": "9"}
+        )
+        == "dom:9"
+    )
+    assert (
+        dashboard._node_label(
+            {"key": None, "metadata": None, "domain": None, "table_name": None, "row_id": "9"}
+        )
+        == "node:9"
+    )
+
+
+def test_build_graph_empty_index(bootstrapped_home):
+    g = dashboard.build_graph()
+    assert g == {"nodes": [], "links": [], "truncated": False}
+
+
+def test_build_graph_reflects_docs_and_relations(bootstrapped_home):
+    con = _index_conn(bootstrapped_home)
+    _insert_doc(con, "a", domain="design", key="Node A")
+    _insert_doc(con, "b", domain="meeting")
+    con.execute(
+        "INSERT INTO relations (from_index_id, to_index_id, rel_type, confidence) VALUES (?,?,?,?)",
+        ("a", "b", "cites", 0.9),
+    )
+    con.commit()
+    con.close()
+    g = dashboard.build_graph()
+    assert len(g["nodes"]) == 2
+    assert len(g["links"]) == 1
+    link = g["links"][0]
+    assert link["source"] == "a" and link["target"] == "b" and link["type"] == "cites"
+    labels = {n["label"] for n in g["nodes"]}
+    assert "Node A" in labels
+
+
+def test_build_graph_drops_dangling_and_self_links(bootstrapped_home):
+    con = _index_conn(bootstrapped_home)
+    _insert_doc(con, "x")
+    con.executemany(
+        "INSERT INTO relations (from_index_id, to_index_id, rel_type) VALUES (?,?,?)",
+        [("x", "ghost", "cites"), ("x", "x", "relates")],  # dangling endpoint + self-loop
+    )
+    con.commit()
+    con.close()
+    g = dashboard.build_graph()
+    assert len(g["nodes"]) == 1
+    assert g["links"] == []  # both excluded
+
+
+def test_build_graph_truncates(bootstrapped_home):
+    con = _index_conn(bootstrapped_home)
+    for i in range(3):
+        _insert_doc(con, f"n{i}")
+    con.commit()
+    con.close()
+    g = dashboard.build_graph(max_nodes=2)
+    assert len(g["nodes"]) == 2
+    assert g["truncated"] is True
+
+
+def test_build_graph_colors_by_community(bootstrapped_home):
+    con = _index_conn(bootstrapped_home)
+    _insert_doc(con, "c1")
+    con.execute(
+        "INSERT INTO community_members (community_id, index_id, level) VALUES (?,?,?)",
+        ("comm-7", "c1", 0),
+    )
+    con.commit()
+    con.close()
+    g = dashboard.build_graph()
+    assert g["nodes"][0]["community"] == "comm-7"
+
+
+def test_build_graph_survives_corrupt_index(bootstrapped_home):
+    from scripts import registry
+
+    path = {r["name"]: r for r in registry.list_stores()}["index"]["path"]
+    with open(path, "wb") as fh:
+        fh.write(b"definitely not a sqlite database")
+    g = dashboard.build_graph()  # must not raise
+    assert g["nodes"] == [] and g["links"] == []
+
+
+def test_build_graph_truncation_boundary_exact(bootstrapped_home):
+    # Exactly max_nodes documents must NOT be flagged truncated (guards > vs >=).
+    con = _index_conn(bootstrapped_home)
+    for i in range(2):
+        _insert_doc(con, f"e{i}")
+    con.commit()
+    con.close()
+    g = dashboard.build_graph(max_nodes=2)
+    assert len(g["nodes"]) == 2
+    assert g["truncated"] is False
+
+
+def test_node_label_non_dict_json_falls_back():
+    # Valid JSON that is not an object → fall through to domain:row_id.
+    for md in ("[1,2,3]", '"a string"', "null", "42"):
+        assert (
+            dashboard._node_label(
+                {"key": None, "metadata": md, "domain": "dom", "table_name": "t", "row_id": "7"}
+            )
+            == "dom:7"
+        )
+    # name / topic are accepted alongside title.
+    assert (
+        dashboard._node_label(
+            {
+                "key": None,
+                "metadata": '{"name": "N"}',
+                "domain": "d",
+                "table_name": "t",
+                "row_id": "1",
+            }
+        )
+        == "N"
+    )
+    assert (
+        dashboard._node_label(
+            {
+                "key": None,
+                "metadata": '{"topic": "T"}',
+                "domain": "d",
+                "table_name": "t",
+                "row_id": "1",
+            }
+        )
+        == "T"
+    )
+
+
+def test_build_graph_requires_bootstrap(tmp_memex_home):
+    from scripts.db import MemexNotInitializedError
+
+    with pytest.raises(MemexNotInitializedError):
+        dashboard.build_graph()
+
+
+def test_graph_html_renders_data_as_data_not_html():
+    """Static data/instruction-boundary guard over the viewer: DB-derived
+    strings must reach canvas/DOM as data (fillText/textContent), and the only
+    innerHTML writes must be empty-string clears — never data concatenation."""
+    html = dashboard.GRAPH_HTML
+    assert "ctx.fillText(a.label" in html  # node labels drawn as canvas text
+    assert ".textContent" in html  # tooltip / legend / stats set as text
+    # Every innerHTML assignment is the empty clear — no data is ever injected.
+    assert html.count("innerHTML") == html.count('innerHTML = ""')
+    assert "insertAdjacentHTML" not in html
+    assert "outerHTML" not in html
+
+
+# ---------------------------------------------------------------------------
 # HTTP layer
 # ---------------------------------------------------------------------------
 def _run_server():
@@ -144,6 +335,25 @@ def test_handler_serves_html_json_and_health(bootstrapped_home):
         status, _, body = _get(port, "/healthz")
         assert status == 200
         assert json.loads(body) == {"ok": True}
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_handler_serves_graph_page_and_api(bootstrapped_home):
+    httpd = _run_server()
+    port = httpd.server_address[1]
+    try:
+        status, ctype, body = _get(port, "/graph")
+        assert status == 200
+        assert "text/html" in ctype
+        assert b"Knowledge graph" in body
+
+        status, ctype, body = _get(port, "/api/graph")
+        assert status == 200
+        assert "application/json" in ctype
+        data = json.loads(body)
+        assert set(data) >= {"nodes", "links", "truncated"}
     finally:
         httpd.shutdown()
         httpd.server_close()
