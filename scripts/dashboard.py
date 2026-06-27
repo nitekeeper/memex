@@ -505,23 +505,43 @@ def build_graph(max_nodes: int = _GRAPH_MAX_NODES) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Keyword search + document content. Search runs over the federated index
-# (FTS5 over `documents.searchable`, with a LIKE fallback). Content is fetched
-# from the SOURCE store by `index_id` (the universal join key) since
-# `searchable` is tokenized, not the original body. All read-only.
+# Keyword search + document content. Search spans THREE surfaces, all read-only:
+#   - documents: the federated index (FTS5 over `documents.searchable`, LIKE
+#     fallback); document content is fetched from the source store by index_id.
+#   - agents: the roles/agents registry (agents.db) — name/description/profile.
+#   - code: the code-navigation graph (code_graph.db) — node labels per repo.
+# Each result carries a `kind` and a prefixed id (`role:`/`agent:`/`code:` or a
+# bare index_id); build_doc() dispatches on that prefix to the right detail.
 # ---------------------------------------------------------------------------
 _SEARCH_LIMIT = 50
+_AGENT_CODE_LIMIT = 20  # per-surface cap for the agents and code-graph groups
 _MAX_CONTENT = 500_000  # cap on content CHARACTERS shipped to the browser per document
 # Source columns that hold human-readable content, in display priority.
 _CONTENT_COLS = ["body", "content", "text", "summary", "decisions", "description", "notes", "topic"]
 
 
+def _like_escape(q: str) -> str:
+    """Escape LIKE wildcards so a query is matched literally (ESCAPE '\\')."""
+    return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _clip(text, limit: int = 160) -> str:
+    """A one-line snippet from a longer text field."""
+    return " ".join(str(text or "").split())[:limit]
+
+
+def _md_cell(text) -> str:
+    """Sanitize a value for embedding in generated Markdown (the safe renderer
+    handles XSS; this just avoids backticks/newlines breaking inline spans)."""
+    return str(text or "").replace("`", "").replace("\n", " ").strip()
+
+
 def _search_result(r: sqlite3.Row) -> dict:
     return {
+        "kind": "document",
         "id": r["index_id"],
         "title": _node_label(r),
-        "domain": r["domain"],
-        "store": r["store"],
+        "subtitle": " · ".join(x for x in (r["domain"], r["store"]) if x),
         "snippet": (r["snip"] or "").strip() if r["snip"] is not None else "",
     }
 
@@ -548,8 +568,7 @@ def _fts_search(con: sqlite3.Connection, q: str, limit: int) -> list | None:
 
 
 def _like_search(con: sqlite3.Connection, q: str, limit: int) -> list:
-    esc = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    pat = f"%{esc}%"
+    pat = f"%{_like_escape(q)}%"
     try:
         return con.execute(
             "SELECT index_id, key, domain, store, table_name, row_id, metadata, "
@@ -562,28 +581,133 @@ def _like_search(con: sqlite3.Connection, q: str, limit: int) -> list:
         return []
 
 
-def build_search(q: str, limit: int = _SEARCH_LIMIT) -> dict:
-    """Keyword search across the federated index. Read-only."""
-    require_bootstrap()
-    q = (q or "").strip()
-    base = {"results": [], "count": 0, "truncated": False, "query": q}
-    if not q:
-        return base
-    records = {r["name"]: r for r in registry.list_stores()}
-    if "index" not in records:
-        return base
-    con = _ro_connect(records["index"]["path"])
+def _search_agents(records: dict, q: str, limit: int) -> tuple[list, bool]:
+    """Search the roles/agents registry (agents.db) by name / description / profile."""
+    if "agents" not in records:
+        return [], False
+    con = _ro_connect(records["agents"]["path"])
     if con is None:
-        return base
+        return [], False
+    pat = f"%{_like_escape(q)}%"
+    # Roles and agents get INDEPENDENT budgets so a flood of matching roles can't
+    # starve matching agents out of the group (and vice versa).
+    roles: list = []
+    agents: list = []
     try:
-        rows = _fts_search(con, q, limit + 1)
-        if rows is None:
-            rows = _like_search(con, q, limit + 1)
-        truncated = len(rows) > limit
-        results = [_search_result(r) for r in rows[:limit]]
-        return {"results": results, "count": len(results), "truncated": truncated, "query": q}
+        try:
+            for r in con.execute(
+                "SELECT id, name, description FROM roles "
+                "WHERE name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' "
+                "ORDER BY name LIMIT ?",
+                (pat, pat, limit + 1),
+            ):
+                roles.append(
+                    {
+                        "kind": "agent",
+                        "id": f"role:{r['id']}",
+                        "title": r["name"],
+                        "subtitle": "role",
+                        "snippet": _clip(r["description"]),
+                    }
+                )
+        except sqlite3.Error:
+            pass
+        try:
+            for r in con.execute(
+                "SELECT id, name, profile FROM agents "
+                "WHERE name LIKE ? ESCAPE '\\' OR profile LIKE ? ESCAPE '\\' "
+                "ORDER BY name LIMIT ?",
+                (pat, pat, limit + 1),
+            ):
+                agents.append(
+                    {
+                        "kind": "agent",
+                        "id": f"agent:{r['id']}",
+                        "title": r["name"],
+                        "subtitle": "agent",
+                        "snippet": _clip(r["profile"]),
+                    }
+                )
+        except sqlite3.Error:
+            pass
+        truncated = len(roles) > limit or len(agents) > limit
+        return roles[:limit] + agents[:limit], truncated
     finally:
         con.close()
+
+
+def _search_code(q: str, limit: int) -> tuple[list, bool]:
+    """Search the code-navigation graph (code_graph.db, fixed path) by node label."""
+    con = _ro_connect(memex_home() / "code_graph.db")
+    if con is None:
+        return [], False
+    pat = f"%{_like_escape(q)}%"
+    out: list = []
+    try:
+        try:
+            for r in con.execute(
+                "SELECT repo, id, label, source_file, source_location FROM nodes "
+                "WHERE label LIKE ? ESCAPE '\\' ORDER BY label LIMIT ?",
+                (pat, limit + 1),
+            ):
+                out.append(
+                    {
+                        "kind": "code",
+                        "id": f"code:{r['repo']}|{r['id']}",
+                        "title": r["label"] or r["id"],
+                        "subtitle": " · ".join(x for x in (r["repo"], r["source_file"]) if x),
+                        "snippet": r["source_location"] or "",
+                    }
+                )
+        except sqlite3.Error:
+            pass
+        return out[:limit], len(out) > limit
+    finally:
+        con.close()
+
+
+def build_search(q: str, limit: int = _SEARCH_LIMIT) -> dict:
+    """Keyword search across documents (federated index), agents, and the code
+    graph. Returns a flat `results` list where each item carries a `kind`
+    ('document' | 'agent' | 'code'); the UI groups by kind. Read-only."""
+    require_bootstrap()
+    q = (q or "").strip()
+    if not q:
+        return {"results": [], "count": 0, "truncated": False, "query": q}
+    records = {r["name"]: r for r in registry.list_stores()}
+    results: list = []
+    doc_trunc = False
+
+    # Documents — the federated index.
+    if "index" in records:
+        con = _ro_connect(records["index"]["path"])
+        if con is not None:
+            try:
+                rows = _fts_search(con, q, limit + 1)
+                if rows is None:
+                    rows = _like_search(con, q, limit + 1)
+                doc_trunc = len(rows) > limit
+                results.extend(_search_result(r) for r in rows[:limit])
+            finally:
+                con.close()
+
+    # Agents registry.
+    agent_results, agent_trunc = _search_agents(records, q, _AGENT_CODE_LIMIT)
+    results.extend(agent_results)
+
+    # Code-navigation graph.
+    code_results, code_trunc = _search_code(q, _AGENT_CODE_LIMIT)
+    results.extend(code_results)
+
+    # Per-surface truncation so the UI only badges the groups that actually overflowed.
+    truncated_kinds = {"document": doc_trunc, "agent": agent_trunc, "code": code_trunc}
+    return {
+        "results": results,
+        "count": len(results),
+        "truncated": doc_trunc or agent_trunc or code_trunc,  # aggregate (kept for callers)
+        "truncated_kinds": truncated_kinds,
+        "query": q,
+    }
 
 
 def _extract_content(srow: sqlite3.Row) -> list[tuple[str, str]]:
@@ -641,12 +765,180 @@ def _fetch_content(records: dict, d: sqlite3.Row) -> tuple[str, str, bool]:
     return "(no stored content for this document)", "none", False
 
 
-def build_doc(index_id: str) -> dict:
-    """Full record + best-effort content for one document. Read-only."""
+def build_doc(item_id: str) -> dict:
+    """Detail for a clicked search result. Dispatches on the id prefix:
+    ``role:``/``agent:`` → registry profile, ``code:`` → code-graph node,
+    otherwise a federated-index document. Read-only."""
     require_bootstrap()
-    index_id = (index_id or "").strip()
-    if not index_id:
+    item_id = (item_id or "").strip()
+    if not item_id:
         return {"error": "missing document id"}
+    if item_id.startswith(("role:", "agent:")):
+        return _build_agent(item_id)
+    if item_id.startswith("code:"):
+        return _build_codenode(item_id)
+    return _build_document(item_id)
+
+
+def _build_agent(item_id: str) -> dict:
+    """Render a role or agent profile (agents.db) as a content doc."""
+    kind, _, ident = item_id.partition(":")
+    records = {r["name"]: r for r in registry.list_stores()}
+    if "agents" not in records:
+        return {"error": "agents store not available"}
+    con = _ro_connect(records["agents"]["path"])
+    if con is None:
+        return {"error": "agents store not available"}
+    try:
+        if kind == "role":
+            r = _row(con, "SELECT name, description FROM roles WHERE id = ?", (ident,))
+            if r is None:
+                return {"error": "role not found"}
+            content, truncated = _capped(r["description"] or "")
+            return {
+                "id": item_id,
+                "title": r["name"],
+                "subtitle": "role",
+                "content": content,
+                "content_source": "source",
+                "content_truncated": truncated,
+                "kind": "agent",
+            }
+        r = _row(
+            con,
+            "SELECT a.name AS name, a.profile AS profile, ro.name AS role "
+            "FROM agents a LEFT JOIN roles ro ON ro.id = a.role_id WHERE a.id = ?",
+            (ident,),
+        )
+        if r is None:
+            return {"error": "agent not found"}
+        content, truncated = _capped(r["profile"] or "")
+        subtitle = "agent" + (f" · {r['role']}" if r["role"] else "")
+        return {
+            "id": item_id,
+            "title": r["name"],
+            "subtitle": subtitle,
+            "content": content,
+            "content_source": "source",
+            "content_truncated": truncated,
+            "kind": "agent",
+        }
+    finally:
+        con.close()
+
+
+def _build_codenode(item_id: str) -> dict:
+    """Render a code-graph node (code_graph.db) as a Markdown summary: its
+    location plus its callers and outbound calls/uses (locations, not bodies —
+    memex does not store source text)."""
+    repo, sep, node_id = item_id[len("code:") :].partition("|")  # repo (owner/repo) has no '|'
+    if not sep:
+        return {"error": "invalid code node id"}
+    con = _ro_connect(memex_home() / "code_graph.db")
+    if con is None:
+        return {"error": "code graph not available"}
+    try:
+        node = _row(
+            con,
+            "SELECT label, file_type, source_file, source_location FROM nodes WHERE repo = ? AND id = ?",
+            (repo, node_id),
+        )
+        if node is None:
+            return {"error": "code node not found"}
+
+        def _edges(sql: str, params: tuple) -> list:
+            try:
+                return con.execute(sql, params).fetchall()
+            except sqlite3.Error:
+                return []
+
+        _CAP = 60
+
+        def _scalar(sql: str, params: tuple) -> int:
+            try:
+                row = con.execute(sql, params).fetchone()
+                return int(row[0]) if row else 0
+            except sqlite3.Error:
+                return 0
+
+        callers = _edges(
+            "SELECT n.label AS label, n.source_file AS f, n.source_location AS loc "
+            "FROM edges e JOIN nodes n ON n.repo = e.repo AND n.id = e.source "
+            "WHERE e.repo = ? AND e.target = ? AND e.relation = 'calls' ORDER BY n.label LIMIT ?",
+            (repo, node_id, _CAP),
+        )
+        callers_total = _scalar(
+            "SELECT COUNT(*) FROM edges WHERE repo = ? AND target = ? AND relation = 'calls'",
+            (repo, node_id),
+        )
+        # LEFT JOIN: a cross-file edge's TARGET node may not be ingested (target is
+        # intentionally not an FK), so show the raw target id when no node row exists.
+        outbound = _edges(
+            "SELECT DISTINCT COALESCE(n.label, e.target) AS label, e.relation AS rel "
+            "FROM edges e LEFT JOIN nodes n ON n.repo = e.repo AND n.id = e.target "
+            "WHERE e.repo = ? AND e.source = ? "
+            "AND e.relation IN ('calls','uses','imports','imports_from','inherits') "
+            "ORDER BY label LIMIT ?",
+            (repo, node_id, _CAP),
+        )
+        # Count at the SAME grain as the rendered list (DISTINCT label+relation over the
+        # LEFT JOIN) so the "N of M" header can't claim more than the list distinguishes.
+        outbound_total = _scalar(
+            "SELECT COUNT(*) FROM (SELECT DISTINCT COALESCE(n.label, e.target) AS lbl, e.relation AS rel "
+            "FROM edges e LEFT JOIN nodes n ON n.repo = e.repo AND n.id = e.target "
+            "WHERE e.repo = ? AND e.source = ? "
+            "AND e.relation IN ('calls','uses','imports','imports_from','inherits'))",
+            (repo, node_id),
+        )
+
+        def _floc(src_file, src_loc) -> str:
+            s = src_file or ""
+            if src_loc:
+                s = f"{s}:{src_loc}"
+            return _md_cell(s)
+
+        def _shown(n: int, total: int) -> str:
+            return f"{n} of {total}" if total > n else str(n)
+
+        lines = [
+            f"`{_md_cell(repo)}`",
+            "",
+        ]  # backtick-wrap: repo is an identifier (DATA), not Markdown
+        floc = _floc(node["source_file"], node["source_location"])
+        if floc:
+            ftype = _md_cell(node["file_type"])
+            # backtick-wrap (a path is DATA, not Markdown — keeps it from forming a link)
+            lines.append(f"`{floc}`" + (f" · `{ftype}`" if ftype else ""))
+        if callers:
+            lines.append("")
+            lines.append(f"## Called by ({_shown(len(callers), callers_total)})")
+            for c in callers:
+                where = _floc(c["f"], c["loc"])
+                lines.append(
+                    "- `" + _md_cell(c["label"]) + "`" + (f" — `{where}`" if where else "")
+                )
+        if outbound:
+            lines.append("")
+            lines.append(f"## Calls / uses ({_shown(len(outbound), outbound_total)})")
+            for o in outbound:
+                lines.append("- `" + _md_cell(o["label"]) + "` _" + _md_cell(o["rel"]) + "_")
+        if not callers and not outbound:
+            lines += ["", "_no recorded callers or dependencies_"]
+        return {
+            "id": item_id,
+            "title": node["label"] or node_id,
+            "subtitle": " · ".join(x for x in (repo, node["source_file"]) if x),
+            "content": "\n".join(lines),
+            "content_source": "source",
+            "content_truncated": False,
+            "kind": "code",
+        }
+    finally:
+        con.close()
+
+
+def _build_document(index_id: str) -> dict:
+    """Full record + best-effort content for one federated-index document."""
     records = {r["name"]: r for r in registry.list_stores()}
     if "index" not in records:
         return {"error": "index store not available"}
@@ -1061,7 +1353,7 @@ async function openDoc(id) {
     const d = await r.json();
     if (d.error) { title.textContent = "Not available"; _docRaw = d.error; _docRenderBody(); return; }
     title.textContent = d.title || d.id;
-    meta.textContent = [d.domain, d.store, d.created_at, d.created_by].filter(Boolean).join("  ·  ");
+    meta.textContent = d.subtitle || [d.domain, d.store, d.created_at, d.created_by].filter(Boolean).join("  ·  ");
     note.textContent = d.content_source === "searchable"
       ? "showing indexed text — original source body unavailable"
       : d.content_source === "none" ? "no stored content for this document"
@@ -1187,7 +1479,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
 </header>
 <main>
   <div class="searchwrap">
-    <input id="docsearch" type="text" placeholder="🔍  search documents by keyword…" autocomplete="off" spellcheck="false">
+    <input id="docsearch" type="text" placeholder="🔍  search documents, agents, code…" autocomplete="off" spellcheck="false">
     <div id="docresults"></div>
   </div>
   <div id="err"></div>
@@ -1408,20 +1700,26 @@ async function runSearch() {
     renderResults(await r.json());
   } catch (e) { dres.classList.add("open"); dres.textContent = ""; dres.appendChild(el("div", { class: "dres-empty" }, ["search failed: " + e.message])); }
 }
+const SEARCH_GROUPS = [["document", "Documents"], ["agent", "Agents"], ["code", "Code graph"]];
 function renderResults(d) {
   if (d.query !== undefined && d.query !== dsi.value.trim()) return;  // stale response — input moved on
   dres.textContent = ""; dres.classList.add("open");
   if (d.error) { dres.appendChild(el("div", { class: "dres-empty" }, [d.error])); return; }
   if (!d.results || !d.results.length) { dres.appendChild(el("div", { class: "dres-empty" }, ["no matches for “" + d.query + "”"])); return; }
-  dres.appendChild(el("div", { class: "dres-head" }, [d.count + (d.truncated ? "+" : "") + " result" + (d.count === 1 ? "" : "s")]));
-  d.results.forEach((x) => {
-    const row = el("div", { class: "dres-row" }, [
-      el("div", { class: "dres-title" }, [x.title || x.id]),
-      el("div", { class: "dres-sub" }, [(x.domain || "—") + " · " + (x.store || "")]),
-    ]);
-    if (x.snippet) row.appendChild(el("div", { class: "dres-snip" }, [x.snippet]));
-    row.addEventListener("click", () => openDoc(x.id));
-    dres.appendChild(row);
+  SEARCH_GROUPS.forEach(([kind, label]) => {
+    const items = d.results.filter((x) => x.kind === kind);
+    if (!items.length) return;
+    const more = d.truncated_kinds && d.truncated_kinds[kind] ? "+" : "";
+    dres.appendChild(el("div", { class: "dres-head" }, [label + " · " + items.length + more]));
+    items.forEach((x) => {
+      const row = el("div", { class: "dres-row" }, [
+        el("div", { class: "dres-title" }, [x.title || x.id]),
+        el("div", { class: "dres-sub" }, [x.subtitle || ""]),
+      ]);
+      if (x.snippet) row.appendChild(el("div", { class: "dres-snip" }, [x.snippet]));
+      row.addEventListener("click", () => openDoc(x.id));
+      dres.appendChild(row);
+    });
   });
 }
 /*OVERLAY_JS*/

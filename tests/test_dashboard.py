@@ -398,16 +398,20 @@ def test_build_search_empty_query(bootstrapped_home):
     assert g == {"results": [], "count": 0, "truncated": False, "query": ""}
 
 
+def _docs(res):
+    """Document-kind results only (search now also spans agents + code)."""
+    return [r for r in res["results"] if r["kind"] == "document"]
+
+
 def test_build_search_finds_by_keyword(bootstrapped_home):
     con = _index_conn(bootstrapped_home)
     _insert_doc(con, "q1", key="Quantum notes", searchable="quantum entanglement teleportation")
     _insert_doc(con, "q2", key="Bread recipe", searchable="sourdough flour water salt")
     con.commit()
     con.close()
-    g = dashboard.build_search("quantum")
-    assert g["count"] == 1
-    assert g["results"][0]["id"] == "q1"
-    assert g["results"][0]["title"] == "Quantum notes"
+    docs = _docs(dashboard.build_search("quantum"))
+    assert len(docs) == 1
+    assert docs[0]["id"] == "q1" and docs[0]["title"] == "Quantum notes"
 
 
 def test_build_search_injection_is_safe(bootstrapped_home):
@@ -415,15 +419,14 @@ def test_build_search_injection_is_safe(bootstrapped_home):
     _insert_doc(con, "s1", key="hello", searchable="hello world")
     con.commit()
     con.close()
-    # FTS/SQL-shaped input must not raise AND must not spuriously match-all: the only
-    # planted doc contains just "hello world", so anything not mentioning a real token
-    # must return 0 results (proves no injection / no match-all).
+    # FTS/SQL-shaped input must not raise AND must not spuriously match-all the
+    # document surface: the only planted doc contains just "hello world".
     for q in ['" OR 1=1; --', "a AND b OR", "''''", "%"]:
         res = dashboard.build_search(q)
         assert isinstance(res["results"], list)
-        assert res["count"] == 0, f"unexpected match for {q!r}"
+        assert not _docs(res), f"unexpected document match for {q!r}"
     # A query that legitimately tokenizes to a present term still matches.
-    assert dashboard.build_search("world*(")["count"] == 1
+    assert len(_docs(dashboard.build_search("world*("))) == 1
 
 
 def test_build_search_like_fallback_escapes_wildcards(bootstrapped_home, monkeypatch):
@@ -433,10 +436,10 @@ def test_build_search_like_fallback_escapes_wildcards(bootstrapped_home, monkeyp
     con.commit()
     con.close()
     monkeypatch.setattr(dashboard, "_fts_search", lambda *a, **k: None)  # force the LIKE path
-    assert dashboard.build_search("bravo")["count"] == 1  # keyword still matches via LIKE
-    assert "l2" in {r["id"] for r in dashboard.build_search("a_b")["results"]}  # literal underscore
-    assert dashboard.build_search("aXb")["count"] == 0  # '_' is NOT a wildcard
-    assert dashboard.build_search("%")["count"] == 0  # '%' is NOT match-all
+    assert len(_docs(dashboard.build_search("bravo"))) == 1  # keyword still matches via LIKE
+    assert "l2" in {r["id"] for r in _docs(dashboard.build_search("a_b"))}  # literal underscore
+    assert not _docs(dashboard.build_search("aXb"))  # '_' is NOT a wildcard
+    assert not _docs(dashboard.build_search("%"))  # '%' is NOT match-all
 
 
 def test_build_search_truncates(bootstrapped_home):
@@ -446,7 +449,11 @@ def test_build_search_truncates(bootstrapped_home):
     con.commit()
     con.close()
     g = dashboard.build_search("alpha", limit=2)
-    assert g["count"] == 2
+    assert len(_docs(g)) == 2
+    assert g["truncated"] is True
+    assert g["truncated_kinds"]["document"] is True
+    # Agents/code did not overflow → their per-kind flags are False (no misleading "+").
+    assert g["truncated_kinds"]["agent"] is False and g["truncated_kinds"]["code"] is False
     assert g["truncated"] is True
 
 
@@ -558,6 +565,174 @@ def test_build_doc_requires_bootstrap(tmp_memex_home):
 
     with pytest.raises(MemexNotInitializedError):
         dashboard.build_doc("x")
+
+
+# ---------------------------------------------------------------------------
+# Search over agents + code graph (the non-document surfaces)
+# ---------------------------------------------------------------------------
+def _seed_role_agent(
+    bootstrapped_home, role_name, role_desc="role body", agent_id=None, profile=""
+):
+    from scripts import registry
+
+    path = {r["name"]: r for r in registry.list_stores()}["agents"]["path"]
+    a = sqlite3.connect(path)
+    rid = a.execute(
+        "INSERT INTO roles (name, description) VALUES (?,?)", (role_name, role_desc)
+    ).lastrowid
+    if agent_id:
+        a.execute(
+            "INSERT INTO agents (id, name, role_id, profile) VALUES (?,?,?,?)",
+            (agent_id, agent_id, rid, profile),
+        )
+    a.commit()
+    a.close()
+    return rid
+
+
+def _seed_code(
+    bootstrapped_home, *, repo="acme/widget", node_id="n1", label="frobnicate", caller="the_caller"
+):
+    from scripts.db import memex_home
+
+    c = sqlite3.connect(memex_home() / "code_graph.db")  # plain connect: FK off
+    c.execute("INSERT OR IGNORE INTO repos (repo, updated_at) VALUES (?, ?)", (repo, "2026-01-01"))
+    c.execute(
+        "INSERT INTO nodes (repo,id,label,file_type,source_file,source_location) VALUES (?,?,?,?,?,?)",
+        (repo, node_id, label, "code", "src/f.py", "L10"),
+    )
+    c.execute(
+        "INSERT INTO nodes (repo,id,label,file_type,source_file,source_location) VALUES (?,?,?,?,?,?)",
+        (repo, "caller1", caller, "code", "src/c.py", "L5"),
+    )
+    c.execute(
+        "INSERT INTO edges (repo,source,target,relation) VALUES (?,?,?,?)",
+        (repo, "caller1", node_id, "calls"),
+    )
+    c.commit()
+    c.close()
+
+
+def test_build_search_includes_agents(bootstrapped_home):
+    rid = _seed_role_agent(bootstrapped_home, "Zzx Searchabletoken Role")
+    res = dashboard.build_search("searchabletoken")
+    agents = [r for r in res["results"] if r["kind"] == "agent"]
+    assert any(r["id"] == f"role:{rid}" for r in agents)
+
+
+def test_build_search_includes_code(bootstrapped_home):
+    _seed_code(bootstrapped_home, label="uniquefrobnicate")
+    res = dashboard.build_search("uniquefrobnicate")
+    code = [r for r in res["results"] if r["kind"] == "code"]
+    assert code and "uniquefrobnicate" in code[0]["title"]
+    assert code[0]["id"].startswith("code:acme/widget|")
+
+
+def test_build_doc_role_and_agent(bootstrapped_home):
+    rid = _seed_role_agent(
+        bootstrapped_home,
+        "R",
+        "the role description",
+        agent_id="agent-x",
+        profile="the agent profile",
+    )
+    role_doc = dashboard.build_doc(f"role:{rid}")
+    assert role_doc["kind"] == "agent" and role_doc["content"] == "the role description"
+    assert role_doc["title"] == "R" and role_doc["subtitle"] == "role"
+    agent_doc = dashboard.build_doc("agent:agent-x")
+    assert agent_doc["content"] == "the agent profile" and "R" in agent_doc["subtitle"]
+
+
+def test_build_doc_codenode(bootstrapped_home):
+    _seed_code(bootstrapped_home, node_id="n1", label="frob", caller="the_caller")
+    doc = dashboard.build_doc("code:acme/widget|n1")
+    assert doc["kind"] == "code" and doc["title"] == "frob"
+    assert "acme/widget" in doc["content"] and "the_caller" in doc["content"]
+
+
+def test_build_doc_dispatch_errors(bootstrapped_home):
+    assert dashboard.build_doc("role:9999999")["error"] == "role not found"
+    assert dashboard.build_doc("agent:nope")["error"] == "agent not found"
+    assert dashboard.build_doc("code:nopipe")["error"] == "invalid code node id"
+    assert dashboard.build_doc("code:acme/widget|ghost")["error"]  # node not found
+
+
+def test_search_agents_code_injection_and_wildcards_safe(bootstrapped_home):
+    _seed_role_agent(bootstrapped_home, "a_b role")  # literal underscore in name
+    _seed_code(bootstrapped_home, label="safelabel")
+    for q in ['" OR 1=1; --', "%", "x' OR '1'='1"]:
+        assert isinstance(dashboard.build_search(q)["results"], list)  # never raises
+    # '%' is literal, not match-all: no agent/code result is returned for a bare '%'
+    pct = dashboard.build_search("%")
+    assert not [r for r in pct["results"] if r["kind"] in ("agent", "code")]
+    # '_' is literal: 'a?b' style does not match 'a_b'
+    assert not [r for r in dashboard.build_search("aXb")["results"] if r["kind"] == "agent"]
+
+
+def test_search_code_degrades_when_store_missing(bootstrapped_home):
+    (bootstrapped_home / "code_graph.db").unlink(missing_ok=True)
+    res = dashboard.build_search("anything")  # must not raise
+    assert all(r["kind"] != "code" for r in res["results"])
+    assert dashboard.build_doc("code:repo|x")["error"]  # graceful
+
+
+def test_build_doc_codenode_outbound_and_empty(bootstrapped_home):
+    from scripts.db import memex_home
+
+    c = sqlite3.connect(memex_home() / "code_graph.db")
+    c.execute("INSERT OR IGNORE INTO repos (repo, updated_at) VALUES (?,?)", ("acme/widget", "t"))
+    for nid, lbl in (("src", "caller_src"), ("dst", "target_fn"), ("lonely", "lonely_fn")):
+        c.execute(
+            "INSERT INTO nodes (repo,id,label,file_type,source_file,source_location) VALUES (?,?,?,?,?,?)",
+            ("acme/widget", nid, lbl, "code", "f.py", "L1"),
+        )
+    c.executemany(
+        "INSERT INTO edges (repo,source,target,relation) VALUES (?,?,?,?)",
+        [
+            ("acme/widget", "src", "dst", "calls"),
+            (
+                "acme/widget",
+                "src",
+                "ghost_target",
+                "uses",
+            ),  # target NOT in nodes → LEFT JOIN fallback
+        ],
+    )
+    c.commit()
+    c.close()
+    out = dashboard.build_doc("code:acme/widget|src")["content"]
+    assert "## Calls / uses" in out and "target_fn" in out
+    assert "ghost_target" in out  # a dangling outbound edge still shows, by its raw target id
+    lonely = dashboard.build_doc("code:acme/widget|lonely")["content"]
+    assert "no recorded callers or dependencies" in lonely
+
+
+def test_build_doc_agent_without_role_subtitle(bootstrapped_home):
+    from scripts import registry
+
+    path = {r["name"]: r for r in registry.list_stores()}["agents"]["path"]
+    a = sqlite3.connect(path)  # FK off → can point at a missing role
+    a.execute(
+        "INSERT INTO agents (id, name, role_id, profile) VALUES (?,?,?,?)",
+        ("orphan", "Orphan", 999999, "p"),
+    )
+    a.commit()
+    a.close()
+    assert dashboard.build_doc("agent:orphan")["subtitle"] == "agent"  # no " · <role>"
+
+
+def test_build_agent_store_missing(bootstrapped_home):
+    (bootstrapped_home / "agents.db").unlink(missing_ok=True)
+    assert dashboard.build_doc("role:1")["error"]  # graceful
+    assert isinstance(dashboard.build_search("anything")["results"], list)  # search doesn't crash
+
+
+def test_code_node_id_with_pipe_roundtrips(bootstrapped_home):
+    _seed_code(bootstrapped_home, repo="acme/widget", node_id="mod|func", label="pipeyfn")
+    code = [r for r in dashboard.build_search("pipeyfn")["results"] if r["kind"] == "code"]
+    assert code and code[0]["id"] == "code:acme/widget|mod|func"
+    # split-on-FIRST-pipe resolves the node even though its id contains a '|'.
+    assert dashboard.build_doc(code[0]["id"]).get("title") == "pipeyfn"
 
 
 # ---------------------------------------------------------------------------

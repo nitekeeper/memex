@@ -60,8 +60,8 @@ PYTHONPATH="<PLUGIN_ROOT>" python3 -m scripts.dashboard --once
 | `GET /graph` | an interactive **3D knowledge-graph** viewer (Obsidian-style) — documents as nodes, relations as edges, colored by community; orbit / zoom / search / **click a node to open its content**. Dependency-free vanilla JS + canvas (no Three.js/CDN, under the same CSP). |
 | `GET /api/summary` | the cross-store summary as JSON (recomputed live each request) |
 | `GET /api/graph` | the index knowledge graph as JSON `{nodes, links, truncated}` (read-only; dangling/self edges dropped; capped at 900 nodes) |
-| `GET /api/search?q=` | keyword search over the federated index (FTS5, LIKE fallback) → `{results, count, truncated, query}` |
-| `GET /api/doc?id=` | one document's full record + best-effort content fetched from its source store by `index_id` → `{title, domain, store, content, content_source, content_truncated, …}` |
+| `GET /api/search?q=` | keyword search across **three surfaces** — documents (federated index, FTS5 + LIKE fallback), the **agents** registry (roles + agents by name/description/profile), and the **code graph** (node labels per repo) — each result carries a `kind` (`document`/`agent`/`code`); the UI groups by kind |
+| `GET /api/doc?id=` | detail for a clicked result, dispatched by id prefix: a bare `index_id` → document content from its source store; `role:`/`agent:` → a registry profile; `code:<repo>\|<node>` → a code-graph node summary (location + callers/uses) → `{title, subtitle, content, …}` |
 | `GET /healthz` | `{"ok":true}` liveness probe |
 
 Both the dashboard search list and a 3D-graph node click open a shared, read-only
