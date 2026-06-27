@@ -51,7 +51,7 @@ summary = code_graph.ingest_graph(
 
 - **Idempotent.** Re-ingesting the SAME graph yields IDENTICAL node + edge row
   counts. graphify's own `update --no-cluster` is non-idempotent (it merges
-  duplicate edges: 1459 → 2765 → 4071 → 5377 over four runs); memex's per-file
+  duplicate edges across reruns); memex's per-file
   fragment upsert (DELETE the file's prior nodes → cascade its owned edges →
   re-insert) keeps the counts constant.
 - **Stable ids.** graphify ids are content-derived; memex stores them verbatim,
@@ -95,21 +95,16 @@ PATH. memex itself imports nothing from graphify.
 
 ## Docstring presence (`has_docstring` passthrough)
 
-The `nodes` table carries a forward-compatible, NULLABLE `has_docstring` column.
-memex stays **EXTRACTOR-EXTERNAL**: ingest does NO source/AST parsing — it only
-**passes through** a node's `has_docstring` value WHEN graphify provides one.
+The `nodes` table carries a NULLABLE `has_docstring` column. ingest does NO
+AST/source parsing — it only **passes through** graphify's value when present.
 
-- graphify does **NOT** emit `has_docstring` today, so the key is absent on every
-  current graph and the column is stored as **NULL**. NULL means "extractor did
-  not report" (UNKNOWN), **NOT** "no docstring". Re-ingesting today's graphs
-  therefore preserves EXACT prior behavior (counts + idempotency unchanged).
-- When graphify starts emitting it, ingest coerces the value: missing / `None` →
-  NULL; explicit `0` / `False` → `0`; any other truthy value → `1`. The upsert
-  updates `has_docstring` on conflict, so re-ingest stays idempotent (identical
-  counts AND identical values).
+- graphify does **NOT** emit `has_docstring` today, so it stores as **NULL**.
+  NULL means "extractor did not report" (UNKNOWN), **NOT** "no docstring".
+- Coercion when emitted: missing / `None` → NULL; `0` / `False` → `0`; any other
+  truthy → `1`. The upsert updates `has_docstring` on conflict, so re-ingest
+  stays idempotent (identical counts AND values).
 - Do NOT use `rationale_for` edges as a docstring proxy — they are comment-
-  derived (`# NOTE` / `# WHY`) and body-line-keyed, not docstrings (see the query
-  SKILL's "Docstring presence / limitations").
+  derived, not docstrings.
 
 ## Notes
 
