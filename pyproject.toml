@@ -1,6 +1,6 @@
 [project]
 name = "memex"
-version = "2.15.0"
+version = "2.16.0"
 description = "Memex Core: structured memory and shared knowledge runtime for AI agents."
 requires-python = ">=3.10"
 

@@ -8,6 +8,39 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.16.0 — 2026-06-26
+
+### Added — document content renders as Markdown; search dismisses on outside-click
+
+The content overlay (opened from the dashboard search list and from a 3D-graph
+node click) now **renders Markdown** instead of showing raw text: headings,
+bold/italic, inline and fenced code, lists, blockquotes, horizontal rules, links,
+**GFM pipe tables**, and leading YAML frontmatter. A **raw/rendered toggle** is
+available in the overlay header.
+
+Because the content is an ingested (potentially adversarial) document body and
+the page runs under a strict `default-src 'none'` CSP, the renderer is
+**dependency-free and XSS-safe by construction**: it builds DOM nodes directly
+(`createElement` + `textContent` + `createTextNode`), with a link-href allow-list
+(`http`/`https`/`mailto`/relative/anchor; `javascript:`/`data:` reject to inert
+text) and a whitelist of element types. Raw HTML in the body is never parsed — it
+lands as inert text — so it can never become script, and no `innerHTML` of
+document text exists anywhere. It is DoS-guarded too: the inline parser falls back
+to plain text above 20k characters (anti quadratic-regex ReDoS) and blockquote
+recursion is depth-capped.
+
+Search results now **collapse on an outside click or Escape** (previously the
+collapse path removed only the panel chrome because a base `display:none` rule was
+missing) and re-open on focus when a query is present.
+
+22 new/updated tests in `tests/test_dashboard.py` pin the renderer's safety
+contract — that it builds the DOM (no `innerHTML` of data, tightened to require
+the exact empty-string clear), that the anchor href comes from the sanitizer, that
+the ReDoS + recursion caps remain, and that the search-collapse wiring and base
+hide rule are present.
+
+---
+
 ## v2.15.0 — 2026-06-26
 
 ### Added — keyword document search + click-to-read content overlay
