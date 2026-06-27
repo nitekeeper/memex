@@ -39,9 +39,7 @@ Use the **Task tool**:
 - `prompt`: `prep["subagent_prompt"]`
 - `model`: `claude-sonnet-4-6`
 
-> Librarian classification is reasoning-heavy but operates on a bounded
-> payload — deliberate downshift from the Opus default to sonnet; never
-> silently inherit Opus. (Enforced by `tests/test_model_tier_dispatch.py`.)
+> sonnet — bounded payload, deliberate downshift, never silent. (Enforced by `tests/test_model_tier_dispatch.py`.)
 
 Same Librarian profile + classification policy as ingest; the subagent decides `domain="capture"` (or whatever fits — Librarian's judgment).
 
@@ -58,16 +56,11 @@ Retry once on `ValueError`. After two failures, report BLOCKED.
 
 ```python
 from scripts import embeddings
-try:
-    embedding = embeddings.encode(librarian_output["searchable"])
-except embeddings.EmbeddingUnavailable as e:
-    embeddings.log_skip(
-        e,
-        caller_agent_id="brain-capture",
-        index_id=librarian_output["index_id"],
-        input_chars=len(librarian_output["searchable"]),
-    )
-    embedding = None
+embedding = embeddings.encode_or_skip(
+    librarian_output["searchable"],
+    caller_agent_id="brain-capture",
+    index_id=librarian_output["index_id"],
+)
 ```
 
 ### Step 5 — Complete
