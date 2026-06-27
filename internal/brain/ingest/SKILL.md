@@ -48,9 +48,7 @@ Use the **Task tool** with:
 - `prompt`: `prep["subagent_prompt"]`
 - `model`: `claude-sonnet-4-6`
 
-> Librarian classification is reasoning-heavy but operates on a bounded
-> payload — deliberate downshift from the Opus default to sonnet; never
-> silently inherit Opus. (Enforced by `tests/test_model_tier_dispatch.py`.)
+> sonnet — bounded payload, never the default Opus. (Enforced by `tests/test_model_tier_dispatch.py`.)
 
 The prompt embedded in `prep["subagent_prompt"]` already contains:
 - The Librarian agent's full profile (Dr. Lakshmi Iyer-Ranganathan, faceted classification, etc.) — this becomes the subagent's operating context
@@ -77,16 +75,11 @@ Call Python:
 
 ```python
 from scripts import embeddings
-try:
-    embedding = embeddings.encode(librarian_output["searchable"])
-except embeddings.EmbeddingUnavailable as e:
-    embeddings.log_skip(
-        e,
-        caller_agent_id="brain-ingest",
-        index_id=librarian_output["index_id"],
-        input_chars=len(librarian_output["searchable"]),
-    )
-    embedding = None
+embedding = embeddings.encode_or_skip(
+    librarian_output["searchable"],
+    caller_agent_id="brain-ingest",
+    index_id=librarian_output["index_id"],
+)
 ```
 
 ### Step 5 — Complete (persist)
@@ -122,6 +115,5 @@ Ingested into Brain:
 
 ## Notes
 
-- The Librarian subagent's profile is loaded into the subagent's context, not the caller's. The caller's context only carries the payload + the parsed JSON response.
 - Embedding is best-effort; without an embedding the document is still findable via FTS5 (just not via vector cosine).
 - Source-hash check happens in Step 1 before any subagent dispatch — silent rerun of identical content costs nothing.
