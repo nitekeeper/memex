@@ -32,9 +32,7 @@ Use the **Task tool**:
 - `prompt`: `prep["subagent_prompt"]`
 - `model`: `claude-haiku-4-5`
 
-> Same lightweight query-plan extraction as `memex:brain:ask` flat mode
-> (question -> FTS5/vector plan JSON) — haiku suffices; do NOT inherit the
-> orchestrator Opus default. (Enforced by `tests/test_model_tier_dispatch.py`.)
+> Mechanical query-plan extraction — haiku. (Enforced by `tests/test_model_tier_dispatch.py`.)
 
 Subagent returns a JSON query plan with `fts_query`, `vector_query`, `filters`, `limit`.
 
@@ -63,10 +61,7 @@ except embeddings.EmbeddingUnavailable as e:
     results = reference_librarian.ask_execute(prep, query_plan, with_embedding=False)
 ```
 
-Catching only `EmbeddingUnavailable` narrows the fallback to genuine
-embedding unavailability. Other exceptions (DB error, JSON parse fail in
-`ask_execute`) propagate as real bugs rather than silently becoming an
-FTS5-only search.
+Catches only `EmbeddingUnavailable`; other errors propagate (no silent FTS5-only fallback on real bugs).
 
 Returns a list of dicts: `[{index_id, key, domain, store, table_name, row_id, searchable, embedding}, ...]`. Ordered by relevance.
 
