@@ -50,10 +50,8 @@ Use the **Task tool** with:
 - `prompt`: `prep["subagent_prompt"]`
 - `model`: `claude-haiku-4-5`
 
-> The Community Reporter is mechanical JSON extraction over a
-> character-budget-bounded context; haiku suffices — do NOT inherit the
-> orchestrator Opus default. (Cost floor enforced by
-> `tests/test_model_tier_dispatch.py`.)
+> haiku — mechanical JSON extraction; enforced by
+> `tests/test_model_tier_dispatch.py`.
 
 The subagent's final message must be a JSON object:
 
@@ -86,11 +84,9 @@ unavailable embedding provider (FTS-style degraded mode):
 
 ```python
 from scripts import embeddings
-emb = None
-try:
-    emb = embeddings.encode(report["summary"])
-except embeddings.EmbeddingUnavailable as e:
-    embeddings.log_skip(e, caller_agent_id="community-reporter")
+emb = embeddings.encode_or_skip(
+    report["summary"], caller_agent_id="community-reporter", input_chars=0
+)
 
 result = community_reporter.report_complete(prep, report, embedding=emb)
 ```

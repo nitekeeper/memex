@@ -781,6 +781,70 @@ def test_log_skip_collapses_newlines_in_detail(bootstrapped_marker):
     assert "line one line two line three line four" in detail_line
 
 
+# ── encode_or_skip ────────────────────────────────────────────────────────
+
+
+def test_encode_or_skip_returns_blob_on_success(bootstrapped_marker):
+    """On success encode_or_skip returns the encoded BLOB, same as encode()."""
+    with patch("scripts.embeddings._call_provider", return_value=[0.1, 0.2, 0.3]):
+        result = embeddings.encode_or_skip("hello")
+    assert isinstance(result, bytes)
+    assert len(result) == 12  # 3 floats * 4 bytes
+
+
+def test_encode_or_skip_logs_and_returns_none(bootstrapped_marker, monkeypatch):
+    """On EmbeddingUnavailable, returns None and writes a skip row whose
+    input_chars defaults to len(text)."""
+
+    def fake_encode(text):
+        raise embeddings.EmbeddingUnavailable(
+            reason="provider_error", provider="openai", detail="transient"
+        )
+
+    monkeypatch.setattr("scripts.embeddings.encode", fake_encode)
+
+    result = embeddings.encode_or_skip("hello world", caller_agent_id="librarian-1")
+    assert result is None
+
+    from scripts.db import memex_home
+
+    log = (memex_home() / "audits" / "embedding-skip-log.md").read_text(encoding="utf-8")
+    assert "reason=provider_error" in log
+    assert "caller=librarian-1" in log
+    assert f"input_chars={len('hello world')}" in log
+
+
+def test_encode_or_skip_input_chars_zero_omits_field(bootstrapped_marker, monkeypatch):
+    """input_chars=0 is honored and (being falsy) omits the field from the
+    row — log_skip treats 0 as absent."""
+
+    def fake_encode(text):
+        raise embeddings.EmbeddingUnavailable(reason="unknown", provider="local")
+
+    monkeypatch.setattr("scripts.embeddings.encode", fake_encode)
+
+    result = embeddings.encode_or_skip("some text", input_chars=0)
+    assert result is None
+
+    from scripts.db import memex_home
+
+    log = (memex_home() / "audits" / "embedding-skip-log.md").read_text(encoding="utf-8")
+    assert "reason=unknown" in log
+    assert "input_chars=" not in log
+
+
+def test_encode_or_skip_propagates_non_embedding_errors(bootstrapped_marker, monkeypatch):
+    """Only EmbeddingUnavailable is caught; a real bug propagates unchanged."""
+
+    def fake_encode(text):
+        raise ValueError("boom")
+
+    monkeypatch.setattr("scripts.embeddings.encode", fake_encode)
+
+    with pytest.raises(ValueError, match="boom"):
+        embeddings.encode_or_skip("hello")
+
+
 # ── Caller-loop behavior ──────────────────────────────────────────────────
 
 

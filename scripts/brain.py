@@ -568,7 +568,7 @@ def synthesize_prepare(
     topic: str,
     input_index_ids: list[str],
     caller_agent_id: str,
-    char_budget: int = 50000,
+    char_budget: int = 32000,
 ) -> dict:
     """Phase 1 of brain synthesize: fetch source bodies, build Synthesizer prompt.
 
@@ -583,7 +583,7 @@ def synthesize_prepare(
     `char_budget` caps the concatenated SOURCES body so the Synthesizer Task
     prompt can never grow unbounded over full article bodies — mirrors the
     deterministic budget-fill loop in community_reporter.report_prepare /
-    global_ask_reduce_prepare. 50000 chars ~= 12.5k tokens, comfortably under
+    global_ask_reduce_prepare. 32000 chars ~= 8k tokens, comfortably under
     125k and consistent with the synthesizer's "2-6 paragraphs" scope. When the
     sources exceed the budget the returned dict carries `"truncated": True`
     (the first block is always kept regardless of budget).

@@ -138,7 +138,7 @@ def build_prompt(
     target_store: str,
     caller_agent_id: str,
     existing_index_snippet: list[dict] | None = None,
-    char_budget: int = 80000,
+    char_budget: int = 40000,
 ) -> str:
     """Build the Librarian subagent's full prompt by template substitution.
 
@@ -151,7 +151,7 @@ def build_prompt(
     truncated to the first `char_budget` chars and the payload is annotated
     with `body_truncated=True` + `body_full_chars=<original_len>` so the
     Librarian classifies honestly (structurally told the body was abbreviated)
-    rather than silently scoring a partial document. 80000 chars ~= 20k tokens,
+    rather than silently scoring a partial document. 40000 chars ~= 10k tokens,
     leaving ample room for the ~3.3k profile + index snippet + template + the
     subagent's own response budget, all far under 125k. Small payloads and
     non-dict / non-str-body payloads are left untouched (backward compatible).
@@ -165,10 +165,13 @@ def build_prompt(
         template.replace("{{LIBRARIAN_PROFILE}}", profile)
         .replace("{{TARGET_STORE}}", target_store)
         .replace("{{CALLER_AGENT_ID}}", caller_agent_id)
-        .replace("{{PAYLOAD_JSON}}", json.dumps(payload, ensure_ascii=False, indent=2))
+        .replace(
+            "{{PAYLOAD_JSON}}",
+            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+        )
         .replace(
             "{{EXISTING_INDEX_SNIPPET}}",
-            json.dumps(existing_index_snippet, ensure_ascii=False, indent=2),
+            json.dumps(existing_index_snippet, ensure_ascii=False, separators=(",", ":")),
         )
     )
 

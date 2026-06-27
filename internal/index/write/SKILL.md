@@ -61,10 +61,7 @@ Use the **Task tool**:
 - `prompt`: the value from Step 1
 - `model`: `claude-sonnet-4-6`
 
-> This is the M3 single-write-path Librarian — the integrity bottleneck
-> guarding the one write path — so it stays at sonnet (NOT haiku) to respect
-> the integrity-bottleneck guidance while still killing the silent-Opus
-> inheritance; deliberate downshift from the Opus default, never inherited.
+> sonnet (NOT haiku) — single-write-path integrity bottleneck.
 > (Enforced by `tests/test_model_tier_dispatch.py`.)
 
 The subagent's final message: JSON with `index_id`, `key`, `domain`, `searchable`, plus optional `metadata`, `relations`.
@@ -81,22 +78,17 @@ Retry Step 2 once on `ValueError`. After two failures, report `BLOCKED` and stop
 
 ```python
 from scripts import embeddings
-try:
-    embedding = embeddings.encode(librarian_output["searchable"])
-except embeddings.EmbeddingUnavailable as e:
-    embeddings.log_skip(
-        e,
-        caller_agent_id=caller_agent_id,
-        index_id=librarian_output["index_id"],
-        input_chars=len(librarian_output["searchable"]),
-    )
-    embedding = None
+embedding = embeddings.encode_or_skip(
+    librarian_output["searchable"],
+    caller_agent_id=caller_agent_id,
+    index_id=librarian_output["index_id"],
+)
 ```
 
-Catches only `EmbeddingUnavailable` (degraded-mode signal) — any other
-exception propagates so real bugs surface. `log_skip` writes a structured
-row to `~/.memex/audits/embedding-skip-log.md`; the FTS5 path is
-unaffected by the missing vector.
+`encode_or_skip` catches only `EmbeddingUnavailable` (degraded-mode signal) —
+any other exception propagates so real bugs surface. On skip it logs a
+structured row to `~/.memex/audits/embedding-skip-log.md` and returns `None`;
+the FTS5 path is unaffected by the missing vector.
 
 ### Step 5 — Persist
 
@@ -125,30 +117,15 @@ Per spec §6.1, the Index write commits BEFORE the target-store write. If the ta
 
 ## When to use the caller-built `librarian_output` path
 
-Skip the subagent when **all** of the following hold:
-
-- The caller knows the document's `domain` from context (e.g., Atelier writing to its `tasks` table knows the domain is `task`).
-- `searchable` can be built deterministically from the structured row (typically `title + body[:N]`).
-- Relations are either empty or explicit in the caller's data model (e.g., `task part_of project`). The Librarian's value-add for prose ingest is discovering cross-doc relations from text; for structured-row writers with an explicit graph, caller-built relations are strictly more accurate.
-
-For everything else — articles, transcripts, free-form notes, anything where domain or relations need to be extracted from prose — dispatch the subagent.
+Supply `librarian_output` when the caller already knows the `domain`, can build
+`searchable` deterministically, and has explicit relations; otherwise dispatch the subagent (see Step 0 and the Inputs `librarian_output` schema for the full branch).
 
 Whichever path produced the dict, `librarian.write_entry` is the single write surface. The architectural invariant (no bypass of the Index↔store coupling, Data Steward catches orphans) is preserved either way.
 
 ## GraphRAG layer staleness (derived artifacts)
 
-The GraphRAG community layer (`relations` `similar_to` edges, `communities`,
-`community_members`, `community_reports`) is DERIVED from `documents` and is
-NOT kept live on the write path — recomputing it would put a similarity scan
-+ clustering + an LLM call behind every ingest. A new document written here
-therefore makes the community layer **stale**: the new node is not yet in the
-similarity graph and not yet a member of any community.
-
-Staleness is resolved out-of-band by the operator-run maintenance entry point
-`internal/brain/graph-rebuild/SKILL.md` (build graph -> detect communities ->
-generate the missing reports). Report generation is incremental
-(`community_reporter.stale_community_ids()` returns only report-less
-communities), so a rebuild after a batch of ingests is cheap relative to the
-ingests themselves. `memex:brain:ask` in `flat` mode does not depend on the
-community layer and is always current; `global`/`local` modes read the layer
-as last rebuilt.
+A write makes the derived `similar_to` edges, `communities`, and
+`community_reports` **stale**; they are rebuilt out-of-band by
+`internal/brain/graph-rebuild` (incremental — only report-less communities are
+regenerated). `memex:brain:ask` in `flat` mode does not depend on the layer and
+is always current; `global`/`local` modes read the layer as last rebuilt.

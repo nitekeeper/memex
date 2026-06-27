@@ -396,6 +396,32 @@ def encode(text: str) -> bytes:
     return _pack(vec)
 
 
+def encode_or_skip(
+    text: str,
+    *,
+    caller_agent_id: str = "",
+    index_id: str = "",
+    input_chars: int | None = None,
+) -> bytes | None:
+    """Encode text, or log a skip row and return None on EmbeddingUnavailable.
+
+    Per-op dedup of the catch/log_skip/continue pattern that CHANGE-8 callers
+    repeat. Only EmbeddingUnavailable is caught — any other exception (a real
+    bug) propagates unchanged. When input_chars is not given it defaults to
+    len(text), matching the loop callers' convention.
+    """
+    try:
+        return encode(text)
+    except EmbeddingUnavailable as e:
+        log_skip(
+            e,
+            caller_agent_id=caller_agent_id,
+            index_id=index_id,
+            input_chars=input_chars if input_chars is not None else len(text),
+        )
+        return None
+
+
 # ── Backfill / reembed ────────────────────────────────────────────────────
 
 
