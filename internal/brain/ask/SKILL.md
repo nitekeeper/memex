@@ -26,11 +26,6 @@ community layer has been built (`internal/brain/graph-rebuild/SKILL.md`).
 | `global` | A corpus-wide / thematic question ("what are the main themes in my Brain?") | Map-reduce over `community_reports` at a level: MAP each report -> scored partial answer (drop zeros), REDUCE sort-desc + budget-fill -> final answer. |
 | `local` | An entity/neighborhood question ("what do I know about X and what's near it?") | Seed top docs by cosine, expand the `relations` neighborhood, attach the seeds' community reports, answer over the assembled context. |
 
-Both `global` and `local` depend on the derived layer; if it is empty, run
-`internal/brain/graph-rebuild/SKILL.md` first. `global` reports `no_reports` /
-`no_signal` and `local` returns empty seeds when the layer/embeddings are
-absent — degraded, not an error.
-
 ### Global mode recipe (map-reduce over community reports)
 
 ```python
@@ -43,8 +38,7 @@ if prep["status"] == "no_reports":
 scored = []
 for unit in prep["map_units"]:
     # Task tool: prompt = unit["map_prompt"], model = claude-haiku-4-5;
-    #   capture <map_response>. 0-100 relevance scoring per community report
-    #   is mechanical extraction — dispatch haiku, never inherit Opus.
+    #   capture <map_response>.
     m = brain.parse_map_response(map_response)
     scored.append({"community_id": unit["community_id"], **m})
 # REDUCE: drop zeros, sort desc, budget-fill -> reduce prompt
@@ -53,8 +47,7 @@ if red["status"] == "no_signal":
     # report "no community is relevant to <query>" and STOP
     ...
 # Task tool: prompt = red["reduce_prompt"], model = claude-sonnet-4-6; the
-#   response is the final answer. Prose synthesis over ranked partials is
-#   reasoning work but bounded — sonnet, a deliberate downshift from Opus.
+#   response is the final answer.
 ```
 
 ### Local mode recipe (neighborhood expansion)
@@ -76,9 +69,7 @@ ctx = brain.local_ask(query)
 #        community_reports:[{community_id, title, summary}]}
 # Assemble documents + community_reports into a single answering prompt and
 # dispatch ONE general-purpose subagent (Task tool, model = claude-sonnet-4-6)
-# to answer the question over them. Answer prose over an assembled, bounded
-# context is sonnet-grade — a deliberate downshift from the Opus default,
-# never silently inherited.
+# to answer the question over them.
 ```
 
 ## Recipe (Option-B Task-tool dispatch) — flat mode
@@ -103,9 +94,7 @@ Use the **Task tool** with:
 - `prompt`: `prep["subagent_prompt"]`
 - `model`: `claude-haiku-4-5`
 
-> Query-plan extraction is lightweight JSON mapping (question -> FTS5/vector
-> plan); haiku suffices — do NOT inherit the orchestrator Opus default. (Cost
-> floor enforced by `tests/test_model_tier_dispatch.py`.)
+> Query-plan extraction is mechanical JSON mapping — haiku, not Opus.
 
 The subagent's final message must be a JSON object with these fields:
 
@@ -151,8 +140,7 @@ except embeddings.EmbeddingUnavailable as e:
     results = brain.ask_execute(prep, query_plan, with_embedding=False)
 ```
 
-Catching only `EmbeddingUnavailable` lets unrelated failures (parse
-errors, missing fields) propagate as real bugs.
+Catches only `EmbeddingUnavailable`; other errors propagate.
 
 ### Step 5 — Fetch full rows + report
 
@@ -183,6 +171,5 @@ If results is empty, report `No matches in your Brain for "<query>". Try a web s
 
 ## Notes
 
-- Default behavior: hybrid retrieval (FTS5 + vector) when an embedding API key is configured; FTS5-only otherwise. The skill handles the fallback automatically.
 - Cross-store search: this skill queries every registered store via the federated Index, not just `article.db`. A question may surface results from Atelier's decisions table, meeting minutes, etc., as long as those rows were indexed via the Librarian.
 - Caller's context only carries the parsed query plan + final results. The Reference Librarian's profile and the rest of its reasoning stay in the subagent's context.
