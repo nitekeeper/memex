@@ -50,7 +50,7 @@ def test_build_prompt_default_char_budget_is_bounded():
     sig = inspect.signature(librarian.build_prompt)
     default = sig.parameters["char_budget"].default
     assert isinstance(default, int)
-    assert default <= 100000
+    assert default <= 40000
 
 
 def test_build_prompt_bounds_oversized_body(tmp_memex_home):
@@ -65,7 +65,7 @@ def test_build_prompt_bounds_oversized_body(tmp_memex_home):
         target_store="article",
         caller_agent_id="librarian-1",
     )
-    char_budget = 80000  # the enforced default
+    char_budget = 40000  # the enforced default
     # (1) prompt cannot embed the full 200000-char body untruncated.
     assert len(prompt) <= char_budget * 1.5
     # (2) the Librarian is structurally told the body was abbreviated.
