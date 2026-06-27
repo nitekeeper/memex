@@ -8,6 +8,51 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.18.0 — 2026-06-27
+
+### Changed — ~48% fewer tokens loaded per `memex:run` (behavior-preserving)
+
+A token-footprint optimization across the three tiers that enter a context
+window, with no change to what any skill does (one bounded, documented exception
+below). Measured with a fixed tokenizer:
+
+- **Always-loaded routing skill −47.7%** (`skills/run/SKILL.md`, paid on *every*
+  `memex:run`): the Step 0 cold path — platform-specific Python-install blocks,
+  the plugin-root discovery cascade, and the bootstrap consent/error prompts —
+  moves to a new `skills/run/STEP0.md`, read on demand only when a preflight
+  check actually fails. On a healthy install it is never loaded. The happy-path
+  checks (Python probe, `config.json` plugin-root read, five-path existence) and
+  the failure-branch semantics stay in the always-loaded skill; every verbatim
+  install/bootstrap/error string survives byte-for-byte in `STEP0.md`.
+- **Per-operation cost −35% to −41%**: per-procedure prose trims, and the
+  per-tier model-rationale blockquotes collapse to one-line pointers (the
+  canonical ENFORCED table already lives in `CLAUDE.md`). The repeated
+  `EmbeddingUnavailable` try/except is centralized into
+  `embeddings.encode_or_skip()`.
+- **Per-dispatch −30%** on the two LLM-dispatched agent profiles, plus compacted
+  in-prompt JSON (`separators=(",", ":")`) in the Librarian and Community-Reporter
+  prompts.
+
+### Changed — bounded large-document recall trade (the one behavior delta)
+
+The Librarian classification window (`build_prompt` char_budget) drops 80000 →
+40000 chars and the synthesize source budget drops 50000 → 32000. Documents
+longer than the window are classified/synthesized on a head window — already
+surfaced honestly via the existing `body_truncated` / `truncated` markers; the
+citation graph is unaffected (the `synthesizes` / relation edges are added
+independently of the prompt body). Anti-revert test ceilings were tightened in
+lockstep.
+
+### Internal
+
+- `tests/test_skill_run_preflight.py` repointed to assert the moved Step 0
+  verbatim blocks against `STEP0.md` (the verbatim-survival guard follows the
+  text); added `tests/test_embeddings.py` coverage for `encode_or_skip`.
+- Deterministic-agent seed profiles (Archivist, DBA, Data Steward) trimmed for
+  symmetry with the Librarian / Reference-Librarian profiles.
+- Shipped via a 3-cycle kaizen run (#15); no `model:` tier line, the M3
+  single-write-path, or any untrusted-input guard was altered.
+
 ## v2.17.0 — 2026-06-27
 
 ### Added — dashboard search now spans agents + the code graph (grouped)
