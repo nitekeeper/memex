@@ -1,6 +1,6 @@
 ---
 name: memex:steward:dashboard
-description: Launch a local, read-only web dashboard summarizing everything stored in Memex — per-store row counts, the federated index (documents by domain/store/author, relations, embedding coverage, ingestion timeline), knowledge communities, Brain captures, the code-navigation graph, and the agent registry — plus keyword document search, a click-to-read content overlay, and an interactive 3D knowledge-graph view (Obsidian-style) at /graph. Stdlib HTTP server, binds 127.0.0.1, never writes to any store.
+description: "Launch a loopback-only, read-only HTTP dashboard over Memex — per-store summary, the federated index, knowledge communities, the code-navigation graph, and the agent registry, plus keyword search, a click-to-read content overlay, and an interactive 3D knowledge-graph view."
 ---
 
 # memex:steward:dashboard
@@ -65,11 +65,8 @@ PYTHONPATH="<PLUGIN_ROOT>" python3 -m scripts.dashboard --once
 | `GET /healthz` | `{"ok":true}` liveness probe |
 
 Both the dashboard search list and a 3D-graph node click open a shared, read-only
-**content overlay**. The document body is **rendered as Markdown** (headings,
-lists, tables, code, blockquotes, links, bold/italic) by a dependency-free
-renderer that builds DOM nodes directly — `createElement` + `textContent` +
-sanitized link hrefs, no `innerHTML` of document text — so adversarial ingested
-markup renders as inert text, never script. A raw/rendered toggle is available.
+**content overlay**. Document bodies render as Markdown via a dependency-free DOM
+builder (createElement/textContent, sanitized hrefs); raw/rendered toggle.
 
 ## Safety contract
 
