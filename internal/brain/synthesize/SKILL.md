@@ -39,7 +39,7 @@ If `prep["sources"]` is empty (none of the input_index_ids matched rows in artic
 
 Otherwise continue. The prep dict contains the pre-built Synthesizer prompt.
 
-`prep["truncated"]` is `True` when the combined source bodies exceeded `synthesize_prepare`'s `char_budget` (default 50000 chars) and the tail sources were budget-trimmed from the Synthesizer prompt so the dispatched Task prompt stays bounded; it is `False` for normal-sized inputs. This is informational only — no behavior change in this recipe.
+`prep["truncated"]` is `True` when the combined source bodies exceeded `synthesize_prepare`'s `char_budget` (default 32000 chars) and the tail sources were budget-trimmed from the Synthesizer prompt.
 
 ### Step 2 — Dispatch the Synthesizer subagent
 
@@ -50,10 +50,7 @@ Use the **Task tool** with:
 - `prompt`: `prep["synthesizer_prompt"]`
 - `model`: `claude-sonnet-4-6`
 
-> Cross-document prose synthesis is reasoning-heavy but bounded by the prep'd
-> source set — a deliberate downshift from the orchestrator Opus default to
-> sonnet; never silently inherit Opus. (Enforced by
-> `tests/test_model_tier_dispatch.py`.)
+> Tier: sonnet (never Opus) — see CLAUDE.md ENFORCED table.
 
 The prompt (template at `prompts/synthesizer.md`) instructs the subagent to produce 2-6 paragraphs of prose with inline `[idx-...]` citations. The subagent's final message is the synthesis text (not JSON — just markdown prose).
 
@@ -86,9 +83,7 @@ Use the **Task tool** with:
 - `prompt`: `librarian_prompt`
 - `model`: `claude-sonnet-4-6`
 
-> Bounded classification of one synthesis document — a deliberate one-step
-> downshift from the Opus default to sonnet; never silently inherit Opus.
-> (Enforced by `tests/test_model_tier_dispatch.py`.)
+> Tier: sonnet (never Opus) — see CLAUDE.md ENFORCED table.
 
 The subagent's final message: JSON with `index_id`, `key`, `domain` (probably `"synthesis"`), `searchable`, optional `metadata`, `relations`.
 
@@ -104,16 +99,11 @@ Retry Step 4 once on `ValueError`. After two failures, report BLOCKED. Note: the
 
 ```python
 from scripts import embeddings
-try:
-    embedding = embeddings.encode(librarian_output["searchable"])
-except embeddings.EmbeddingUnavailable as e:
-    embeddings.log_skip(
-        e,
-        caller_agent_id="synthesizer-1",
-        index_id=librarian_output["index_id"],
-        input_chars=len(librarian_output["searchable"]),
-    )
-    embedding = None
+embedding = embeddings.encode_or_skip(
+    librarian_output["searchable"],
+    caller_agent_id="synthesizer-1",
+    index_id=librarian_output["index_id"],
+)
 ```
 
 ### Step 7 — Complete (persist)
@@ -143,8 +133,6 @@ Synthesized to Brain:
 
 ## Notes
 
-- The Synthesizer's output is prose, not JSON. Don't try to parse it — pass it straight through.
-- `synthesize_complete` auto-adds `synthesizes` relations even if the Librarian doesn't (since the inputs are known by construction). The Librarian's relations are still recorded — they may cite additional documents the synthesis references in passing.
 - If a source's body is unavailable (the index_id doesn't resolve in article.db.articles), it's silently dropped from the Synthesizer's input. The skill could check `prep["sources"]` vs `prep["input_index_ids"]` and warn the user if some were missed.
 - Embedding skips gracefully without an API key. The synthesis is still FTS5-searchable.
 - The two subagent dispatches are sequential, not parallel — the Librarian needs the Synthesizer's output to classify it.
