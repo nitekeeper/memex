@@ -72,10 +72,6 @@ one LLM call per new community.
 
 - Steps 1-2 are pure Python and can run head-less (no Claude Code session).
   Step 3 needs the session because it dispatches the reporter subagent.
-- After a rebuild, `memex:brain:ask` in `global` mode map-reduces over the
-  fresh `community_reports`; `local` mode seeds via FTS5 (key-free, no
-  provider), expands the fresh `relations` neighborhood, and attaches the fresh
-  reports.
 - The whole GraphRAG path (Steps 1-3 + `global`/`local` ask) runs with **zero
   embedding provider** — no OpenAI/Voyage key, no torch/sentence-transformers.
   Embeddings stay an optional enhancement for the `flat` hybrid ask only.

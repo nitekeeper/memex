@@ -55,5 +55,4 @@ If `errors > 0`, encourage the user to rerun. If `errors == considered`, the pro
 ## Notes
 
 - Backfill uses the *currently-configured* provider. If you previously had embeddings from a different provider in non-NULL rows, those are NOT touched. Mixed-provider state on dim mismatches will return garbage from `embeddings.cosine`. Use `memex:embed:reembed` to regenerate everything under a single provider.
-- This skill is pure Python — no Task tool dispatch, no LLM in the loop. Embeddings are model API calls; they're not subagent work.
 - After successful backfill, `~/.memex/registry.json:__embedding_model__` reflects the active provider/model/dim.

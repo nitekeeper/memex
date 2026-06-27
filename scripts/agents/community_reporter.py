@@ -140,7 +140,7 @@ def report_prepare(community_id: str, char_budget: int = _DEFAULT_CHAR_BUDGET) -
     subagent_prompt = (
         template.replace("{{COMMUNITY_ID}}", community_id)
         .replace("{{LEVEL}}", str(level))
-        .replace("{{MEMBER_IDS}}", json.dumps(ordered))
+        .replace("{{MEMBER_IDS}}", json.dumps(ordered, separators=(",", ":")))
         .replace("{{CONTEXT}}", context)
     )
 

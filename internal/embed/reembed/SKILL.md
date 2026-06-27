@@ -85,6 +85,6 @@ Same provider-SDK / env-var errors as `backfill`. Per-row encoding errors are co
 ## Notes
 
 - Destructive by definition: existing non-NULL embeddings are overwritten. There's no rollback. If you want to keep the old embeddings, snapshot `~/.memex/index.db` before running.
-- API cost: this is "encode every document once." For an Index with ~1000 documents under OpenAI text-embedding-3-small, expect ~$0.02 (3-small is $0.02/M tokens; average doc ~500 tokens → ~500k tokens = $0.01-ish). Voyage and Local are cheaper / free respectively.
+- API cost: encodes every document once. Cost-estimate with `dry_run` before running on a large Index; Voyage / Local are cheaper / free.
 - If you only want to fill NULL rows (e.g., you just added a key and never had embeddings before), use `memex:embed:backfill` — it's idempotent and doesn't touch existing data.
 - The recorded `__embedding_model__` in `registry.json` is updated automatically when `encode()` runs — no separate step needed to sync registry state.

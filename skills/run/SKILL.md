@@ -2,7 +2,7 @@
 description: Use to invoke any Memex v2.0 operation. Routes user-facing intents (ingest, ask, capture, lint, synthesize, dashboard) and agent-facing CRUD primitives to the right internal procedure.
 ---
 
-Memex v2 maps intent (user natural-language or agent-named) to internal procedures under `internal/<category>/<name>/SKILL.md`; full v2.0 architecture is in the per-layer acceptance docs (`docs/CORE.md`, `docs/INDEX.md`, `docs/BRAIN.md`, `docs/PACKAGING.md`) or via `memex:run ask`.
+Memex v2 maps intent (user natural-language or agent-named) to internal procedures under `internal/<category>/<name>/SKILL.md`.
 
 When this skill references `internal/<category>/<name>/SKILL.md` below, the agent should: (1) Read that file via the Read tool, (2) follow the procedure inline.
 
@@ -70,7 +70,7 @@ schema-drift detection route to `internal/steward/audit/SKILL.md` instead.
 
 ## v2 Core CRUD routing (agent-facing)
 
-Memex Core is the agent-facing CRUD substrate; these 10 procedures live at `internal/core/<name>/SKILL.md` and are reachable only via this routing table.
+These 10 procedures are reachable only via this routing table.
 
 | Agent intent | Internal procedure |
 |---|---|
@@ -87,7 +87,7 @@ Memex Core is the agent-facing CRUD substrate; these 10 procedures live at `inte
 
 ## v2 Index, Steward, and DBA routing (agent-facing)
 
-Memex maintains a federated Index (`~/.memex/index.db`) plus five internal agents: Librarian, Reference Librarian, Archivist, DBA, Data Steward. Their procedures live at `internal/<category>/<name>/SKILL.md`. Like Core, these are agent-only — the human typically reaches them through Brain rather than directly.
+Memex maintains a federated Index (`~/.memex/index.db`) plus five internal agents: Librarian, Reference Librarian, Archivist, DBA, Data Steward. Like Core, these are agent-only — the human typically reaches them through Brain rather than directly.
 
 | Agent intent | Internal procedure |
 |---|---|

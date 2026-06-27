@@ -71,11 +71,7 @@ synthesize one.
 - **graphify does not emit it today**, so in practice every value is `None` until
   the external extractor starts reporting docstring presence. Do not infer
   "undocumented" from `None`.
-- **`rationale_for` edges are NOT a docstring proxy.** That relation is
-  COMMENT-derived (`# NOTE` / `# WHY`) and body-line-keyed (it points at a body
-  line, not the def line), so using it as a docstring signal produces false
-  positives — this happened in a real run. Treat `rationale_for` as inline-
-  comment provenance only, never as documentation coverage.
+- **`rationale_for` edges are NOT a docstring proxy.** They are comment-derived (`# NOTE` / `# WHY`), not docstrings -- never treat them as documentation coverage.
 
 ## Notes
 
