@@ -9,6 +9,7 @@ in-process against an ephemeral loopback port; no real browser is involved.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import threading
 import urllib.error
@@ -332,7 +333,7 @@ def test_graph_html_renders_data_as_data_not_html():
     assert "ctx.fillText(a.label" in html  # node labels drawn as canvas text
     assert ".textContent" in html  # tooltip / legend / stats set as text
     # Every innerHTML assignment is the empty clear — no data is ever injected.
-    assert html.count("innerHTML") == html.count('innerHTML = ""')
+    assert html.count("innerHTML") == len(re.findall(r'innerHTML\s*=\s*"";', html))
     assert "insertAdjacentHTML" not in html
     assert "outerHTML" not in html
 
@@ -348,12 +349,45 @@ def test_both_pages_inject_overlay_with_no_html_injection():
             "/*OVERLAY_" not in html and "<!--OVERLAY_MARKUP-->" not in html
         )  # placeholders replaced
         assert "insertAdjacentHTML" not in html and "outerHTML" not in html
-        assert html.count("innerHTML") == html.count('innerHTML = ""')
+        assert html.count("innerHTML") == len(re.findall(r'innerHTML\s*=\s*"";', html))
         # Regression guard: the overlay markup MUST appear before the inline script
         # wires it up, or getElementById(...) returns null and the whole page dies.
         assert html.index('id="docOverlay"') < html.index(
             'getElementById("docClose").addEventListener'
         )
+
+
+def test_markdown_renderer_present_and_safe():
+    """The document content is rendered as Markdown by building DOM nodes
+    (textContent / createElement / sanitized hrefs) — never by injecting an HTML
+    string from untrusted document text."""
+    for html in (dashboard.INDEX_HTML, dashboard.GRAPH_HTML):
+        assert "function renderMarkdown" in html and "_mdSanitizeHref" in html
+        assert 'id="docContent" class="doc-md"' in html  # rendered into a div, not a raw <pre>
+        # The anchor target is the SANITIZER's return, not the raw captured URL, and an
+        # unsafe link falls back to inert text — pin both so a future edit can't silently
+        # ship a raw javascript:/data: href.
+        assert "_mdSanitizeHref(m[6])" in html and "a.href = href" in html
+        assert "createTextNode(m[0])" in html
+        assert 'rel = "noopener noreferrer"' in html  # links get safe rel
+        # DoS guards must stay: blockquote recursion cap + inline-parse length bound.
+        assert "depth > 8" in html
+        assert "text.length > 20000" in html
+        # Every innerHTML write is EXACTLY the empty clear — count-equality alone has a
+        # false negative (innerHTML = "" + data), so pin the precise form.
+        assert html.count("innerHTML") == len(re.findall(r'innerHTML\s*=\s*"";', html))
+        assert "insertAdjacentHTML" not in html and "outerHTML" not in html
+
+
+def test_dashboard_search_collapse_wiring():
+    """The search results collapse on outside-click — which needs a base hide rule
+    (removing `.open` must actually hide them) and the outside-click handler."""
+    html = dashboard.INDEX_HTML
+    assert 'class="searchwrap"' in html
+    assert 'closest(".searchwrap")' in html  # outside-click collapse handler
+    assert (
+        "#docresults { display:none; }" in html
+    )  # base hide rule, else removing .open shows nothing-changed
 
 
 # ---------------------------------------------------------------------------
