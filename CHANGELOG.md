@@ -8,6 +8,41 @@ Note: historical references to `docs/plans/`, `docs/specs/`, `docs/superpowers/`
 
 ---
 
+## v2.17.0 — 2026-06-27
+
+### Added — dashboard search now spans agents + the code graph (grouped)
+
+Dashboard keyword search previously covered only the federated document index, so
+the agents registry and the code-navigation graph were unsearchable. Search now
+spans **three surfaces**, grouped in the results list (Documents / Agents / Code):
+
+- **documents** — the federated index (FTS5 + LIKE fallback), unchanged.
+- **agents** — the roles/agents registry (`agents.db`) by name / description / profile.
+- **code** — the code-navigation graph (`code_graph.db`) by node label, per repo.
+
+Each result carries a `kind` and a prefixed id; `build_doc()` is now a dispatcher
+(`role:`/`agent:` → the registry profile, `code:<repo>|<node>` → a code-graph node
+summary of its location + callers / outbound calls-uses, otherwise → a
+federated-index document). All read-only. The agent profile and code-node summary
+render through the existing XSS-safe Markdown renderer, with every embedded value
+(labels, file paths, repo slugs) backtick-wrapped so an adversarial value cannot
+form a live link.
+
+Per-surface result caps (documents 50; agents + code 20 each, with roles and
+agents given independent budgets so neither starves the other) and per-surface
+truncation (`truncated_kinds`) so a "+" badge only appears on a group that
+actually overflowed. Code-node caller/uses sections show a true "N of M" when
+capped, and outbound edges to un-ingested target nodes still appear. New SQL is
+fully parameterized and LIKE-escaped.
+
+24 new/updated tests in `tests/test_dashboard.py` cover agent + code search and
+detail, the id-prefix dispatch and its error branches, injection / wildcard
+safety on the new surfaces, missing-store degradation, the node-id-with-pipe
+round-trip, the dangling-target fallback, and the per-surface truncation badge;
+the existing document-search assertions are scoped to `kind=="document"`.
+
+---
+
 ## v2.16.0 — 2026-06-26
 
 ### Added — document content renders as Markdown; search dismisses on outside-click
