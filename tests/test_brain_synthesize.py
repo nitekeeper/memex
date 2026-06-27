@@ -58,7 +58,7 @@ def installed_with_two_sources(tmp_memex_home):
 @pytest.fixture
 def installed_with_two_oversized_sources(tmp_memex_home):
     """Two sources whose bodies together far exceed synthesize_prepare's
-    default char_budget (2 x 40000 = 80000 chars vs 50000 budget)."""
+    default char_budget (2 x 40000 = 80000 chars vs 32000 budget)."""
     install.run()
     onboarding.register_human("human-test", "Test", "User")
 
@@ -110,7 +110,7 @@ def test_synthesize_prepare_bounds_oversized_sources(installed_with_two_oversize
         input_index_ids=["idx-big1", "idx-big2"],
         caller_agent_id="human-test",
     )
-    char_budget = 50000  # the enforced default
+    char_budget = 32000  # the enforced default
     # (1) prompt cannot balloon to the full ~80000-char concatenation.
     assert len(prep["synthesizer_prompt"]) <= char_budget * 1.5
     # (2) the oversized case is flagged truncated.
